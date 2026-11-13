@@ -73,6 +73,13 @@ func bounded(a *[8]float64) {
 		a[k] *= 2
 	}
 }
+
+func recur(n int) int {
+	if n == 0 {
+		return 0
+	}
+	return recur(n-1) + 1
+}
 `
 	ir := cltest.CompileIREx(t, src, "preempt_poll.go", false, func(prog llssa.Program) {
 		prog.EnableCooperativeSafepoints(true)
@@ -80,20 +87,26 @@ func bounded(a *[8]float64) {
 	})
 	loop := findLLVMFunction(t, ir, "loop")
 	loads := regexp.MustCompile(`load atomic i32, ptr @"[^"]*\.PreemptRequested" monotonic`)
-	if got := len(loads.FindAllString(loop, -1)); got != 2 {
-		t.Fatalf("loop has %d monotonic PreemptRequested loads, want entry plus backedge:\n%s", got, loop)
+	// Без викликів вхід не опитується: лишається зворотне ребро.
+	if got := len(loads.FindAllString(loop, -1)); got != 1 {
+		t.Fatalf("loop has %d monotonic PreemptRequested loads, want the backedge:\n%s", got, loop)
 	}
 	calls := regexp.MustCompile(`call void @"[^"]*\.CooperativeSafepoint"\(\)`)
-	if got := len(calls.FindAllString(loop, -1)); got != 2 {
-		t.Fatalf("loop has %d CooperativeSafepoint calls, want 2:\n%s", got, loop)
+	if got := len(calls.FindAllString(loop, -1)); got != 1 {
+		t.Fatalf("loop has %d CooperativeSafepoint calls, want 1:\n%s", got, loop)
 	}
-	if got := strings.Count(loop, "icmp ne i32"); got < 2 {
+	if got := strings.Count(loop, "icmp ne i32"); got < 1 {
 		t.Fatalf("CooperativeSafepoint is not guarded by the request flag:\n%s", loop)
 	}
-	// Цикл range 8 скінченний: лишається лише опитування на вході.
+	// Цикл range 8 скінченний, а викликів немає: опитувань немає зовсім.
 	bounded := findLLVMFunction(t, ir, "bounded")
-	if got := len(loads.FindAllString(bounded, -1)); got != 1 {
-		t.Fatalf("bounded has %d PreemptRequested loads, want only the entry:\n%s", got, bounded)
+	if got := len(loads.FindAllString(bounded, -1)); got != 0 {
+		t.Fatalf("bounded has %d PreemptRequested loads, want none:\n%s", got, bounded)
+	}
+	// Рекурсія без циклу поступається лише на вході.
+	recur := findLLVMFunction(t, ir, "recur")
+	if got := len(loads.FindAllString(recur, -1)); got != 1 {
+		t.Fatalf("recur has %d PreemptRequested loads, want the entry:\n%s", got, recur)
 	}
 }
 

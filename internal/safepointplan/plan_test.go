@@ -90,6 +90,32 @@ func TestUnboundedBackedges(t *testing.T) {
 	}
 }
 
+// TestNeedsEntryPoll: функції без викликів Go (P-NEW-09.10.1) опитування на
+// вході не потрібне — її цикли скінченні або опитуються самі; рекурсія і
+// будь-який виклик опитування лишають.
+func TestNeedsEntryPoll(t *testing.T) {
+	tests := []struct {
+		name string
+		src  string
+		want bool
+	}{
+		{name: "leaf", src: `package p; func f(p *int) int { return *p + 1 }`},
+		{name: "leaf loop", src: `package p; func f(n int) { for n > 0 { n-- } }`},
+		{name: "builtin", src: `package p; func f(s []int) []int { return append(s, len(s)) }`},
+		{name: "recursion", src: `package p; func f(n int) int { if n == 0 { return 0 }; return f(n-1) + 1 }`, want: true},
+		{name: "indirect call", src: `package p; func f(g func()) { g() }`, want: true},
+		{name: "go statement", src: `package p; func f(g func()) { go g() }`, want: true},
+		{name: "defer", src: `package p; func f(g func()) { defer g() }`, want: true},
+	}
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			if got := NeedsEntryPoll(buildFunction(t, test.src)); got != test.want {
+				t.Fatalf("NeedsEntryPoll = %v, want %v", got, test.want)
+			}
+		})
+	}
+}
+
 func TestBackedgesNil(t *testing.T) {
 	if got := Backedges(nil); got != nil {
 		t.Fatalf("Backedges(nil) = %v, want nil", got)
