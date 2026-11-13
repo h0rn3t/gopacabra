@@ -17,6 +17,7 @@
 package cl
 
 import (
+	"go/token"
 	"strings"
 
 	"github.com/xgo-dev/llgo/internal/safepointplan"
@@ -71,5 +72,17 @@ func (p *context) isCooperativeSafepoint(instr ssa.Instruction) bool {
 }
 
 func (p *context) emitCooperativeSafepoint(b llssa.Builder) {
-	b.Call(p.pkg.RuntimeFunc("CooperativeSafepoint"))
+	slow := p.pkg.RuntimeFunc("CooperativeSafepoint")
+	if !p.prog.PreemptRequestPollEnabled() {
+		b.Call(slow)
+		return
+	}
+	// M:N: швидкий шлях — одне атомарне читання без виклику. Monotonic не дає
+	// LLVM винести читання з циклу, а бар'єр дає сама поступка в рантаймі.
+	prog := p.prog
+	flag := p.pkg.NewVarEx(llssa.PreemptRequestedVar, prog.Pointer(prog.Int32()))
+	requests := b.Load(flag.Expr).SetOrdering(llssa.OrderingMonotonic)
+	b.IfThen(b.BinOp(token.NEQ, requests, prog.Zero(prog.Int32())), func() {
+		b.Call(slow)
+	})
 }

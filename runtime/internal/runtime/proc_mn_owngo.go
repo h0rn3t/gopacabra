@@ -51,6 +51,7 @@ type runtimeContextPlatform struct {
 	systemG    bool
 	parking    uint32 // 1 — G на стеку з резерву в SchedulerWaiter.Park
 	syscalls   int32  // вкладені марковані виклики C (EnterSyscall)
+	nopreempt  int32  // вкладені області без витіснення (procPin)
 
 	foreignThreadAttached bool
 }
@@ -152,6 +153,11 @@ type mnP struct {
 	syscalltick uint32 // росте з кожним EnterSyscall на цьому P
 	sysmonTick  uint32 // syscalltick, який sysmon бачив востаннє
 	sysmonWhen  int64  // коли sysmon уперше побачив sysmonTick
+
+	schedtick  uint32 // росте з кожною G, яку P почав виконувати
+	preempt    uint32 // 1 — sysmon просить G цього P поступитися
+	sysmonRun  uint32 // schedtick, який sysmon бачив востаннє
+	sysmonRunT int64  // коли sysmon уперше побачив sysmonRun
 }
 
 func pOf(pp *p) *mnP { return (*mnP)(unsafe.Pointer(pp)) }
@@ -739,6 +745,10 @@ func mnDropOffP(mp *m) {
 // виконати одразу (прив'язану, якій повернули P), або nil.
 func mnExecute(mp *m, gp *g) *g {
 	casgstatus(gp, _Grunnable, _Grunning)
+	pp := pOf(mp.p)
+	atomic.Store(&pp.schedtick, pp.schedtick+1) // пише лише M цього P
+	// Запит для попередньої G цього P застарів: нова G щойно стартувала.
+	mnClearPreempt(pp)
 	gp.m = mp
 	mp.curg = gp
 	atomic.Add(&mnSched.gen, 1)
@@ -808,6 +818,10 @@ func initRuntimeContext(ctx *runtimeContext, callergp *g, status uint32) *g {
 
 func newprocBackend(fn goroutineFunc, arg unsafe.Pointer, stackSize uintptr, callergp *g) {
 	mnInit()
+	// Витіснення потрібне, лише коли G більше за одну.
+	if atomic.Load(&mnSched.sysmon) == 0 {
+		mnStartSysmon()
+	}
 	gp := newproc1(fn, arg, callergp)
 	ctx := mnCtxNew(stackSize, goroutineFunc(mnGEntry), unsafe.Pointer(gp), gp.goid)
 	if ctx == nil {
@@ -932,9 +946,53 @@ func goexitBackend(gp *g) {
 	thread.Exit()
 }
 
-// CooperativeSafepoint — точка поступки кооперативних safepoints; M:N без
-// витіснення (P-NEW-09.10) нічого не робить.
-func CooperativeSafepoint() {}
+// PreemptRequested — скільки P мають запит витіснення. Safepoint, який
+// компілятор ставить на вході функції і на зворотному ребрі, читає його
+// атомарно і кличе CooperativeSafepoint лише за ненульового значення.
+var PreemptRequested int32
+
+// CooperativeSafepoint — повільний шлях safepoint: G, чий P sysmon просить
+// поступитися, іде в глобальну чергу, як після Gosched. G у виклику C (її P
+// у _Psyscall) і G без P не витісняються.
+func CooperativeSafepoint() {
+	gp := (*g)(unsafe.Pointer(currentG))
+	if gp == nil || gp.m == nil || gp.m.p == nil {
+		return
+	}
+	if pf := &gp.context.platform; pf.syscalls > 0 || pf.nopreempt > 0 {
+		return // запит лишається: поступиться перший safepoint після області
+	}
+	if !mnClearPreempt(pOf(gp.m.p)) {
+		return
+	}
+	goschedBackend()
+}
+
+// preemptDisable і preemptEnable обрамляють область procPin: вона тримає
+// pthread-м'ютекс, і G, витіснена в ній, відпускала б його з іншого потоку.
+func preemptDisable() {
+	if gp := (*g)(unsafe.Pointer(currentG)); gp != nil {
+		gp.context.platform.nopreempt++
+	}
+}
+
+func preemptEnable() {
+	if gp := (*g)(unsafe.Pointer(currentG)); gp != nil {
+		gp.context.platform.nopreempt--
+	}
+}
+
+// mnClearPreempt знімає запит витіснення з pp і каже, чи він був.
+func mnClearPreempt(pp *mnP) bool {
+	if atomic.Load(&pp.preempt) == 0 {
+		return false
+	}
+	if _, ok := atomic.CompareAndExchange(&pp.preempt, 1, 0); !ok {
+		return false
+	}
+	atomic.Add(&PreemptRequested, -1)
+	return true
+}
 
 func tryCasgstatus(gp *g, oldval, newval uint32) bool {
 	_, ok := atomic.CompareAndExchange(&gp.atomicstatus, oldval, newval)

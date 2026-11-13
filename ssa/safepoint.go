@@ -26,6 +26,22 @@ func (p Program) CooperativeSafepointsEnabled() bool {
 	return p.enableSafepoints
 }
 
+// PreemptRequestedVar names the runtime counter of pending preemption
+// requests read by every safepoint when the request poll is enabled.
+const PreemptRequestedVar = PkgRuntime + ".PreemptRequested"
+
+// EnablePreemptRequestPoll makes each cooperative safepoint load
+// PreemptRequestedVar and call the runtime only when it is non-zero
+// (owngomn).
+func (p Program) EnablePreemptRequestPoll(enable bool) {
+	p.preemptRequestPoll = enable
+}
+
+// PreemptRequestPollEnabled reports whether safepoints poll the request flag.
+func (p Program) PreemptRequestPollEnabled() bool {
+	return p.preemptRequestPoll
+}
+
 // EnableBlockingCallMarkers controls the EnterSyscall/ExitSyscall markers
 // around C calls and CallbackEnter/CallbackExit around exported entries
 // (owngomn).

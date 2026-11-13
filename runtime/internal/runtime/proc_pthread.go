@@ -174,3 +174,7 @@ func GMPForTesting() (goid, parentGoid uint64, mid int64, pid int32, gstatus, ps
 		mp.curg == gp && pp.m == mp && ctx != nil &&
 			&ctx.g == gp && &ctx.platform.m == mp && &ctx.platform.p == pp
 }
+
+// Модель 1:1 не витісняє G, тож області procPin нічого вимикати.
+func preemptDisable() {}
+func preemptEnable()  {}

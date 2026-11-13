@@ -30,6 +30,7 @@ const (
 	sysmonMinDelay = 20 * 1000        // 20 мкс: найкоротший виклик, за яким sysmon забирає P
 	sysmonMaxDelay = 10 * 1000 * 1000 // 10 мс
 	sysmonLongCall = 10 * 1000 * 1000 // P забирається навіть без роботи для нього
+	forcePreemptNS = 10 * 1000 * 1000 // G на P довше — запит витіснення (P-NEW-09.10)
 )
 
 //go:linkname mnNanotime C.owngo_mn_nanotime
@@ -162,8 +163,8 @@ func mnStartSysmon() {
 }
 
 // mnSysmon — потік sysmon без P: раз на 20 мкс – 10 мс забирає P у M, що
-// задовго в маркованому виклику C. Без роботи для забраних P пауза
-// подвоюється після 50 оглядів, як у Go.
+// задовго в маркованому виклику C, і просить витіснення G, що задовго на P.
+// Без роботи для забраних P пауза подвоюється після 50 оглядів, як у Go.
 func mnSysmon(arg unsafe.Pointer) unsafe.Pointer {
 	mp := (*m)(arg)
 	setg(mp.os.g0)
@@ -181,6 +182,23 @@ func mnSysmon(arg unsafe.Pointer) unsafe.Pointer {
 	}
 }
 
+// mnPreemptLong просить G на pp поступитися, якщо pp виконує ту саму G
+// довше за forcePreemptNS, як preemptone у Go. Запит прочитає найближчий
+// safepoint цієї G.
+func mnPreemptLong(pp *mnP, now int64) {
+	if t := atomic.Load(&pp.schedtick); t != pp.sysmonRun {
+		pp.sysmonRun, pp.sysmonRunT = t, now
+		return
+	}
+	if now-pp.sysmonRunT < forcePreemptNS {
+		return
+	}
+	pp.sysmonRunT = now
+	if _, ok := atomic.CompareAndExchange(&pp.preempt, 0, 1); ok {
+		atomic.Add(&PreemptRequested, 1)
+	}
+}
+
 // mnRetake забирає P, що стоять у _Psyscall з тим самим syscalltick з
 // минулого огляду, якщо для них є робота, вільних P немає або виклик
 // триває довше за sysmonLongCall.
@@ -191,7 +209,12 @@ func mnRetake(now int64) bool {
 	retook := false
 	for i := int32(0); i < n; i++ {
 		pp := mnSched.allp[i]
-		if atomic.Load(&pp.p.status) != _Psyscall {
+		status := atomic.Load(&pp.p.status)
+		if status == _Prunning {
+			mnPreemptLong(pp, now)
+			continue
+		}
+		if status != _Psyscall {
 			continue
 		}
 		if t := atomic.Load(&pp.syscalltick); t != pp.sysmonTick {

@@ -19,12 +19,14 @@ func initProcPinMu() {
 // preserving the exclusion that sync.Pool and sync/atomic.Value require.
 func procPin() int {
 	procPinOnce.Do(initProcPinMu)
+	preemptDisable()
 	procPinMu.Lock()
 	return 0
 }
 
 func procUnpin() {
 	procPinMu.Unlock()
+	preemptEnable()
 }
 
 //go:linkname sync_runtime_procPin sync.runtime_procPin

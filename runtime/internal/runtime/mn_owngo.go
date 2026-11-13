@@ -26,6 +26,16 @@ func mnSwitch(from, to *mnCtx)
 //go:linkname mnExit C.owngo_mn_exit
 func mnExit(from, to *mnCtx)
 
+// mnSelfCtx — контекст, що виконується: стек G з резерву або, без нього,
+// стек потоку. Контекст потоку — це g0 M, і хелпер, що зберіг би в ньому стан
+// G, зіпсував би повернення в планувальник.
+func mnSelfCtx() *mnCtx {
+	if gp := (*g)(unsafe.Pointer(currentG)); gp != nil && gp.context.platform.mn != nil {
+		return gp.context.platform.mn
+	}
+	return mnThreadCtx()
+}
+
 // mnPing — дві сторони перемикання для MNSwitchForTesting.
 type mnPing struct {
 	main, g *mnCtx
@@ -57,7 +67,10 @@ func mnPingEntry(arg unsafe.Pointer) unsafe.Pointer {
 // сторона веде свою послідовність у локальних змінних, які живуть через
 // перемикання; true — обидві суми як без перемикань.
 func MNSwitchForTesting(rounds int) bool {
-	p := &mnPing{main: mnThreadCtx(), rounds: rounds}
+	// Сирі контексти хелпера прив'язані до потоку: G не мігрує, доки він іде.
+	preemptDisable()
+	defer preemptEnable()
+	p := &mnPing{main: mnSelfCtx(), rounds: rounds}
 	p.g = mnCtxNew(0, goroutineFunc(mnPingEntry), unsafe.Pointer(p), nextGoid(nil))
 	if p.g == nil {
 		return false
@@ -95,7 +108,10 @@ func mnRunEntry(arg unsafe.Pointer) unsafe.Pointer {
 // MNRunForTesting виконує f до кінця на новому стеку G розміру stack
 // (0 — типовий). false — резерв не вдалося взяти.
 func MNRunForTesting(stack uintptr, f func()) bool {
-	r := &mnRun{main: mnThreadCtx(), f: f}
+	// Сирі контексти хелпера прив'язані до потоку: G не мігрує, доки він іде.
+	preemptDisable()
+	defer preemptEnable()
+	r := &mnRun{main: mnSelfCtx(), f: f}
 	r.g = mnCtxNew(stack, goroutineFunc(mnRunEntry), unsafe.Pointer(r), nextGoid(nil))
 	if r.g == nil {
 		return false
@@ -121,7 +137,10 @@ func mnParkEntry(arg unsafe.Pointer) unsafe.Pointer {
 // перемикання назад, кличе whileParked, поки всі припарковані, і завершує
 // їх. false — резерв для якоїсь G не вдалося взяти.
 func MNParkForTesting(n int, stack uintptr, whileParked func()) bool {
-	main := mnThreadCtx()
+	// Сирі контексти хелпера прив'язані до потоку: G не мігрує, доки він іде.
+	preemptDisable()
+	defer preemptEnable()
+	main := mnSelfCtx()
 	ps := make([]mnParked, n)
 	started := 0
 	for i := range ps {

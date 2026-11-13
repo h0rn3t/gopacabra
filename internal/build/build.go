@@ -744,7 +744,9 @@ func buildInvocation(inv Invocation, plan *initialBuildPlan) (result []Package, 
 	prog.EnableLogicalGoroutineLocality(usesSingleWorkerWasmScheduler(conf) || owngoMN)
 	prog.EnableBlockingCallMarkers(owngoMN)
 	prog.EnableThreadLocalGCRoots(useThreadLocalGCRoots(conf, wasmGC, wasmWorkers))
-	prog.EnableCooperativeSafepoints(wasmGC || wasmWorkers.Enabled())
+	// Під owngomn safepoints читають запит витіснення від sysmon (P-NEW-09.10).
+	prog.EnableCooperativeSafepoints(wasmGC || wasmWorkers.Enabled() || owngoMN)
+	prog.EnablePreemptRequestPoll(owngoMN)
 	if conf.PthreadStackSize > 0 {
 		prog.SetPthreadStackSize(uint64(conf.PthreadStackSize))
 	}
