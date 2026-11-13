@@ -37,6 +37,14 @@ func (p *context) prepareCooperativeSafepoints(fn *ssa.Function, isCgo bool) {
 	if path := safepointPackagePath(fn); path == "" || excludeSafepointPackage(path) {
 		return
 	}
+	if p.prog.PreemptRequestPollEnabled() {
+		// M:N лише витісняє: скінченним внутрішнім циклам і листовим
+		// функціям опитування не потрібне, а вбудоване в цикл воно ламає
+		// розгортання й векторизацію.
+		p.safepointEntry = safepointplan.NeedsEntryPoll(fn)
+		p.safepoints = safepointplan.UnboundedBackedges(fn)
+		return
+	}
 	p.safepointEntry = true
 	p.safepoints = safepointplan.Backedges(fn)
 }
