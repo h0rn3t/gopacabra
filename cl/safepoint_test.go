@@ -56,6 +56,36 @@ func noPoll(p *int) *int {
 	}
 }
 
+// TestCompilePreemptRequestPoll: під M:N (P-NEW-09.10) safepoint читає
+// прапорець рантайму атомарно і кличе CooperativeSafepoint лише за запиту
+// витіснення, а без опитування цикл не мав би де віддати P.
+func TestCompilePreemptRequestPoll(t *testing.T) {
+	const src = `package main
+
+func loop(n int) {
+	for n > 0 {
+		n--
+	}
+}
+`
+	ir := cltest.CompileIREx(t, src, "preempt_poll.go", false, func(prog llssa.Program) {
+		prog.EnableCooperativeSafepoints(true)
+		prog.EnablePreemptRequestPoll(true)
+	})
+	loop := findLLVMFunction(t, ir, "loop")
+	loads := regexp.MustCompile(`load atomic i32, ptr @"[^"]*\.PreemptRequested" monotonic`)
+	if got := len(loads.FindAllString(loop, -1)); got != 2 {
+		t.Fatalf("loop has %d monotonic PreemptRequested loads, want entry plus backedge:\n%s", got, loop)
+	}
+	calls := regexp.MustCompile(`call void @"[^"]*\.CooperativeSafepoint"\(\)`)
+	if got := len(calls.FindAllString(loop, -1)); got != 2 {
+		t.Fatalf("loop has %d CooperativeSafepoint calls, want 2:\n%s", got, loop)
+	}
+	if got := strings.Count(loop, "icmp ne i32"); got < 2 {
+		t.Fatalf("CooperativeSafepoint is not guarded by the request flag:\n%s", loop)
+	}
+}
+
 func TestCompileCooperativeSafepointsDisabled(t *testing.T) {
 	const src = `package main
 func loop(n int) {
