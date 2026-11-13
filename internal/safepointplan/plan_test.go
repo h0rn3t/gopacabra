@@ -55,9 +55,10 @@ left:
 	}
 }
 
-// TestUnboundedBackedges: під M:N (P-NEW-09.10.1) найглибший цикл зі
-// сталими початком, кроком і межею до maxBoundedTrip ітерацій опитування не
-// має: він скінченний, і G поступиться у зовнішньому циклі чи на вході виклику.
+// TestUnboundedBackedges: під M:N (P-NEW-09.10.1) гніздо циклів зі сталими
+// початком, кроком і межею, де зворотні ребра разом проходяться не більше
+// maxBoundedTrip разів, опитування не має: воно скінченне, і G поступиться у
+// зовнішньому циклі чи на вході виклику.
 func TestUnboundedBackedges(t *testing.T) {
 	tests := []struct {
 		name string
@@ -68,11 +69,12 @@ func TestUnboundedBackedges(t *testing.T) {
 		{name: "counted up inclusive", src: `package p; func f(a *[8]int) { for i := 1; i <= 49; i++ { a[0]++ } }`},
 		{name: "counted down", src: `package p; func f(a *[8]int) { for i := 7; i >= 0; i-- { a[i]++ } }`},
 		{name: "step two", src: `package p; func f(a *[8]int) { for i := 0; i != 8; i += 2 { a[i]++ } }`},
-		{name: "at limit", src: `package p; func f(a *[8]int) { for i := 0; i < 1024; i++ { a[0]++ } }`},
-		{name: "over limit", src: `package p; func f(a *[8]int) { for i := 0; i < 1025; i++ { a[0]++ } }`, want: 1},
+		{name: "at limit", src: `package p; func f(a *[8]int) { for i := 0; i < 4096; i++ { a[0]++ } }`},
+		{name: "over limit", src: `package p; func f(a *[8]int) { for i := 0; i < 4097; i++ { a[0]++ } }`, want: 1},
 		{name: "variable bound", src: `package p; func f(n int) { for i := 0; i < n; i++ {} }`, want: 1},
 		{name: "condition loop", src: `package p; func f(n int) { for n > 0 { n-- } }`, want: 1},
-		{name: "outer keeps poll", src: `package p; func f(a *[8]int) { for i := 0; i < 8; i++ { for k := range 8 { a[k] += i } } }`, want: 1},
+		{name: "nested bounded", src: `package p; func f(a *[8]int) { for i := 0; i < 49; i++ { for k := range 8 { a[k] += i }; for k := range 8 { a[k]-- } } }`},
+		{name: "nested over limit", src: `package p; func f(a *[8]int) { for i := 0; i < 1000; i++ { for k := range 8 { a[k] += i } } }`, want: 1},
 		{name: "inner unbounded", src: `package p; func f(n int) { for i := 0; i < 8; i++ { for n > 0 { n-- } } }`, want: 2},
 		{name: "int8 wraps", src: `package p; func f(a *[8]int) { for i := int8(0); i <= 127; i++ { a[0]++ } }`, want: 1},
 		{name: "unsigned wraps", src: `package p; func f(a *[8]int) { for i := uint(5); i >= 0; i-- { a[0]++ } }`, want: 1},
