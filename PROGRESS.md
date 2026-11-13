@@ -1613,3 +1613,24 @@
 - Ревізія `//llgointernal:tls` — у `owngo/REPORT-STAGEG.md`: 33 змінні, не 22. Нативний M:N міняє облік, профіль і кеш алокатора. `currentG`, `currentGHasLifecycle` і `currentLocalContext` лишаються на M. wasm і JS лишаються на потоці воркера.
 - Не зроблено: корпус S1.1, 10 прогонів `owngo` проти `owngo,owngomn`. `compare.py` на цій машині читав би `ru_maxrss` не як на Linux.
 - Лишилось: P-NEW-09.10 (витіснення, за умовою входу), гонитва `issue79186`.
+
+## 2026-11-13 — P-NEW-09.10 Витіснення
+
+- Умова входу — `issue25897a` у `GOROOT/test` `ci` під M:N (запис P-NEW-09.6).
+- Тести спершу:
+  - `0269b912d`: фікстура `owngo/mn/preempt`. На `GOMAXPROCS=1` G крутиться на `atomic.Bool`, друга G мусить закінчитися за 1 с; до зміни висить до `alarm(5)`;
+  - `8a779fca2`: `TestCompilePreemptRequestPoll`, до зміни не збирається.
+- Реалізація (`8a2b07be8`):
+  - під `owngomn` safepoints (`cl/safepoint.go`) читають `runtime.PreemptRequested` (`monotonic`) і кличуть `CooperativeSafepoint` лише за запиту;
+  - sysmon стартує з першою `go` і ставить P прапорець `preempt`, якщо `schedtick` не мінявся понад 10 мс;
+  - повільний шлях — `Gosched`;
+  - `procPin` вимикає витіснення (`nopreempt`).
+- Знайдено фікстурою `owngo/mn/switch`: хелпери P-NEW-09.5 зберігали стан G у контексті g0. Тепер беруть контекст G, що виконується.
+- Прийняття:
+  - `preempt` — 15–21 мс, з `-O0 -asan` теж;
+  - `issue25897a` — зелений;
+  - `fixtures.sh` — 0 з 83;
+  - `go test ./ssa`, `./cl -run 'OwnGo|Safepoint|Preempt|BlockingCall'` — ok.
+- Ціна (S1.1, `-O2 -lto thin`, 10 прогонів із чергуванням проти `8a779fca2`): binarytrees ×1.15, fannkuchredux ×1.27, mandelbrot ×2.32, бінарник +10–16%. Опитування у внутрішніх циклах зі сталою межею ламає векторизацію. Три способи прибрати ціну — у звіті.
+- Не перевірено: p99 стенду, повний `GOROOT/test` `ci`, darwin. Витіснення в області `procPin` фікстурою не покрите.
+- Лишилось: рішення про ціну safepoints, P-NEW-09.11 (гейт G), гонитва `issue79186`.
