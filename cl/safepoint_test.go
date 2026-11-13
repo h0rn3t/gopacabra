@@ -67,6 +67,12 @@ func loop(n int) {
 		n--
 	}
 }
+
+func bounded(a *[8]float64) {
+	for k := range 8 {
+		a[k] *= 2
+	}
+}
 `
 	ir := cltest.CompileIREx(t, src, "preempt_poll.go", false, func(prog llssa.Program) {
 		prog.EnableCooperativeSafepoints(true)
@@ -83,6 +89,11 @@ func loop(n int) {
 	}
 	if got := strings.Count(loop, "icmp ne i32"); got < 2 {
 		t.Fatalf("CooperativeSafepoint is not guarded by the request flag:\n%s", loop)
+	}
+	// Цикл range 8 скінченний: лишається лише опитування на вході.
+	bounded := findLLVMFunction(t, ir, "bounded")
+	if got := len(loads.FindAllString(bounded, -1)); got != 1 {
+		t.Fatalf("bounded has %d PreemptRequested loads, want only the entry:\n%s", got, bounded)
 	}
 }
 
