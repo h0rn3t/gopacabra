@@ -286,6 +286,10 @@ static sc_heap *sc_heap_get(void);
 // owngo_sc_attach робить купу *held кешем цього потоку. Нульова *held —
 // поточна купа потоку або нова; вона записується в *held і лишається за
 // викликачем (P). Вихід потоку її не кидає.
+//
+// Власна купа потоку лежить у sc_key: її створює owngo_malloc потоку без P
+// (G після виклику C, у якого забрали P). Вона лишається за потоком, доки P
+// не забере саме її, і вихід потоку кидає лише її.
 void owngo_sc_attach(void **held) {
 	pthread_once(&sc_once, sc_init);
 	sc_heap *h = held != NULL ? *held : NULL;
@@ -296,17 +300,16 @@ void owngo_sc_attach(void **held) {
 		if (held != NULL)
 			*held = h;
 	}
+	if (h == pthread_getspecific(sc_key))
+		pthread_setspecific(sc_key, NULL);
 	sc_tls = h;
-	pthread_setspecific(sc_key, NULL);
 }
 
 // owngo_sc_detach знімає кеш з потоку, не віддаючи купу. Наступний потік,
-// що візьме той самий P, чіпляє її знову.
+// що візьме той самий P, чіпляє її знову. Потік повертається до власної
+// купи, якщо вона є.
 void owngo_sc_detach(void) {
-	if (sc_tls == NULL)
-		return;
-	sc_tls = NULL;
-	pthread_setspecific(sc_key, NULL);
+	sc_tls = pthread_getspecific(sc_key);
 }
 
 // owngo_sc_heap_count — скільки куп створено з початку процесу.
