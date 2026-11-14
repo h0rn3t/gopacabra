@@ -7,3 +7,6 @@ import "unsafe"
 func bindAllocatorCache(*unsafe.Pointer) {}
 
 func unbindAllocatorCache() {}
+
+// MNAllocHeapsForTesting — під ASan купи алокатора owngo немає.
+func MNAllocHeapsForTesting() int { return 0 }

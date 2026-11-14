@@ -13,3 +13,9 @@ func owngoSCDetach()
 func bindAllocatorCache(held *unsafe.Pointer) { owngoSCAttach(held) }
 
 func unbindAllocatorCache() { owngoSCDetach() }
+
+//go:linkname owngoSCHeapCount C.owngo_sc_heap_count
+func owngoSCHeapCount() uintptr
+
+// MNAllocHeapsForTesting — скільки куп алокатора створено з початку процесу.
+func MNAllocHeapsForTesting() int { return int(owngoSCHeapCount()) }

@@ -128,6 +128,7 @@ static sc_page *sc_runs;         // вільні діапазони пулу, п
 static size_t sc_committed;      // зайняті сторінки пулу, під sc_lock
 static uint64_t sc_next_purge;   // sc_now наступної перевірки віку, під sc_lock
 static sc_heap *sc_abandoned;    // покинуті купи, під sc_lock
+static _Atomic size_t sc_heaps;  // створені купи, для owngo_sc_heap_count
 
 static __thread sc_heap *sc_tls;
 
@@ -308,6 +309,11 @@ void owngo_sc_detach(void) {
 	pthread_setspecific(sc_key, NULL);
 }
 
+// owngo_sc_heap_count — скільки куп створено з початку процесу.
+size_t owngo_sc_heap_count(void) {
+	return atomic_load_explicit(&sc_heaps, memory_order_relaxed);
+}
+
 static sc_heap *sc_heap_get(void) {
 	pthread_once(&sc_once, sc_init);
 	sc_lock_acquire();
@@ -322,6 +328,7 @@ static sc_heap *sc_heap_get(void) {
 		if (h == MAP_FAILED) {
 			abort();
 		}
+		atomic_fetch_add_explicit(&sc_heaps, 1, memory_order_relaxed);
 #ifdef OWNGO_ALLOC_STAT
 		pthread_mutex_lock(&sc_lock);
 		h->next_all = sc_all;
