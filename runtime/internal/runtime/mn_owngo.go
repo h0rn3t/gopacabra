@@ -161,3 +161,15 @@ func MNParkForTesting(n int, stack uintptr, whileParked func()) bool {
 	}
 	return started == n
 }
+
+// MNWaiterResetForTesting кладе в w (пам'ять розміру SchedulerWaiter)
+// нового очікувача поточної G, як netpoll перед кожним паркуванням.
+func MNWaiterResetForTesting(w unsafe.Pointer) {
+	*(*SchedulerWaiter)(w) = CurrentSchedulerWaiter()
+}
+
+// MNWaiterParkForTesting — Park очікувача w.
+func MNWaiterParkForTesting(w unsafe.Pointer) { (*SchedulerWaiter)(w).Park() }
+
+// MNWaiterReadyForTesting — Ready очікувача w.
+func MNWaiterReadyForTesting(w unsafe.Pointer) { (*SchedulerWaiter)(w).Ready() }
