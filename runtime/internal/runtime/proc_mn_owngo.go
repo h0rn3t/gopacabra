@@ -49,7 +49,8 @@ type runtimeContextPlatform struct {
 	glsContext LocalContext // змінні GLS цієї G
 	pless      bool         // користувацька G виконується без P
 	systemG    bool
-	parking    uint32 // 1 — G на стеку з резерву в SchedulerWaiter.Park
+	parking    uint32 // номер паркування, яке ще можна забрати; 0 — немає
+	waitseq    uint32 // номер останнього очікувача G
 	syscalls   int32  // вкладені марковані виклики C (EnterSyscall)
 	nopreempt  int32  // вкладені області без витіснення (procPin)
 
@@ -769,7 +770,7 @@ func mnExecute(mp *m, gp *g) *g {
 	case mnCallPark:
 		// Після Gwaiting Ready з іншої M може вже виконати G, а та звільнить
 		// своє очікування, тож ні його, ні gp тут більше не читаємо.
-		// Ready, що прийшов раніше, чекає на Gwaiting, поки стоїть parking.
+		// Ready, що вже забрав паркування, чекає на Gwaiting.
 		mnSetPless(gp, false)
 		casgstatus(gp, _Grunning, _Gwaiting)
 	case mnCallGosched:
@@ -1004,12 +1005,25 @@ func tryCasgstatus(gp *g, oldval, newval uint32) bool {
 type SchedulerWaiter struct {
 	gp       *g
 	notified uint32
+	// seq — номер паркування цього очікувача. Ready забирає лише його:
+	// Ready, що спізнився, не будить наступне паркування тієї самої G.
+	seq uint32
 }
 
 func CurrentSchedulerWaiter() SchedulerWaiter {
-	return SchedulerWaiter{gp: getg()}
+	gp := getg()
+	pf := &gp.context.platform
+	pf.waitseq++
+	if pf.waitseq == 0 {
+		pf.waitseq = 1
+	}
+	return SchedulerWaiter{gp: gp, seq: pf.waitseq}
 }
 
+// Park чекає на Ready. Паркування забирає хтось один, CAS-ом parking з
+// w.seq на 0: G, що побачила notified, або Ready. parking ставиться раніше
+// за перевірку notified, а Ready пише notified раніше за CAS parking, тож
+// хоч один побачить іншого.
 func (w *SchedulerWaiter) Park() {
 	gp := w.gp
 	if gp == nil || getg() != gp {
@@ -1025,42 +1039,35 @@ func (w *SchedulerWaiter) Park() {
 		CallbackExit(tok)
 		return
 	}
-	if pf.mn != nil {
-		// parking ставиться раніше за перевірку notified, а Ready пише
-		// notified раніше за читання parking: хоч один побачить іншого.
-		atomic.Store(&pf.parking, 1)
-	}
-	if _, ok := atomic.CompareAndExchange(&w.notified, 1, 0); ok {
-		atomic.Store(&pf.parking, 0)
-		return
+	atomic.Store(&pf.parking, w.seq)
+	if atomic.Load(&w.notified) == 1 {
+		if _, ok := atomic.CompareAndExchange(&pf.parking, w.seq, 0); ok {
+			atomic.Store(&w.notified, 0)
+			return
+		}
+		// Ready уже забрав паркування і чекає на Gwaiting.
 	}
 	mnInit()
 	if pf.mn != nil {
 		mnMcall(gp, mnCallPark)
-		atomic.Store(&pf.parking, 0)
 		atomic.Store(&w.notified, 0)
 		return
 	}
-	// G на рідному стеку: її M віддає P і спить, доки G не стане готовою.
+	// G на рідному стеку: її M віддає P і спить, доки Ready не зробить G
+	// готовою.
 	mp := gp.m
 	mp.os.note.clear()
 	casgstatus(gp, _Grunning, _Gwaiting)
 	mnSetPless(gp, false)
-	if atomic.Load(&w.notified) == 1 && tryCasgstatus(gp, _Gwaiting, _Grunnable) {
-		casgstatus(gp, _Grunnable, _Grunning)
-		if mp.p == nil {
-			mnSetPless(gp, true)
-		}
-		atomic.Store(&w.notified, 0)
-		return
-	}
 	mnStopLockedm(mp)
 	casgstatus(gp, _Grunnable, _Grunning)
 	atomic.Store(&w.notified, 0)
 }
 
 func (w *SchedulerWaiter) Ready() {
-	gp := w.gp
+	// Після CAS notified G може забрати сповіщення, перевикористати w і
+	// запаркуватися знову, тож w читається лише до нього.
+	gp, seq := w.gp, w.seq
 	if gp == nil {
 		fatal("runtime: ready of invalid scheduler waiter")
 		return
@@ -1068,13 +1075,14 @@ func (w *SchedulerWaiter) Ready() {
 	if _, ok := atomic.CompareAndExchange(&w.notified, 0, 1); !ok {
 		return
 	}
-	// G, що вже паркується, ще не побачила notified або g0 її M ще не
-	// опублікувала Gwaiting: чекаємо, доки G стане Gwaiting або сама
-	// забере сповіщення.
+	// Не забрали — G ще не дійшла до перевірки notified або вже забрала
+	// сповіщення сама.
+	if _, ok := atomic.CompareAndExchange(&gp.context.platform.parking, seq, 0); !ok {
+		return
+	}
+	// G паркується і без Ready не повернеться: чекаємо, доки її M
+	// опублікує Gwaiting.
 	for !tryCasgstatus(gp, _Gwaiting, _Grunnable) {
-		if atomic.Load(&gp.context.platform.parking) == 0 {
-			return
-		}
 		thread.Yield()
 	}
 	mnReady(gp, true)
