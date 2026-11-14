@@ -22,10 +22,10 @@ llgo test -tags owngo .                           # те саме під owngo
 ASAN_OPTIONS=detect_leaks=0 llgo test -tags owngo -O0 -asan .
 go build -o $BIN/fiberdb-go . && go build -o $BIN/load ./load
 llgo build -tags owngo -o $BIN/fiberdb-owngo .
-BIN=$BIN ./measure.sh go 18080        # fanout 1000/5000/20000, навантаження c=100 і c=1000
+BIN=$BIN ./measure.sh go 18080        # fanout 1000/20000/100000; навантаження c=100, 1000, 1000
 BIN=$BIN ./measure.sh owngo 18081
 ```
 
-`load` — `-url`, `-c` (клієнтів, кожен на своєму з'єднанні), `-d` (тривалість); друкує rps, p50, p99, max і помилки. Кеш llgo не враховує змін `cl` і `owngo/census`: після них чистіть `~/.cache/llgo`.
+`load` — `-url`, `-c` (клієнтів, кожен на своєму з'єднанні), `-d` (тривалість); друкує rps, p50, p99, max і помилки. `measure.sh` запускає fanout і навантаження на двох окремих процесах; 10 кіл із чергуванням варіантів — сценарій гейта G. Кеш llgo не враховує змін `cl` і `owngo/census`: після них чистіть `~/.cache/llgo`.
 
 Заміри — `owngo/REPORT-STAGEG.md`.
