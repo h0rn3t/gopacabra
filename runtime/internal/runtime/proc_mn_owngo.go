@@ -423,12 +423,23 @@ func mnRunqGet(pp *mnP) *g {
 	return gp
 }
 
-// mnRunqSteal забирає половину локальної черги victim у pp; runnext не
-// краде, щоб готова G лишалася на P, що її розбудив.
-func mnRunqSteal(pp, victim *mnP) *g {
+// mnRunqSteal забирає половину локальної черги victim у pp. runnext —
+// лише з stealNext і за порожньої черги, після паузи, як runqgrab у Go:
+// P, що розбудив G, за цей час зазвичай сам її виконує. Інакше G чекала б
+// на витіснення P, що її розбудив, до 10 мс.
+func mnRunqSteal(pp, victim *mnP, stealNext bool) *g {
 	var batch [mnRunqSize / 2]*g
 	victim.lock.lock()
 	k := (victim.n + 1) / 2
+	if k == 0 && stealNext && victim.runnext != nil {
+		victim.lock.unlock()
+		c.Usleep(3)
+		victim.lock.lock()
+		gp := victim.runnext
+		victim.runnext = nil
+		victim.lock.unlock()
+		return gp
+	}
 	for i := uint32(0); i < k; i++ {
 		batch[i] = victim.runq[victim.head]
 		victim.runq[victim.head] = nil
@@ -496,13 +507,15 @@ func mnFindRunnable(mp *m, pp *mnP) *g {
 	}
 	nallp := atomic.Load(&mnSched.nallp)
 	start := uint32(mp.id) % uint32(nallp)
-	for i := uint32(0); i < uint32(nallp); i++ {
-		victim := mnSched.allp[(start+i)%uint32(nallp)]
-		if victim == pp {
-			continue
-		}
-		if gp := mnRunqSteal(pp, victim); gp != nil {
-			return gp
+	for _, stealNext := range [2]bool{false, true} {
+		for i := uint32(0); i < uint32(nallp); i++ {
+			victim := mnSched.allp[(start+i)%uint32(nallp)]
+			if victim == pp {
+				continue
+			}
+			if gp := mnRunqSteal(pp, victim, stealNext); gp != nil {
+				return gp
+			}
 		}
 	}
 	mnNetpollNow()
