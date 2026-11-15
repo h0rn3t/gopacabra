@@ -5,6 +5,7 @@ import (
 	"slices"
 	"sync"
 
+	llssa "github.com/xgo-dev/llgo/ssa"
 	gllvm "github.com/xgo-dev/llvm"
 )
 
@@ -36,6 +37,21 @@ func applyMLLVM(opts []string) error {
 	mllvmParsed.done = true
 	mllvmParsed.opts = slices.Clone(opts)
 	return nil
+}
+
+// ltoTargetLinkerArgs передає lld CPU і ознаки цілі, які без LTO отримує
+// кодогенерація в процесі llgo. Біткод llgo не несе атрибутів target-cpu,
+// тож без них lld генерує код під базовий CPU і GOAMD64 чи GOARM64 губляться.
+// Іменовану ціль crosscompile передає компонувальнику сам.
+func ltoTargetLinkerArgs(conf *Config, spec llssa.TargetSpec) []string {
+	if !conf.ltoEnabled() || conf.Target != "" || spec.CPU == "" {
+		return nil
+	}
+	args := []string{"-Xlinker", "-mllvm", "-Xlinker", "-mcpu=" + spec.CPU}
+	if spec.Features != "" {
+		args = append(args, "-Xlinker", "-mllvm", "-Xlinker", "-mattr="+spec.Features)
+	}
+	return args
 }
 
 // mllvmLinkerArgs передає опції `-mllvm` lld: з LTO проходи після

@@ -669,6 +669,7 @@ func buildInvocation(inv Invocation, plan *initialBuildPlan) (result []Package, 
 		OptLevel:             conf.OptLevel,
 		SaturatingFloatToInt: conf.SaturatingFloatToInt,
 	}
+	export.LDFLAGS = append(export.LDFLAGS, ltoTargetLinkerArgs(conf, target.Spec())...)
 	tags := DefaultBuildTags()
 	tags += "," + target.ClosureEnvBuildTag()
 	if conf.PCLNMode == PCLNExternal {
