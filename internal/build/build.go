@@ -395,6 +395,10 @@ func resolveGOARCHConfig(conf *Config, getenv func(string) string) error {
 		if goamd64 == "" {
 			goamd64 = getenv("GOAMD64")
 		}
+		// Профіль owngo не підтримує x86-64 без AVX2 (рішення P-NEW-07.2).
+		if goamd64 == "" && slices.Contains(splitSourcePatchBuildTags(conf.Tags), "owngo") {
+			goamd64 = "v3"
+		}
 		value, err := goarch.ResolveAMD64(goamd64)
 		conf.GOAMD64 = value
 		return err
