@@ -1707,3 +1707,17 @@
   - стенд, 10 кіл: 1:1 — 2.08 КіБ (2.06–2.13), M:N до — 2.25 (2.21–2.48), після — 2.14 (2.10–2.21); залишок у межах розкиду.
 - Не перевірено: rps і p99 (машина була завантажена сторонніми процесами, load average 16–19), darwin, `GOROOT/test`.
 - Лишилось: P-NEW-09.15 (тег `owngo` вмикає M:N).
+
+## 2026-11-15 — P-NEW-09.15 Тег `owngo` вмикає M:N
+
+- Тест спершу (`496b8c423`): `TestApplyOwngoTag` — `owngo` → `owngo,nogc,owngomn` на linux/amd64, linux/arm64 і darwin; `owngo1to1` — без `owngomn`; wasm, windows, linux/386 і іменований `-target` — без змін.
+- Реалізація (`ce563bb51`): `applyOwngoTag` додає `owngomn`; модель 1:1 — тег `owngo1to1`. `fixtures.sh` бере додаткові теги з `OWNGO_TAGS`; README стенду будує обидві моделі; рядок у `CLAUDE.md`.
+- Знайдено першим прогоном фікстур під M:N:
+  - `owngo/opstat` — `defer` рантайму виділяє вузол з купи, тож `mnRunqGet`, `mnCheckDead` і `netpollCheckErr` виділяли блок на кожен виклик (знайдено профілем `owngoheap`). Виправлено в `bc7b0c765`;
+  - `owngo/allocstat` — у вікно A–B потрапляє створення M (`mnWakep` після витіснення) і звільнення контекстів G, що вийшли. Точна різниця під M:N залежить від планування, тож фікстура вимагає `owngo1to1` (`89fd61c28`).
+- Прийняття на `89fd61c28`:
+  - `fixtures.sh` — 0 з 86 під M:N і 0 з 86 з `OWNGO_TAGS=owngo1to1`;
+  - `go test -count=1 ./cl/ -run OwnGo` з чистим кешем — ok;
+  - `GOROOT/test` `ci` під `-tags owngo` (тепер M:N) — 803 `pass`, єдиний `unexpected-fail` — `issue14636` (падає і без тегу).
+- Не перевірено: darwin, linux/arm64, `GOROOT/test` під `-O0 -asan`, стенд після зміни `defer` (rps і p99).
+- Лишилось: P-NEW-09.15 закриває rework гейта G; rps і p99 стенду проти `gc` — ще не «підтверджені» (P-NEW-09.13).
