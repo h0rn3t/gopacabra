@@ -1760,3 +1760,21 @@
 - Знайдено: `owngo/opstat` нестабільна під M:N — 2 з 20 прогонів і на новому llgo, і на базі `77d2d3f7c` (`alloc delta 3200002 want 3200000`); під `owngo1to1` — 3 з 3 зелені. Це той самий випадок, що `allocstat` у P-NEW-09.15: у вікно заміру потрапляють алокації планувальника. Задачі в плані ще немає.
 - Не перевірено: darwin (`ld64.lld -mllvm`), `-lto full` наскрізною збіркою (лише аргументи), опції для C-файлів рантайму (clang їх не отримує).
 - Лишилось: P-NEW-07.2 (ISA і вирівнювання на корпусі); рішення щодо `owngo/opstat` під M:N.
+
+## 2026-11-15 — P-NEW-07.2 ISA і вирівнювання на корпусі
+
+- Знайдено першою збіркою: під `-lto thin` і `full` `GOAMD64` губився — `v3` давав 0 VEX-інструкцій (без LTO — 7 583, mandelbrot). Кодогенерацію під LTO виконує lld, а біткод llgo не несе `target-cpu`. Те саме з `GOARM64`.
+  - Тест спершу (`288dc6766`): `TestLTOTargetLinkerArgs` і `TestLTOKeepsGOAMD64` (`thin-v3` червоний до реалізації).
+  - Реалізація (`b295188ae`): `ltoTargetLinkerArgs` — під LTO нативна збірка передає lld `-mllvm -mcpu`/`-mattr` з `TargetSpec`, як іменовані цілі. Без `GOAMD64` — ті самі інструкції й розміри секцій (побайтно llgo і до зміни не відтворюваний).
+  - Наслідок: усі попередні заміри треку під LTO ішли на базовому x86-64.
+- `compare.py --variant "KEY [VAR=VALUE ...] FLAG ..."` (`90b7c8925`): рядки відтворюються однією командою на програму.
+- Замір (`owngo/REPORT-STAGEE.md`, JSON — `owngo/bench/stagee/`), 10 кіл, усі виводи `matches`:
+  - `v3` — виграш поза розкидом на fannkuch-redux (2.49 проти 2.58 с), mandelbrot (0.54 проти 0.64, на рівні Rust 0.53) і k-nucleotide (5.44 проти 5.68); revcomp і regex — у межах розкиду;
+  - `v2` проти без `GOAMD64` — у межах розкиду всюди;
+  - `-x86-branches-within-32B-boundaries` — k-nucleotide −6%, але revcomp +6%: ні; під `-Os` fannkuch −5%;
+  - `-align-all-functions=5` — регресія fannkuch +4%, k-nucleotide +6%: ні;
+  - холодна збірка від прапорців не змінюється.
+- Спільна ISA з Rust/C (`ivybridge`) — `v2`: owngo 1.18× (fannkuch), 1.21× (mandelbrot), 4.0× (k-nucleotide) від Rust.
+- Прийняття: `go test -run 'TestLTOKeepsGOAMD64|TestLTOTargetLinkerArgs|TestMLLVM' ./internal/build/` — ok.
+- Не перевірено: повний `go test ./internal/build/`, `fixtures.sh`, darwin і arm64 (`GOARM64` під LTO, `ld64.lld -mllvm -mcpu`); `-mllvm=-mcpu=…` від користувача під LTO тепер дублює опцію в lld. Машина була під стороннім навантаженням (load average до 8 на 8 ядрах).
+- Лишилось: рішення розробника про типову ISA профілю `owngo` (`v3` чи `v2`); P-NEW-07.3 — розклад розриву на обраному профілі.
