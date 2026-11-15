@@ -26,7 +26,13 @@ usr розпакованого libpcre2-dev).
 бінарника і час холодної збірки: кожен варіант збирається з власним
 XDG_CACHE_HOME (кеш llgo і go), який після збірки видаляється.
 
-Використання: owngo/bench/compare.py PROGRAM [N] [RUNS] [--profiles] [--json FILE]
+З --variant Go-варіанти — go і задані варіанти llgo (P-NEW-07.2). Значення —
+"KEY [VAR=VALUE ...] FLAG ...": ключ рядка, змінні середовища збірки і
+аргументи llgo build, наприклад
+--variant "v2 GOAMD64=v2 -tags owngo -O2 -lto thin -mllvm=-align-all-functions=5".
+Прапорець повторюється, рядок на кожен варіант.
+
+Використання: owngo/bench/compare.py PROGRAM [N] [RUNS] [--profiles | --variant SPEC ...] [--json FILE]
 """
 
 import argparse
@@ -34,6 +40,8 @@ import hashlib
 import json
 import os
 import platform
+import re
+import shlex
 import shutil
 import statistics
 import subprocess
@@ -124,6 +132,19 @@ PROFILE_VARIANTS = [
     ("owngo-thin", "llgo -tags owngo -O2 -lto thin", ["-tags", "owngo", "-O2", "-lto", "thin"]),
     ("owngo-lto", "llgo -tags owngo -O2 -lto full", ["-tags", "owngo", "-O2", "-lto", "full"]),
 ]
+
+def parse_variant(spec):
+    """Розбирає значення --variant на ключ, підпис, середовище й аргументи llgo."""
+    key, *words = shlex.split(spec)
+    env = {}
+    while words and re.fullmatch(r"[A-Z_][A-Z0-9_]*=.*", words[0]):
+        name, _, value = words.pop(0).partition("=")
+        env[name] = value
+    if not words:
+        raise argparse.ArgumentTypeError(f"variant {key!r}: no llgo flags")
+    label = " ".join(["llgo", *(f"{k}={v}" for k, v in env.items()), *words])
+    return key, label, words, env
+
 
 # Прапори сторінок Benchmarks Game: Go — GOAMD64=v2, Rust — release з
 # codegen-units=1 (Cargo.toml) і target-cpu=ivybridge.
@@ -227,7 +248,8 @@ def build(spec, work, go_variants):
     tables = []
     for name, pkg, crate, rust_label, c in spec["tables"]:
         variants = []
-        for key, label, flags in go_variants:
+        for key, label, flags, *rest in go_variants:
+            env = rest[0] if rest else {}
             exe = work / f"{pkg}-{key}"
             cache = work / f"cache-{pkg}-{key}"
             start = time.monotonic()
@@ -236,10 +258,11 @@ def build(spec, work, go_variants):
                     env={**GO_ENV, "XDG_CACHE_HOME": str(cache)})
             else:
                 run([str(llgo), "build", *flags, "-o", str(exe), f"./owngo/bench/{pkg}"],
-                    env={"LLGO_ROOT": str(ROOT), "XDG_CACHE_HOME": str(cache)})
+                    env={**env, "LLGO_ROOT": str(ROOT), "XDG_CACHE_HOME": str(cache)})
             build_s = round(time.monotonic() - start, 1)
             shutil.rmtree(cache, ignore_errors=True)
             variants.append({"key": key, "label": f"{pkg}, {label}", "exe": exe,
+                             "flags": flags, "env": env if flags is not None else GO_ENV,
                              "build_s": build_s, "size_kb": exe.stat().st_size // 1024})
         if crate:
             target = work / "cargo"
@@ -334,8 +357,11 @@ def main():
     parser.add_argument("program", choices=PROGRAMS)
     parser.add_argument("n", nargs="?", type=int)
     parser.add_argument("runs", nargs="?", type=int, default=10)
-    parser.add_argument("--profiles", action="store_true",
-                        help="Go-варіанти — профілі збірки owngo (P-NEW-01)")
+    group = parser.add_mutually_exclusive_group()
+    group.add_argument("--profiles", action="store_true",
+                       help="Go-варіанти — профілі збірки owngo (P-NEW-01)")
+    group.add_argument("--variant", action="append", type=parse_variant, metavar="SPEC",
+                       help='варіант llgo "KEY [VAR=VALUE ...] FLAG ..." (P-NEW-07.2)')
     parser.add_argument("--json", type=Path, help="куди записати JSON")
     args = parser.parse_args()
     spec = PROGRAMS[args.program]
@@ -343,7 +369,11 @@ def main():
 
     with tempfile.TemporaryDirectory() as tmp:
         work = Path(tmp)
-        tables = build(spec, work, PROFILE_VARIANTS if args.profiles else GO_VARIANTS)
+        if args.variant:
+            go_variants = [GO_VARIANTS[0], *args.variant]
+        else:
+            go_variants = PROFILE_VARIANTS if args.profiles else GO_VARIANTS
+        tables = build(spec, work, go_variants)
         checks = {t["name"]: expected_check(t["pkg"], n) for t in tables}
         for t in tables:
             for v in t["variants"]:
@@ -391,6 +421,7 @@ def main():
         "n": n,
         "runs": args.runs,
         "profiles": args.profiles,
+        "variants": [v[0] for v in args.variant or []],
         "env": environment(),
         "tables": tables,
     }
