@@ -9,7 +9,8 @@
 #   owngo/asan/*uaf — під -O0 -asan процес має впасти зі звітом AddressSanitizer;
 #   owngo/asan/*    — під -O0 -asan код 0 і жодного звіту;
 #   решта           — код 0.
-# Теги owngostat і owngomn додаються, якщо їх вимагає рядок //go:build фікстури.
+# Теги owngostat, owngomn і owngo1to1 додаються, якщо їх вимагає рядок
+# //go:build фікстури.
 # Каталоги bench, census/cmd, third_party, stand (окремі модулі) і пакети site —
 # не програми прийняття.
 set -uo pipefail
@@ -35,6 +36,7 @@ while IFS= read -r dir; do
 	tags=owngo${OWNGO_TAGS:+,$OWNGO_TAGS}
 	grep -q '^//go:build.*owngostat' "$dir"/*.go && tags=$tags,owngostat
 	grep -q '^//go:build.*owngomn' "$dir"/*.go && tags=$tags,owngomn
+	grep -q '^//go:build.*owngo1to1' "$dir"/*.go && tags=$tags,owngo1to1
 	flags=(-tags "$tags")
 	case $dir in owngo/asan/*) flags+=(-O0 -asan) ;; esac
 
