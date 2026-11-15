@@ -406,20 +406,20 @@ func mnRunqPut(pp *mnP, gp *g, next bool) {
 	mnSched.lock.unlock()
 }
 
+// Без defer: вузол defer рантайму виділяється з купи, а це гарячий шлях
+// планувальника (так само mnCheckDead).
 func mnRunqGet(pp *mnP) *g {
 	pp.lock.lock()
-	defer pp.lock.unlock()
-	if gp := pp.runnext; gp != nil {
+	gp := pp.runnext
+	if gp != nil {
 		pp.runnext = nil
-		return gp
+	} else if pp.n > 0 {
+		gp = pp.runq[pp.head]
+		pp.runq[pp.head] = nil
+		pp.head = (pp.head + 1) % mnRunqSize
+		pp.n--
 	}
-	if pp.n == 0 {
-		return nil
-	}
-	gp := pp.runq[pp.head]
-	pp.runq[pp.head] = nil
-	pp.head = (pp.head + 1) % mnRunqSize
-	pp.n--
+	pp.lock.unlock()
 	return gp
 }
 
@@ -617,7 +617,6 @@ func mnSleep(mp *m) {
 
 func mnCheckDead() {
 	mnSched.lock.lock()
-	defer mnSched.lock.unlock()
 	count, mainExited := gState()
 	dead := mnSched.npidle == mnSched.gomaxprocs && atomic.Load(&mnSched.nblocked) == 0 &&
 		count > 0 && !mainExited && timersPending != nil && !mnAnyWork() && !timersPending() &&
@@ -625,12 +624,15 @@ func mnCheckDead() {
 	gen := atomic.Load(&mnSched.gen)
 	if !dead {
 		mnSched.deadSeen = false
+		mnSched.lock.unlock()
 		return
 	}
 	if !mnSched.deadSeen || mnSched.deadGen != gen {
 		mnSched.deadSeen, mnSched.deadGen = true, gen
+		mnSched.lock.unlock()
 		return
 	}
+	mnSched.lock.unlock()
 	fatal("all goroutines are asleep - deadlock!")
 	c.Exit(2)
 }

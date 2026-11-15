@@ -321,21 +321,23 @@ func netpollReady(pd *pollDesc, mode int32) {
 	netpollReadyWaiter(ww)
 }
 
+// netpollCheckErr без defer: вузол defer виділяється з купи, а перевірка
+// стоїть на кожному мережевому очікуванні.
 func netpollCheckErr(pd *pollDesc, mode int32) int {
 	pd.lock.Lock()
-	defer pd.lock.Unlock()
-	if pd.closing {
-		return pollErrClosing
+	err := pollNoError
+	switch {
+	case pd.closing:
+		err = pollErrClosing
+	case mode == 'r' && pd.rd < 0 || mode == 'w' && pd.wd < 0:
+		err = pollErrTimeout
+	case mode == 'r' && pd.everr.Load():
+		// Помилку події повідомляємо лише читанню: запис і так побачить її
+		// з наступного системного виклику.
+		err = pollErrNotPollable
 	}
-	if mode == 'r' && pd.rd < 0 || mode == 'w' && pd.wd < 0 {
-		return pollErrTimeout
-	}
-	// Помилку події повідомляємо лише читанню: запис і так побачить її
-	// з наступного системного виклику.
-	if mode == 'r' && pd.everr.Load() {
-		return pollErrNotPollable
-	}
-	return pollNoError
+	pd.lock.Unlock()
+	return err
 }
 
 // netpollBlock паркує G до готовності pd на mode. true — дескриптор
