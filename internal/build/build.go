@@ -160,6 +160,7 @@ type Config struct {
 	WasmStrip          WasmStripMode
 	LTO                lto.Mode
 	LTOPlugin          lto.PassPlugin
+	MLLVM              []string // опції LLVM (-mllvm): у процесі llgo і, з LTO, у компонувальнику
 	BinPath            string
 	AppExt             string  // output file extension (".wasm", ".mjs", ".a", ".so", ".dylib"); empty for native executables
 	OutFile            string  // output file, or directory for ModeBuild package executables
@@ -295,6 +296,7 @@ func (c *Config) clone() *Config {
 	cloned.RunArgs = slices.Clone(c.RunArgs)
 	cloned.Exec = slices.Clone(c.Exec)
 	cloned.GoBuildFlags = slices.Clone(c.GoBuildFlags)
+	cloned.MLLVM = slices.Clone(c.MLLVM)
 	cloned.toolTags = slices.Clone(c.toolTags)
 	cloned.Overlay = cloneOverlay(c.Overlay)
 	cloned.SourceOverlay = cloneSourceOverlay(c.SourceOverlay)
@@ -566,6 +568,9 @@ func buildInvocation(inv Invocation, plan *initialBuildPlan) (result []Package, 
 		return nil, err
 	}
 	applyOwngoTag(conf)
+	if err := applyMLLVM(conf.MLLVM); err != nil {
+		return nil, err
+	}
 	// Keep child Go invocations (notably cmptest's baseline) on the same
 	// architecture level as the LLVM build. GOOS/GOARCH retain their existing
 	// per-command handling.
@@ -2938,6 +2943,7 @@ func linkObjFiles(ctx *context, app string, objFiles, linkArgs []string, verbose
 		return err
 	}
 	buildArgs = append(buildArgs, ltoPluginFlags...)
+	buildArgs = append(buildArgs, mllvmLinkerArgs(ctx.buildConf)...)
 
 	// Add build mode specific linker arguments
 	switch ctx.buildConf.BuildMode {

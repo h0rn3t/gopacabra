@@ -140,6 +140,7 @@ type commonSection struct {
 	GoGlobalDCE          bool         `yaml:"GO_GLOBAL_DCE,omitempty"`
 	DeadcodeDrop         bool         `yaml:"DEADCODE_DROP,omitempty"`
 	EnableLTOPlugin      bool         `yaml:"ENABLE_LTO_PLUGIN,omitempty"`
+	MLLVM                []string     `yaml:"MLLVM,omitempty"`
 	AddressSanitizer     bool         `yaml:"ASAN,omitempty"`
 	EmitDWARF            bool         `yaml:"EMIT_DWARF,omitempty"`
 	EmitCodeView         bool         `yaml:"EMIT_CODEVIEW,omitempty"`
@@ -167,7 +168,7 @@ func (s *commonSection) empty() bool {
 		!s.WasmReflectBridges && !s.WasmFuncInfoEntries && !s.WasmRuntimeFree && s.PlatformABI == "" && s.ObjectFormat == "" && s.DriverFlavor == "" && s.LinkerFlavor == "" &&
 		s.TargetTriple == "" && s.CRTFlavor == "" && s.CXXRuntime == "" &&
 		s.SDKVersion == "" && s.CRTVersion == "" && s.ToolsetVersion == "" &&
-		!s.GoGlobalDCE && !s.DeadcodeDrop && !s.EnableLTOPlugin && !s.AddressSanitizer && !s.EmitDWARF && !s.EmitCodeView && s.PCLNMode == "" &&
+		!s.GoGlobalDCE && !s.DeadcodeDrop && !s.EnableLTOPlugin && len(s.MLLVM) == 0 && !s.AddressSanitizer && !s.EmitDWARF && !s.EmitCodeView && s.PCLNMode == "" &&
 		!s.DisableBoundsChecks && !s.SaturatingFloatToInt && !s.LocalContext &&
 		s.CC == "" && len(s.CCArgs) == 0 && s.CCIdentity == "" && s.CXX == "" &&
 		len(s.CXXArgs) == 0 && s.CXXIdentity == "" && len(s.CCFlags) == 0 &&

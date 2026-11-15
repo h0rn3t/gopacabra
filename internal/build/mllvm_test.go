@@ -192,22 +192,20 @@ const mllvmProgram = `package main
 
 import "os"
 
-//go:noinline
 func a(x int) int { return x + 1 }
-
-//go:noinline
 func b(x int) int { return x * 3 }
-
-//go:noinline
 func c(x int) int { return x - 7 }
-
-//go:noinline
 func d(x int) int { return x ^ 5 }
-
-//go:noinline
 func e(x int) int { return x << 2 }
 
+// Зріз тримає адреси функцій, тож їхні тіла не зникають після вбудовування.
+var steps = []func(int) int{a, b, c, d, e}
+
 func main() {
-	os.Exit(a(b(c(d(e(len(os.Args)))))) & 0)
+	x := len(os.Args)
+	for _, f := range steps {
+		x = f(x)
+	}
+	os.Exit(x & 0)
 }
 `

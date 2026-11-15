@@ -11,7 +11,9 @@
 //===----------------------------------------------------------------------===//
 
 #include "SupportBindings.h"
+#include "llvm/Support/CommandLine.h"
 #include "llvm/Support/DynamicLibrary.h"
+#include "llvm/Support/raw_ostream.h"
 #include <stdlib.h>
 #include <string.h>
 
@@ -22,4 +24,15 @@ void LLVMLoadLibraryPermanently2(const char *Filename, char **ErrMsg) {
     memcpy(static_cast<void *>(*ErrMsg),
            static_cast<const void *>(ErrMsgStr.c_str()), ErrMsgStr.size() + 1);
   }
+}
+
+int LLVMGoParseCommandLineOptions(int argc, const char *const *argv,
+                                  char **ErrMsg) {
+  std::string ErrMsgStr;
+  llvm::raw_string_ostream Errs(ErrMsgStr);
+  if (llvm::cl::ParseCommandLineOptions(argc, argv, "", &Errs))
+    return 0;
+  Errs.flush();
+  *ErrMsg = strdup(ErrMsgStr.c_str());
+  return 1;
 }

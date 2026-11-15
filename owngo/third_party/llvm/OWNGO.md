@@ -16,5 +16,8 @@ targets LLVM 23 only.
 - `backports.cpp`: LLVM 23 keys module summaries by GUID metadata from
   `AssignGUIDPass`; the LTO bitcode writers run it first, since llgo adds
   globals after the optimization pipeline.
+- `SupportBindings.cpp`, `support.go`: `ParseCommandLineOptionsChecked`
+  returns LLVM's diagnostic for an unknown `-mllvm` option; the C API's
+  `LLVMParseCommandLineOptions` discards it.
 
 Drop this copy once upstream ships LLVM 23 support.

@@ -173,7 +173,7 @@ const TestBinaryFlags = "artifacts bench benchmem benchtime blockprofile blockpr
 // Command-specific registration is checked separately against these names.
 var Extensions = map[string]string{
 	"n": "cmd/internal/bug", "v": "internal/monitor", "C": "cmd/internal/flags", "O": "cmd/internal/flags", "O0": "cmd/internal/flags", "O1": "cmd/internal/flags", "O2": "cmd/internal/flags", "O3": "cmd/internal/flags", "Os": "cmd/internal/flags", "Oz": "cmd/internal/flags",
-	"compiler-verbose": "cmd/internal/flags", "cv": "cmd/internal/flags", "lto": "cmd/internal/flags", "lto-pass-plugin": "cmd/internal/flags", "globaldce": "cmd/internal/flags",
+	"compiler-verbose": "cmd/internal/flags", "cv": "cmd/internal/flags", "lto": "cmd/internal/flags", "lto-pass-plugin": "cmd/internal/flags", "mllvm": "cmd/internal/flags", "globaldce": "cmd/internal/flags",
 	"wasm-strip": "cmd/internal/flags", "pclntab": "cmd/internal/flags", "debug-artifact": "cmd/internal/flags", "deadcodedrop": "cmd/internal/flags", "goroutine-stack-size": "cmd/internal/flags", "pthread-stack-size": "cmd/internal/flags",
 	"check-linkargs": "internal/build", "check-llfiles": "internal/build", "gen-llfiles": "internal/build", "force-espclang": "internal/build",
 	"debug-trace": "internal/build", "target": "internal/crosscompile", "emulator": "internal/build", "port": "internal/flash", "baudrate": "internal/monitor",

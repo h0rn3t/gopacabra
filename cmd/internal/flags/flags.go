@@ -3,6 +3,7 @@ package flags
 import (
 	"flag"
 	"fmt"
+	"slices"
 	"strconv"
 	"strings"
 
@@ -139,6 +140,9 @@ func (o *ltoFlag) Set(v string) error {
 var LTO ltoFlag
 var LTOPluginPath string
 
+// MLLVM — опції LLVM з повторюваного прапорця -mllvm.
+var MLLVM []string
+
 func AddLTOFlag(fs *flag.FlagSet) {
 	LTO = ltoFlag{Mode: lto.Off}
 	LTOPluginPath = ""
@@ -226,6 +230,11 @@ func AddBuildFlags(fs *flag.FlagSet) {
 	AddOptLevelFlags(fs)
 	AddLTOFlag(fs)
 	fs.StringVar(&LTOPluginPath, "lto-pass-plugin", "", "Load an LLVM LTO pass plugin during full LTO (ELF lld or Mach-O ld64.lld)")
+	MLLVM = nil
+	fs.Func("mllvm", "Pass an option to LLVM passes and code generation, in llgo and in the LTO linker (repeatable)", func(v string) error {
+		MLLVM = append(MLLVM, v)
+		return nil
+	})
 	AddGlobalDCEFlag(fs)
 	addPCLNFlag(fs)
 	addWasmFinalFlags(fs)
@@ -430,6 +439,7 @@ func UpdateConfig(conf *build.Config) error {
 	if LTO.Specified {
 		conf.LTO = LTO.Mode
 	}
+	conf.MLLVM = slices.Clone(MLLVM)
 	if WasmStrip != "" {
 		conf.WasmStrip = build.WasmStripMode(WasmStrip)
 	}

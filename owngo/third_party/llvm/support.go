@@ -21,6 +21,7 @@ import "C"
 
 import (
 	"errors"
+	"strings"
 	"unsafe"
 )
 
@@ -50,4 +51,21 @@ func ParseCommandLineOptions(args []string, overview string) {
 	overviewstr := C.CString(overview)
 	defer C.free(unsafe.Pointer(overviewstr))
 	C.LLVMParseCommandLineOptions(C.int(len(args)), &argstrs[0], overviewstr)
+}
+
+// ParseCommandLineOptionsChecked parses the given arguments using the LLVM
+// command line parser, like ParseCommandLineOptions, and returns LLVM's
+// diagnostic for an unknown or malformed option. args[0] is the program name.
+func ParseCommandLineOptionsChecked(args []string) error {
+	argstrs := make([]*C.char, len(args))
+	for i, arg := range args {
+		argstrs[i] = C.CString(arg)
+		defer C.free(unsafe.Pointer(argstrs[i]))
+	}
+	var errstr *C.char
+	if C.LLVMGoParseCommandLineOptions(C.int(len(args)), &argstrs[0], &errstr) == 0 {
+		return nil
+	}
+	defer C.free(unsafe.Pointer(errstr))
+	return errors.New(strings.TrimSpace(C.GoString(errstr)))
 }

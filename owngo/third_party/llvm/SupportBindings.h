@@ -22,6 +22,13 @@ extern "C" {
 // message.
 void LLVMLoadLibraryPermanently2(const char *Filename, char **ErrMsg);
 
+// LLVMGoParseCommandLineOptions parses LLVM options like
+// LLVMParseCommandLineOptions, but returns true and sets ErrMsg (to be freed
+// with free) on an unknown or malformed option instead of discarding the
+// diagnostic.
+int LLVMGoParseCommandLineOptions(int argc, const char *const *argv,
+                                  char **ErrMsg);
+
 #ifdef __cplusplus
 }
 #endif
