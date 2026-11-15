@@ -1535,14 +1535,18 @@ func cSharedImportLibraryArgs(toolchain crosscompile.NativeToolchain, output str
 }
 
 // applyOwngoTag вибирає файли рантайму nogc, коли заданий тег owngo.
+// На нативній збірці linux/amd64, linux/arm64 і darwin ще додає owngomn:
+// типова модель горутин owngo — M:N; тег owngo1to1 лишає модель 1:1.
 // Під -asan ще додає owngoasan: купу тоді веде malloc ASan, а не алокатор owngo.
 func applyOwngoTag(conf *Config) {
 	tags := splitSourcePatchBuildTags(conf.Tags)
 	if !slices.Contains(tags, "owngo") {
 		return
 	}
-	for _, tag := range []string{"nogc", "owngoasan"} {
-		if slices.Contains(tags, tag) || tag == "owngoasan" && !conf.ASan {
+	mn := conf.Target == "" && !slices.Contains(tags, "owngo1to1") &&
+		(conf.Goos == "darwin" || conf.Goos == "linux" && (conf.Goarch == "amd64" || conf.Goarch == "arm64"))
+	for _, tag := range []string{"nogc", "owngomn", "owngoasan"} {
+		if slices.Contains(tags, tag) || tag == "owngomn" && !mn || tag == "owngoasan" && !conf.ASan {
 			continue
 		}
 		if conf.Tags != "" {

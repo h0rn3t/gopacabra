@@ -2,6 +2,8 @@
 # Запускає кожну програму прийняття owngo/* і звіряє результат з очікуваним.
 #
 # Використання: owngo/fixtures.sh [LLGO]   (типово — llgo з PATH)
+# OWNGO_TAGS — додаткові теги кожної збірки; OWNGO_TAGS=owngo1to1 — модель 1:1
+# замість типової M:N.
 #
 # Очікування задає розташування фікстури:
 #   owngo/asan/*uaf — під -O0 -asan процес має впасти зі звітом AddressSanitizer;
@@ -30,7 +32,7 @@ failed=()
 count=0
 while IFS= read -r dir; do
 	count=$((count + 1))
-	tags=owngo
+	tags=owngo${OWNGO_TAGS:+,$OWNGO_TAGS}
 	grep -q '^//go:build.*owngostat' "$dir"/*.go && tags=$tags,owngostat
 	grep -q '^//go:build.*owngomn' "$dir"/*.go && tags=$tags,owngomn
 	flags=(-tags "$tags")
