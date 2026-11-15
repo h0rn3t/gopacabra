@@ -13,6 +13,7 @@ import (
 	"github.com/xgo-dev/llgo/internal/crosscompile"
 	"github.com/xgo-dev/llgo/internal/lto"
 	"github.com/xgo-dev/llgo/internal/packages"
+	llssa "github.com/xgo-dev/llgo/ssa"
 )
 
 func TestCollectFingerprintIncludesMLLVM(t *testing.T) {
@@ -76,6 +77,35 @@ func TestMLLVMLinkerArgs(t *testing.T) {
 	}
 }
 
+func TestLTOTargetLinkerArgs(t *testing.T) {
+	spec := llssa.TargetSpec{Triple: "x86_64-unknown-linux-gnu", CPU: "x86-64-v3", Features: "+cx8,+sse2"}
+	viaLinker := []string{
+		"-Xlinker", "-mllvm", "-Xlinker", "-mcpu=x86-64-v3",
+		"-Xlinker", "-mllvm", "-Xlinker", "-mattr=+cx8,+sse2",
+	}
+	tests := []struct {
+		name string
+		conf Config
+		spec llssa.TargetSpec
+		want []string
+	}{
+		{name: "no-lto", conf: Config{}, spec: spec, want: nil},
+		{name: "thin", conf: Config{LTO: lto.Thin}, spec: spec, want: viaLinker},
+		{name: "full", conf: Config{LTO: lto.Full}, spec: spec, want: viaLinker},
+		// Іменовану ціль crosscompile уже передає компонувальнику сам.
+		{name: "named-target", conf: Config{LTO: lto.Thin, Target: "rp2040"}, spec: spec, want: nil},
+		{name: "no-cpu", conf: Config{LTO: lto.Thin}, spec: llssa.TargetSpec{Triple: spec.Triple}, want: nil},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			if got := ltoTargetLinkerArgs(&tt.conf, tt.spec); !reflect.DeepEqual(got, tt.want) {
+				t.Errorf("ltoTargetLinkerArgs(LTO=%v, Target=%q, %+v) = %q, want %q",
+					tt.conf.LTO, tt.conf.Target, tt.spec, got, tt.want)
+			}
+		})
+	}
+}
+
 func TestApplyMLLVMRejectsUnknownOption(t *testing.T) {
 	err := applyMLLVM([]string{"-owngo-no-such-option"})
 	if err == nil || !strings.Contains(err.Error(), "owngo-no-such-option") {
@@ -85,8 +115,8 @@ func TestApplyMLLVMRejectsUnknownOption(t *testing.T) {
 
 const mllvmHelperEnv = "LLGO_TEST_MLLVM_BUILD"
 
-// TestMLLVMAlignsFunctions збирає програму в дочірньому процесі: опції LLVM
-// глобальні для процесу і після розбору лишились би в інших тестах пакета.
+// TestMLLVMAlignsFunctions перевіряє вирівнювання функцій main під
+// -align-all-functions=6 без LTO і з -lto thin.
 func TestMLLVMAlignsFunctions(t *testing.T) {
 	if runtime.GOOS != "linux" {
 		t.Skip("checks ELF symbol addresses")
@@ -115,15 +145,7 @@ func TestMLLVMAlignsFunctions(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			bin := filepath.Join(t.TempDir(), "mllvm")
-			cmd := exec.Command(os.Args[0], "-test.run=^TestMLLVMBuildHelper$")
-			cmd.Env = append(os.Environ(),
-				"LLGO_ROOT="+root,
-				"XDG_CACHE_HOME="+t.TempDir(),
-				mllvmHelperEnv+"="+strings.Join([]string{src, bin, tt.lto, tt.opts}, "\n"),
-			)
-			if out, err := cmd.CombinedOutput(); err != nil {
-				t.Fatalf("build helper: %v\n%s", err, out)
-			}
+			buildInChild(t, root, src, bin, tt.lto, tt.opts, "")
 			addrs := mainFuncAddrs(t, bin)
 			misaligned := 0
 			for name, addr := range addrs {
@@ -141,14 +163,86 @@ func TestMLLVMAlignsFunctions(t *testing.T) {
 	}
 }
 
+// TestLTOKeepsGOAMD64 перевіряє, що рівень GOAMD64 доходить до кодогенерації
+// і з LTO, де її виконує lld: під v3 скалярна арифметика з плаваючою точкою
+// кодується VEX (vmulsd, vaddsd), під v1 — ні.
+func TestLTOKeepsGOAMD64(t *testing.T) {
+	if runtime.GOOS != "linux" || runtime.GOARCH != "amd64" {
+		t.Skip("checks x86-64 instructions in an ELF executable")
+	}
+	if testing.Short() {
+		t.Skip("builds three executables")
+	}
+	objdump, err := exec.LookPath("llvm-objdump")
+	if err != nil {
+		t.Skip("llvm-objdump not in PATH")
+	}
+	root, err := filepath.Abs(filepath.Join("..", ".."))
+	if err != nil {
+		t.Fatal(err)
+	}
+	src := filepath.Join(t.TempDir(), "main.go")
+	if err := os.WriteFile(src, []byte(goamd64Program), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	tests := []struct {
+		name    string
+		lto     string
+		goamd64 string
+		vex     bool
+	}{
+		{name: "thin-v1", lto: "thin", goamd64: "v1", vex: false},
+		{name: "no-lto-v3", goamd64: "v3", vex: true},
+		{name: "thin-v3", lto: "thin", goamd64: "v3", vex: true},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			bin := filepath.Join(t.TempDir(), "goamd64")
+			buildInChild(t, root, src, bin, tt.lto, "", tt.goamd64)
+			out, err := exec.Command(objdump, "-d", "--no-show-raw-insn", bin).Output()
+			if err != nil {
+				t.Fatalf("llvm-objdump: %v", err)
+			}
+			vex := 0
+			for _, line := range strings.Split(string(out), "\n") {
+				f := strings.Fields(line)
+				if len(f) >= 2 && (f[1] == "vmulsd" || f[1] == "vaddsd") {
+					vex++
+				}
+			}
+			if tt.vex && vex == 0 {
+				t.Errorf("GOAMD64=%s -lto %q: no vmulsd/vaddsd in the executable", tt.goamd64, tt.lto)
+			}
+			if !tt.vex && vex != 0 {
+				t.Errorf("GOAMD64=%s -lto %q: %d vmulsd/vaddsd, want none", tt.goamd64, tt.lto, vex)
+			}
+		})
+	}
+}
+
+// buildInChild збирає src у bin у дочірньому процесі: опції LLVM глобальні
+// для процесу і після розбору лишились би в інших тестах пакета.
+func buildInChild(t *testing.T, root, src, bin, ltoName, opts, goamd64 string) {
+	t.Helper()
+	cmd := exec.Command(os.Args[0], "-test.run=^TestMLLVMBuildHelper$")
+	cmd.Env = append(os.Environ(),
+		"LLGO_ROOT="+root,
+		"XDG_CACHE_HOME="+t.TempDir(),
+		mllvmHelperEnv+"="+strings.Join([]string{src, bin, ltoName, opts, goamd64}, "\n"),
+	)
+	if out, err := cmd.CombinedOutput(); err != nil {
+		t.Fatalf("build helper: %v\n%s", err, out)
+	}
+}
+
 func TestMLLVMBuildHelper(t *testing.T) {
 	spec := os.Getenv(mllvmHelperEnv)
 	if spec == "" {
 		t.Skip("helper for TestMLLVMAlignsFunctions")
 	}
 	parts := strings.Split(spec, "\n")
-	src, bin, ltoName, opts := parts[0], parts[1], parts[2], parts[3]
-	conf := &Config{Mode: ModeBuild, BuildMode: BuildModeExe, OutFile: bin}
+	src, bin, ltoName, opts, goamd64 := parts[0], parts[1], parts[2], parts[3], parts[4]
+	conf := &Config{Mode: ModeBuild, BuildMode: BuildModeExe, OutFile: bin, GOAMD64: goamd64}
 	if opts != "" {
 		conf.MLLVM = []string{opts}
 	}
@@ -207,5 +301,22 @@ func main() {
 		x = f(x)
 	}
 	os.Exit(x & 0)
+}
+`
+
+const goamd64Program = `package main
+
+import (
+	"fmt"
+	"os"
+)
+
+func main() {
+	x := float64(len(os.Args))
+	s := 0.0
+	for i := 0; i < 100; i++ {
+		s = s*x + float64(i)
+	}
+	fmt.Println(s)
 }
 `
