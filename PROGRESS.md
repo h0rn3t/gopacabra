@@ -1777,4 +1777,8 @@
 - Спільна ISA з Rust/C (`ivybridge`) — `v2`: owngo 1.18× (fannkuch), 1.21× (mandelbrot), 4.0× (k-nucleotide) від Rust.
 - Прийняття: `go test -run 'TestLTOKeepsGOAMD64|TestLTOTargetLinkerArgs|TestMLLVM' ./internal/build/` — ok.
 - Не перевірено: повний `go test ./internal/build/`, `fixtures.sh`, darwin і arm64 (`GOARM64` під LTO, `ld64.lld -mllvm -mcpu`); `-mllvm=-mcpu=…` від користувача під LTO тепер дублює опцію в lld. Машина була під стороннім навантаженням (load average до 8 на 8 ядрах).
-- Лишилось: рішення розробника про типову ISA профілю `owngo` (`v3` чи `v2`); P-NEW-07.3 — розклад розриву на обраному профілі.
+- Рішення розробника: старі процесори не цікавлять — типова ISA `owngo` на amd64 `v3` (`INTENT.md`).
+  - Тест спершу (`TestResolveGOARCHConfig`: `owngo` без `GOAMD64` → `v3`, середовище чи явне значення мають пріоритет, без `owngo` — `v1`), потім `resolveGOARCHConfig` у `internal/build`.
+  - `llgo build -tags owngo -O2 -lto thin` mandelbrot — 4 982 VEX-інструкції, з `GOAMD64=v1` — 0.
+  - `fixtures.sh` під `v3` — 0 з 86; `go test -count=1 ./cl/ -run OwnGo` з чистим кешем — ok.
+- Лишилось: P-NEW-07.3 — розклад розриву під `v3`; `compare.py` має дістати рядки Rust і C під `x86-64-v3`.

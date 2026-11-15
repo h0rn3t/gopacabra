@@ -225,6 +225,8 @@ session did.
 - `-tags owngo` adds `nogc` and, on a native linux/amd64, linux/arm64 or
   darwin build, `owngomn` (M:N goroutines). `-tags owngo,owngo1to1` keeps the
   1:1 thread-per-goroutine model (`applyOwngoTag`, `internal/build`).
+- On amd64, `-tags owngo` defaults `GOAMD64` to `v3` (AVX2); an explicit
+  `GOAMD64` wins (`resolveGOARCHConfig`, `internal/build`).
 - `PLAN.md` has two tracks: memory phases 0–11 and the performance track
   (stages A–F, tasks `P-NEW-*`). Each phase or stage ends with a gate; the
   gate decision belongs to the developer and is recorded in `INTENT.md`
