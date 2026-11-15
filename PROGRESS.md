@@ -1721,3 +1721,16 @@
   - `GOROOT/test` `ci` під `-tags owngo` (тепер M:N) — 803 `pass`, єдиний `unexpected-fail` — `issue14636` (падає і без тегу).
 - Не перевірено: darwin, linux/arm64, `GOROOT/test` під `-O0 -asan`, стенд після зміни `defer` (rps і p99).
 - Лишилось: P-NEW-09.15 закриває rework гейта G; rps і p99 стенду проти `gc` — ще не «підтверджені» (P-NEW-09.13).
+
+## 2026-11-15 — S7 План етапу E
+
+- Рішення розробника: після гейта G наступний етап — E, P-NEW-07 (машинний код).
+- Знайдено: `compare.py` збирає Rust під `target-cpu=ivybridge`, C — під `-march=ivybridge`, `go` — під `GOAMD64=v2`, а llgo і `owngo` — під базовий x86-64 (без `GOAMD64`). Порівняння codegen з Rust досі йшло на різній ISA.
+- `PLAN.md`, «Етап E»:
+  - P-NEW-07.1 — прапорець `-mllvm` у `llgo build`: без LTO — `llvm.ParseCommandLineOptions` у процесі llgo, з LTO — `-Wl,-mllvm` для lld; опції — у ключі кешу;
+  - P-NEW-07.2 — замір корпусу під `GOAMD64` v1/v2/v3 і з прапорцями вирівнювання та JCC;
+  - P-NEW-07.3 — розклад розриву проти Rust і C за категоріями;
+  - P-NEW-07.4–07.7 (перевірки меж, девіртуалізація, `noalias`/`readonly`, векторизація) — за умовами входу з P-NEW-07.3;
+  - P-NEW-07.8 — гейт E.
+- CPU-bound корпус гейта (пропозиція плану): fannkuch-redux, mandelbrot, k-nucleotide. reverse-complement і regex-redux лишаються як контроль регресії, бо їхній час — у libc, введенні-виведенні й алгоритмі `regexp`.
+- Лишилось: P-NEW-07.1 — наступна задача; P-NEW-10 (розмір бінарника) не розписаний; P11.4 чекає сервісу.
