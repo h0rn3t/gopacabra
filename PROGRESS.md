@@ -1741,3 +1741,22 @@
 - `PLAN.md`, «Версія Go 1.28»: V28.1 (розклад падінь на RC) — V28.6 (гейт, рішення розробника про вхід 1.28 в `INTENT.md`).
 - Основну підтримку дає upstream (як PR #2437 для 1.27). Власні задачі OwnGo: літерал без типу під census, рантайм під правила 1.28 і `maps.Grow` під облік, `test/simd` під `owngo`, нова база заміру проти `gc` 1.28.
 - Знайдено: llgo уже знижує `simd/archsimd` 1.27 (`cl/simd.go`, 48 файлів `test/simd`), але під `-tags owngo` ці тести не запускались.
+
+## 2026-11-15 — P-NEW-07.1 Прапорець `-mllvm`
+
+- Тест спершу (`5a73ee231`): `TestBuildMLLVMFlags` (`cmd/internal/flags`), а в `internal/build` — відбиток кешу, аргументи lld під `thin` і `full`, помилка на невідомій опції і `TestMLLVMAlignsFunctions`. Останній збирає програму в дочірньому процесі, бо розбір опцій LLVM змінює глобальний стан процесу.
+- Реалізація (`ea2731c0b`):
+  - прапорець `-mllvm=<опція>`, повторюваний, → `build.Config.MLLVM`;
+  - без LTO опції розбирає `ParseCommandLineOptionsChecked` у процесі llgo — нова прив'язка в `owngo/third_party/llvm`, бо `LLVMParseCommandLineOptions` C API мовчки ковтає помилку;
+  - з LTO опції ще йдуть lld як `-Xlinker -mllvm -Xlinker <опція>`;
+  - опції входять у `commonSection` відбитка кешу; `mllvm` записано в маніфест розширень `cmd/internal/compat`.
+- Прийняття:
+  - `-align-all-functions=6`: функції `main` кратні 64 без LTO і з `-lto thin`, без прапорця — ні. Мутація, без аргументів lld: під `thin` тест червоніє;
+  - `llgo run -mllvm=-owngo-bogus` → `Unknown command line argument '-owngo-bogus'`, код 1;
+  - `go test ./cmd/...` — зелений, крім `TestRunCmdPassesGoBuildFlags`: падає від `GOFLAGS=-mod=mod` у `go env` машини, з `GOENV=off` зелений;
+  - `go test -count=1 ./cl/ -run OwnGo` — ok;
+  - `go test ./internal/build/`: падають `TestBuildDo_DepFingerprintAndVersion` (середовище, відоме) і `TestSIMDFMVLLVM`, `TestSIMDFMVAggregatesLLVM`, `TestSIMDMidwayFMVLLVM` (`cannot build SSA for packages`; `TestSIMDFMVLLVM` падає так само на базі `77d2d3f7c`);
+  - `fixtures.sh` — 1 з 86: `owngo/opstat`.
+- Знайдено: `owngo/opstat` нестабільна під M:N — 2 з 20 прогонів і на новому llgo, і на базі `77d2d3f7c` (`alloc delta 3200002 want 3200000`); під `owngo1to1` — 3 з 3 зелені. Це той самий випадок, що `allocstat` у P-NEW-09.15: у вікно заміру потрапляють алокації планувальника. Задачі в плані ще немає.
+- Не перевірено: darwin (`ld64.lld -mllvm`), `-lto full` наскрізною збіркою (лише аргументи), опції для C-файлів рантайму (clang їх не отримує).
+- Лишилось: P-NEW-07.2 (ISA і вирівнювання на корпусі); рішення щодо `owngo/opstat` під M:N.
