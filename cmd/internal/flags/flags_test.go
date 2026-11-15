@@ -695,3 +695,34 @@ func TestCompilerVerboseFlag(t *testing.T) {
 		})
 	}
 }
+
+func TestBuildMLLVMFlags(t *testing.T) {
+	tests := []struct {
+		args []string
+		want []string
+	}{
+		{args: nil, want: nil},
+		{args: []string{"-mllvm=-align-all-functions=6"}, want: []string{"-align-all-functions=6"}},
+		{
+			args: []string{"-mllvm", "-x86-branches-within-32B-boundaries", "-mllvm=-align-all-functions=5"},
+			want: []string{"-x86-branches-within-32B-boundaries", "-align-all-functions=5"},
+		},
+	}
+	for _, tt := range tests {
+		t.Run(strings.Join(tt.args, " "), func(t *testing.T) {
+			fs := flag.NewFlagSet("mllvm", flag.ContinueOnError)
+			fs.SetOutput(new(bytes.Buffer))
+			AddBuildFlags(fs)
+			if err := fs.Parse(tt.args); err != nil {
+				t.Fatalf("Parse(%v) unexpected error: %v", tt.args, err)
+			}
+			conf := &build.Config{}
+			if err := UpdateConfig(conf); err != nil {
+				t.Fatalf("UpdateConfig error: %v", err)
+			}
+			if !reflect.DeepEqual(conf.MLLVM, tt.want) {
+				t.Errorf("Parse(%v): conf.MLLVM = %q, want %q", tt.args, conf.MLLVM, tt.want)
+			}
+		})
+	}
+}
