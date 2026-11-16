@@ -15,11 +15,10 @@ func TestApplyOwngoTag(t *testing.T) {
 		target string
 		want   string
 	}{
-		// owngo типовий: без тегу збірка — owngo, вимикає його лише noowngo.
+		// owngo — єдина збірка: BDWGC видалено, тег додається завжди.
 		{name: "empty", tags: "", want: "owngo,nogc,owngomn"},
 		{name: "other", tags: "purego", want: "purego,owngo,nogc,owngomn"},
-		{name: "noowngo", tags: "noowngo", want: "noowngo"},
-		{name: "noowngo among others", tags: "purego,noowngo", asan: true, want: "purego,noowngo"},
+		{name: "noowngo is not an opt-out", tags: "noowngo", want: "noowngo,owngo,nogc,owngomn"},
 		{name: "empty asan", tags: "", asan: true, want: "owngo,nogc,owngomn,owngoasan"},
 		{name: "owngo", tags: "owngo", want: "owngo,nogc,owngomn"},
 		{name: "owngo among others", tags: "foo,owngo,bar", want: "foo,owngo,bar,nogc,owngomn"},
@@ -64,7 +63,7 @@ func TestResolveBuildConfigOwngoDefault(t *testing.T) {
 		wantGOAMD64 string
 	}{
 		{tags: "", wantTags: "owngo,nogc,owngomn", wantGOAMD64: "v3"},
-		{tags: "noowngo", wantTags: "noowngo", wantGOAMD64: "v1"},
+		{tags: "purego", wantTags: "purego,owngo,nogc,owngomn", wantGOAMD64: "v3"},
 	}
 	for _, test := range tests {
 		conf, err := resolveBuildConfig(&Config{Tags: test.tags, Goos: "linux", Goarch: "amd64"})
