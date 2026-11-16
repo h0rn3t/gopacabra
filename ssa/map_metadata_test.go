@@ -18,7 +18,7 @@ func mapMetadataPointer(v llvm.Value) llvm.Value {
 	return v
 }
 
-func TestWasmMapMetadata(t *testing.T) {
+func TestMapMetadata(t *testing.T) {
 	runtimePkg, err := importer.For("source", nil).Import(PkgRuntime)
 	if err != nil {
 		t.Fatal(err)
@@ -77,7 +77,9 @@ func TestWasmMapMetadata(t *testing.T) {
 			pkg := prog.NewPackage("main", "main")
 			fn := pkg.NewFunc("use", NoArgsNoRet, GoDecl)
 			b := fn.MakeBody(1)
-			specialized := tc.dce && tc.arch == "wasm"
+			// Every target names a key-specific hasher; only dev Wasm DCE
+			// strips bucket descriptors to their allocation layout.
+			privateBucket := tc.dce && tc.arch == "wasm"
 			for _, key := range keys {
 				mt := types.NewMap(key.typ, types.Typ[types.Int])
 				b.abiType(mt)
@@ -94,9 +96,6 @@ func TestWasmMapMetadata(t *testing.T) {
 						want = ".memhash32"
 					}
 				}
-				if !specialized {
-					want = ".typehash"
-				}
 				if !strings.HasSuffix(mapMetadataPointer(hasher.Operand(0)).Name(), want) {
 					t.Fatalf("%s hasher = %s, want %s", mt, hasher, want)
 				}
@@ -106,7 +105,7 @@ func TestWasmMapMetadata(t *testing.T) {
 				if !containsLLVMValueNameSuffix(pkg.abiTypeFakeUseCache[global], want) {
 					t.Fatalf("%s lost its hasher reachability edge", mt)
 				}
-				if specialized {
+				if privateBucket {
 					bucket := prog.abi.MapBucket(mt)
 					private := mapMetadataPointer(global.Initializer().Operand(3))
 					init := private.Initializer()
@@ -128,24 +127,24 @@ func TestWasmMapMetadata(t *testing.T) {
 					}
 				}
 			}
-			if specialized {
-				for name, size := range map[string]uint64{"_llgo_memhash.0": 0, "_llgo_memhash.3": 3} {
-					wrapper := pkg.FuncOf(name)
-					if wrapper == nil {
-						t.Fatal("missing fixed-size hash wrapper", name)
-					}
-					found := false
-					for _, block := range wrapper.impl.BasicBlocks() {
-						for inst := block.FirstInstruction(); !inst.IsNil(); inst = llvm.NextInstruction(inst) {
-							if call := inst.IsACallInst(); !call.IsNil() && strings.HasSuffix(call.CalledValue().Name(), ".memhash") {
-								found = call.Operand(2).ZExtValue() == size
-							}
+			for name, size := range map[string]uint64{"_llgo_memhash.0": 0, "_llgo_memhash.3": 3} {
+				wrapper := pkg.FuncOf(name)
+				if wrapper == nil {
+					t.Fatal("missing fixed-size hash wrapper", name)
+				}
+				found := false
+				for _, block := range wrapper.impl.BasicBlocks() {
+					for inst := block.FirstInstruction(); !inst.IsNil(); inst = llvm.NextInstruction(inst) {
+						if call := inst.IsACallInst(); !call.IsNil() && strings.HasSuffix(call.CalledValue().Name(), ".memhash") {
+							found = call.Operand(2).ZExtValue() == size
 						}
 					}
-					if !found {
-						t.Fatalf("%s must call generic memhash with size %d", name, size)
-					}
 				}
+				if !found {
+					t.Fatalf("%s must call generic memhash with size %d", name, size)
+				}
+			}
+			if privateBucket {
 				// A real struct with a bucket's layout still needs comparison and
 				// reflection metadata; creating it must not reuse the private type.
 				mt := types.NewMap(types.Typ[types.String], types.Typ[types.Int])

@@ -1400,8 +1400,8 @@ func TestDevLTOGlobalDCEAbiTypeFakeUsesRecordedDuringAbiTypeBuild(t *testing.T) 
 	b.abiType(mapType)
 	mapName, _ := prog.abi.TypeName(mapType)
 	mapFakeUses := pkg.abiTypeFakeUseCache[pkg.VarOf(mapName).impl]
-	if !containsLLVMValueNameSuffix(mapFakeUses, ".typehash") {
-		t.Fatalf("map abi type fake uses = %v, want typehash", mapFakeUses)
+	if !containsLLVMValueNameSuffix(mapFakeUses, ".strhash") {
+		t.Fatalf("map abi type fake uses = %v, want strhash", mapFakeUses)
 	}
 
 	// Indirect map keys and elements are represented by pointers in the
