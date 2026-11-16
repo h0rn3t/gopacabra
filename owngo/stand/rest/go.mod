@@ -1,0 +1,29 @@
+module github.com/xgo-dev/llgo/owngo/stand/rest
+
+go 1.27
+
+require (
+	github.com/andybalholm/brotli v1.2.2 // indirect
+	github.com/dustin/go-humanize v1.1.0 // indirect
+	github.com/gofiber/fiber/v3 v3.4.0 // indirect
+	github.com/gofiber/schema v1.8.0 // indirect
+	github.com/gofiber/utils/v2 v2.1.1 // indirect
+	github.com/google/uuid v1.6.0 // indirect
+	github.com/klauspost/compress v1.19.0 // indirect
+	github.com/mattn/go-colorable v0.1.15 // indirect
+	github.com/mattn/go-isatty v0.0.24 // indirect
+	github.com/ncruces/go-strftime v1.1.0 // indirect
+	github.com/philhofer/fwd v1.2.0 // indirect
+	github.com/remyoudompheng/bigfft v0.0.0-20230129092748-24d4a6f8daec // indirect
+	github.com/tinylib/msgp v1.6.4 // indirect
+	github.com/valyala/bytebufferpool v1.0.0 // indirect
+	github.com/valyala/fasthttp v1.72.0 // indirect
+	golang.org/x/crypto v0.53.0 // indirect
+	golang.org/x/net v0.56.0 // indirect
+	golang.org/x/sys v0.49.0 // indirect
+	golang.org/x/text v0.38.0 // indirect
+	modernc.org/libc v1.80.1 // indirect
+	modernc.org/mathutil v1.7.1 // indirect
+	modernc.org/memory v1.12.1 // indirect
+	modernc.org/sqlite v1.62.0 // indirect
+)
