@@ -32,7 +32,11 @@ XDG_CACHE_HOME (кеш llgo і go), який після збірки видал�
 --variant "v2 GOAMD64=v2 -tags owngo -O2 -lto thin -mllvm=-align-all-functions=5".
 Прапорець повторюється, рядок на кожен варіант.
 
-Використання: owngo/bench/compare.py PROGRAM [N] [RUNS] [--profiles | --variant SPEC ...] [--json FILE]
+З --isa v2 чи v3 (x86-64) go, Rust і C збираються під той самий рівень:
+GOAMD64=vN, -C target-cpu=x86-64-vN, -march=x86-64-vN (P-NEW-07.3). Без нього —
+прапорці сторінок Benchmarks Game (GOAMD64=v2, ivybridge).
+
+Використання: owngo/bench/compare.py PROGRAM [N] [RUNS] [--profiles | --variant SPEC ...] [--isa vN] [--json FILE]
 """
 
 import argparse
@@ -155,6 +159,14 @@ RUST_ENV = {"RUSTFLAGS": "-C target-cpu=ivybridge"} if X86 else {}
 # один потік. LIBOMP_ROOT — каталог llvm-23 з розпакованого libomp-23-dev, коли
 # його не встановлено в систему.
 C_FLAGS = ["-O3", "-fomit-frame-pointer"] + (["-march=ivybridge"] if X86 else [])
+
+
+def set_isa(level):
+    """Збирає go, Rust і C під x86-64-<level> замість прапорців сторінок."""
+    global GO_ENV, RUST_ENV, C_FLAGS
+    GO_ENV = {"GOAMD64": level}
+    RUST_ENV = {"RUSTFLAGS": f"-C target-cpu=x86-64-{level}"}
+    C_FLAGS = ["-O3", "-fomit-frame-pointer", f"-march=x86-64-{level}"]
 
 
 def openmp_flags():
@@ -362,17 +374,24 @@ def main():
                        help="Go-варіанти — профілі збірки owngo (P-NEW-01)")
     group.add_argument("--variant", action="append", type=parse_variant, metavar="SPEC",
                        help='варіант llgo "KEY [VAR=VALUE ...] FLAG ..." (P-NEW-07.2)')
+    parser.add_argument("--isa", choices=["v2", "v3"],
+                        help="go, Rust і C під x86-64-vN (P-NEW-07.3)")
     parser.add_argument("--json", type=Path, help="куди записати JSON")
     args = parser.parse_args()
+    if args.isa:
+        if not X86:
+            parser.error("--isa is x86-64 only")
+        set_isa(args.isa)
     spec = PROGRAMS[args.program]
     n = args.n or spec["n"]
 
     with tempfile.TemporaryDirectory() as tmp:
         work = Path(tmp)
+        go_row = ("go", f"go, GOAMD64={GO_ENV['GOAMD64']}" if X86 else "go", None)
         if args.variant:
-            go_variants = [GO_VARIANTS[0], *args.variant]
+            go_variants = [go_row, *args.variant]
         else:
-            go_variants = PROFILE_VARIANTS if args.profiles else GO_VARIANTS
+            go_variants = PROFILE_VARIANTS if args.profiles else [go_row, *GO_VARIANTS[1:]]
         tables = build(spec, work, go_variants)
         checks = {t["name"]: expected_check(t["pkg"], n) for t in tables}
         for t in tables:
