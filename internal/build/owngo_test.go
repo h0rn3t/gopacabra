@@ -19,6 +19,9 @@ func TestApplyOwngoTag(t *testing.T) {
 		{name: "empty", tags: "", want: "owngo,nogc,owngomn"},
 		{name: "other", tags: "purego", want: "purego,owngo,nogc,owngomn"},
 		{name: "noowngo is not an opt-out", tags: "noowngo", want: "noowngo,owngo,nogc,owngomn"},
+		// Звіт на виході — лише на запит; owngostat його вмикає.
+		{name: "owngostat reports", tags: "owngostat", want: "owngostat,owngo,nogc,owngomn,owngoreport"},
+		{name: "owngoreport given", tags: "owngoreport", want: "owngoreport,owngo,nogc,owngomn"},
 		{name: "empty asan", tags: "", asan: true, want: "owngo,nogc,owngomn,owngoasan"},
 		{name: "owngo", tags: "owngo", want: "owngo,nogc,owngomn"},
 		{name: "owngo among others", tags: "foo,owngo,bar", want: "foo,owngo,bar,nogc,owngomn"},
