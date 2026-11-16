@@ -80,6 +80,15 @@ func recur(n int) int {
 	}
 	return recur(n-1) + 1
 }
+
+func prefix(k int) uint64 {
+	return 1<<(4*k) - 1
+}
+
+func reverse(perm uint64, k int) uint64 {
+	m := prefix(k + 1)
+	return perm>>4&m | perm&^m
+}
 `
 	ir := cltest.CompileIREx(t, src, "preempt_poll.go", false, func(prog llssa.Program) {
 		prog.EnableCooperativeSafepoints(true)
@@ -107,6 +116,12 @@ func recur(n int) int {
 	recur := findLLVMFunction(t, ir, "recur")
 	if got := len(loads.FindAllString(recur, -1)); got != 1 {
 		t.Fatalf("recur has %d PreemptRequested loads, want the entry:\n%s", got, recur)
+	}
+	// Виклик листової функції не додає опитування на вході (P-NEW-07.9):
+	// інакше після вбудовування reverse у цикл там два опитування.
+	reverse := findLLVMFunction(t, ir, "reverse")
+	if got := len(loads.FindAllString(reverse, -1)); got != 0 {
+		t.Fatalf("reverse has %d PreemptRequested loads, want none:\n%s", got, reverse)
 	}
 }
 
