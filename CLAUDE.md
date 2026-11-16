@@ -220,12 +220,19 @@ session did.
 - Remotes: `origin` is the fork, `upstream` is `goplus/llgo`. Rebase on
   `upstream/main` regularly and keep the diff from upstream minimal.
 - New OwnGo code lives under `owngo/`; runtime changes go behind the `owngo`
-  build tag. Statistics counters (`owngo freed/live/ops/alloc/site` lines on
-  stderr) are compiled in only with `-tags owngo,owngostat`.
-- `-tags owngo` adds `nogc` and, on a native linux/amd64, linux/arm64 or
+  build tag. The exit report (`owngo freed/live` lines on stderr) and the
+  P10.2 `owngo: pinned` build warnings appear only with `-tags owngoreport`;
+  statistics counters (`owngo ops/alloc/site`) only with `-tags owngostat`,
+  which implies `owngoreport`. A plain build prints nothing extra.
+- `owngo` is the only build: every `build.Do` build (the `llgo` command,
+  `cltest`, `_cmptest`, the `GOROOT/test` runner) gets the tag, and nothing
+  turns it off (`applyOwngoTag` in `resolveBuildConfig`, `internal/build`).
+  The tracing collectors (BDWGC, `tinygogc`) are being removed (`PLAN.md`,
+  P11.5.0.1–P11.5.0.2); `-tags owngo` in commands is redundant.
+- `owngo` adds `nogc` and, on a native linux/amd64, linux/arm64 or
   darwin build, `owngomn` (M:N goroutines). `-tags owngo,owngo1to1` keeps the
   1:1 thread-per-goroutine model (`applyOwngoTag`, `internal/build`).
-- On amd64, `-tags owngo` defaults `GOAMD64` to `v3` (AVX2); an explicit
+- On amd64, `owngo` defaults `GOAMD64` to `v3` (AVX2); an explicit
   `GOAMD64` wins (`resolveGOARCHConfig`, `internal/build`).
 - `PLAN.md` has two tracks: memory phases 0–11 and the performance track
   (stages A–F, tasks `P-NEW-*`). Each phase or stage ends with a gate; the

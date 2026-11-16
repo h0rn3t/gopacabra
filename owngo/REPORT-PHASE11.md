@@ -79,3 +79,41 @@ func main() {
 ### Попередження P10.2
 
 Збірка `-tags owngo` модуля сервісу попереджень не друкує (0 рядків). Місця модуля сервісу: `owngo live` на виході після 1 запиту — `static` 670, `rc-local` 170 115, `rc-shared` 148 834, `cyclic` 15 632, `pinned` 77 455 байтів (бінарник падав, цифри — до розбору P11.6).
+
+## P11.5.0 `owngo` — єдина збірка (2026-11-16)
+
+Рішення розробника: збірка з трасувальним збирачем не цікавить, BDWGC і `tinygogc` видаляються (`INTENT.md`, «`owngo` — єдина збірка»). Зроблено:
+
+- `applyOwngoTag` додає `owngo` до кожної збірки `build.Do`, у `resolveBuildConfig` до вибору ISA (`fd3359da6`; тести — `cea576a23`, `aa79d543c`). Вимкнути нічим.
+- Звіт `owngo freed/live` на виході і попередження P10.2 `owngo: pinned` — лише з тегом `owngoreport`; `owngostat` його вмикає (`d904af54c`; тести — `405ab3002`). Без цього кожна програма дописувала звіт у stderr: падали всі тести llgo, що звіряють stderr з `gc` (`cmptest`, `cmd/llgo`, `cmd/internal/run`, `test/cgo`).
+
+### `go test ./...` під типовим `owngo`
+
+Повний прогін (на `cea576a23`, ще зі звітом у stderr), потім перезапуск пакетів, що падали, на `d904af54c` з чистим кешем llgo. Решта 297 пакетів — `ok`.
+
+| Пакет | Після `owngoreport` |
+| --- | --- |
+| `cmd/llgo`, `cmd/internal/run`, `test/cgo` | `ok` |
+| `cmd/internal/build` | `TestRunCmdPassesGoBuildFlags` — середовище (`GOFLAGS=-mod=mod`, відоме) |
+| `owngo/mn/callback` | `go test` (не llgo): `C source files not allowed when not using cgo` — середовище, до зміни |
+| `cl` | 74 підтести `TestRunAndTest*` і `localitycodegen` |
+| `internal/build` | 20 тестів, розклад нижче |
+
+**`cl`: еталони IR під `owngo`.** FileCheck і еталони `cltest` (`_testgo` 31, `_testrt` 23, `_testmeta` 11, `_testdata` 6, `_testlibc` 3, `localitycodegen`) записані для BDWGC-збірки. Під `owngo` інший IR: алокація на стеку замість `AllocZ` (`chan`), опитування `CooperativeSafepoint`/`PreemptRequested` у графі викликів (`_testmeta`), інша нумерація значень і блоків (`concat`, `argv`, `vargs`). Поведінки програм ці перевірки не стосуються; оновлення — за правилом `CLAUDE.md` (найменші рукописні перевірки властивості тесту, `litgen` — для знімків).
+
+**`internal/build`: поведінка рантайму `owngo`, якої тести раніше не бачили.**
+
+| Тест | Симптом | Кошик |
+| --- | --- | --- |
+| `TestEmbedDirectoryCacheInvalidation` | `panic: open open    xt: file does not exist` — зіпсований рядок імені файлу | дефект `owngo` (схоже на передчасне звільнення) |
+| `TestRuntimeCompilerToolchainPackages` | `fatal error: sync: unlock of unlocked mutex` | дефект `owngo` |
+| `TestCoverageBuildAgainstGo`, `TestCoverageBuildUncoveredMain`, `TestWorkspaceCoverageAgainstGo` | лічильники покриття не записані на виході (нормальний `return` і `os.Exit`) | дефект `owngo` (шлях виходу) |
+| `TestShallowPanicTracebackBuildModes`, `TestTracebackConfiguration` | паніка `main` — `goroutine 2`, не `goroutine 1`; немає кадру паркованої горутини | M:N |
+| `TestStrippedSharedLibraryExports` | `c-shared`: `undefined symbol: __llgo_wasm_main` | дефект `owngo` (`c-shared`) |
+| `TestPCLNEmbeddedPruningIntegration`, `TestPCLNExternalPruningIntegration`, `TestPCLNExternalPureCLibraryIdentityRetentionIntegration`, `TestMultiBuildRuntimeIsolationAndCache` | програма на чистому C тягне рантайм llgo | `owngo` додає рантайм без потреби |
+| `TestSIMD128LLVM` | у IR лишилась гілка перевірки меж для сталої смуги | IR під `owngo`/`v3` |
+| `TestWasmGCRootFrameLinksRuntimeChain` | `WASI threads cannot combine nogc with llgo.wasm.gc.linear` | `tinygogc`, P11.5.0.2 |
+| `TestBuildDo_DepFingerprintAndVersion`, `TestSIMDFMVLLVM`, `TestSIMDFMVAggregatesLLVM`, `TestSIMDMidwayFMVLLVM` | — | середовище, відомі до зміни |
+| `TestRunAndTestFromTestgo` та інші `TestRunAndTest*` у `internal/build` | ті самі еталони IR, що в `cl` | еталони |
+
+Не перевірено: `owngo/fixtures.sh`, `GOROOT/test`, darwin.
