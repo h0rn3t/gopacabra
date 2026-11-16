@@ -1810,3 +1810,13 @@
 - Знайдено: частка `poll` у fannkuch-redux майже не впала (11.9% → 11.0%), бо ~4% семплів — у повільному шляху `CooperativeSafepoint`: `PreemptRequested` — один лічильник на процес, і поки запит витіснення виставлено будь-якому G, повільним шляхом іде кожен. Задачі в плані немає.
 - Не перевірено: darwin, arm64; `go test ./runtime/...` під `owngomn` окремо (витіснення покривають фікстури `owngo/mn`).
 - Лишилось: P-NEW-07.10 (хешер ключа мапи за типом) — наступна задача; гейт E.
+
+## 2026-11-16 — P-NEW-07.10 Хешер ключа мапи за типом
+
+- Тест спершу (`5522e208b`): `TestMapMetadata` (був `TestWasmMapMetadata`; хешер за типом — на всіх цілях, приватний кошик — лише wasm DCE), `strhash` у `TestDevLTOGlobalDCEAbiTypeFakeUsesRecordedDuringAbiTypeBuild`, FileCheck `cl/_testrt/maphasher` (`memhash32`, `strhash`, `f64hash`, `_llgo_memhash.3`, `typehash` для `any`) і `_cmptest/maphash`. Червоні: `hasher = … typehash …, want .memhash8`, `want strhash`, FileCheck.
+- Реалізація (`62058895b`): `abiMapHasher` без умови wasm. Хеш той самий, що давав `typehashImpl`.
+- Замір A/B проти `5522e208b` (10 кіл по черзі, вивід побайтно однаковий): k-nucleotide 6.30 → 5.73 с (−9.1%, user −8.4%; діапазони торкаються), профіль: `typehashImpl` 11.4% → 0, семплів −9.6%. Решта корпусу — у межах розкиду; mandelbrot +7% першого заміру — шум (код `main.*` однаковий, повтор 20 кіл: 0.564 проти 0.562). Бінарники −8…−9 КБ, холодна збірка без змін.
+- Перевірки: `go test ./ssa/` — ok; `go test ./cl/` з чистим кешем — ok (651 с); `fixtures.sh` — 0 з 86; `_cmptest/maphash` — як `go run` без тегу, з `owngo` і під `-O0 -asan`.
+- Знайдено: `litgen --check cl` зупиняється на застарілому знімку `cl/_testgo/embedunexport-1598` — і на базі, до зміни. Один прогін `llgo run -tags owngo` `_cmptest/maphash` паралельно з `go test ./cl/` дав порожній stdout; три повтори — правильний вивід, причину не з'ясовано.
+- Не перевірено: darwin, arm64, збірка wasm; `GOROOT/test`.
+- Лишилось: гейт E (P-NEW-07.8) — k-nucleotide ~3.9× від Rust, залишок — кошики мапи рантайму і `*counter` у програмі.
