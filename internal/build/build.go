@@ -337,6 +337,8 @@ func resolveBuildConfig(input *Config) (*Config, error) {
 	if conf.Goarch == "" {
 		conf.Goarch = runtime.GOARCH
 	}
+	// До resolveGOARCHConfig: типова ISA залежить від тегу owngo.
+	applyOwngoTag(conf)
 	if err := resolveGOARCHConfig(conf, os.Getenv); err != nil {
 		return nil, err
 	}
@@ -571,7 +573,6 @@ func buildInvocation(inv Invocation, plan *initialBuildPlan) (result []Package, 
 	if err != nil {
 		return nil, err
 	}
-	applyOwngoTag(conf)
 	if err := applyMLLVM(conf.MLLVM); err != nil {
 		return nil, err
 	}
@@ -1544,18 +1545,16 @@ func cSharedImportLibraryArgs(toolchain crosscompile.NativeToolchain, output str
 	return []string{"-Xlinker", "--out-implib", "-Xlinker", imports}
 }
 
-// applyOwngoTag вибирає файли рантайму nogc, коли заданий тег owngo.
+// applyOwngoTag додає тег owngo до кожної збірки: трасувального збирача в
+// OwnGo немає, owngo вибирає файли рантайму nogc.
 // На нативній збірці linux/amd64, linux/arm64 і darwin ще додає owngomn:
 // типова модель горутин owngo — M:N; тег owngo1to1 лишає модель 1:1.
 // Під -asan ще додає owngoasan: купу тоді веде malloc ASan, а не алокатор owngo.
 func applyOwngoTag(conf *Config) {
 	tags := splitSourcePatchBuildTags(conf.Tags)
-	if !slices.Contains(tags, "owngo") {
-		return
-	}
 	mn := conf.Target == "" && !slices.Contains(tags, "owngo1to1") &&
 		(conf.Goos == "darwin" || conf.Goos == "linux" && (conf.Goarch == "amd64" || conf.Goarch == "arm64"))
-	for _, tag := range []string{"nogc", "owngomn", "owngoasan"} {
+	for _, tag := range []string{"owngo", "nogc", "owngomn", "owngoasan"} {
 		if slices.Contains(tags, tag) || tag == "owngomn" && !mn || tag == "owngoasan" && !conf.ASan {
 			continue
 		}
