@@ -1820,3 +1820,11 @@
 - Знайдено: `litgen --check cl` зупиняється на застарілому знімку `cl/_testgo/embedunexport-1598` — і на базі, до зміни. Один прогін `llgo run -tags owngo` `_cmptest/maphash` паралельно з `go test ./cl/` дав порожній stdout; три повтори — правильний вивід, причину не з'ясовано.
 - Не перевірено: darwin, arm64, збірка wasm; `GOROOT/test`.
 - Лишилось: гейт E (P-NEW-07.8) — k-nucleotide ~3.9× від Rust, залишок — кошики мапи рантайму і `*counter` у програмі.
+
+## 2026-11-16 — P-NEW-07.8 Гейт E: таблиці
+
+- Замір HEAD `4abd1ef64` під `x86-64-v3` (`compare.py --isa v3`, 10 кіл, усі виводи `matches`; JSON — `owngo/bench/stagee/*-gate.json`): owngo / Rust — fannkuch-redux 1.08×, mandelbrot 1.00×, k-nucleotide 3.62×; owngo / C — 2.10×, 0.89×, 1.54×. reverse-complement і regex-redux — контроль регресії.
+- A/B бази етапу `77d2d3f7c` проти HEAD (owngo thin `v3`, 10 кіл по черзі, холодна збірка, вивід побайтно однаковий; `gate-ab.json`): fannkuch-redux −18.9%, mandelbrot −15.3%, k-nucleotide −10.0% — поза розкидом; reverse-complement +2.6% і regex-redux −5.5% — у межах розкиду. Холодна збірка не зросла, бінарники −38…−76 КБ. База під LTO губила `GOAMD64` (P-NEW-07.2), тож зміна включає виправлення ISA.
+- Залишок k-nucleotide (семплер HEAD): кошики мапи рантайму 64.5%, `*counter` у програмі 18.9%, хеш 9.7%; codegen-категорій плану в ньому немає. `go` зі swiss-мапою на тій самій програмі — 2.67× Rust, тож порт мапи сам 1.2× не дає.
+- Звіт: `owngo/REPORT-STAGEE.md`, «P-NEW-07.8 — гейт E», з варіантами рішення. Гейт не відмічено в `PLAN.md`: рішення merge / rework / rollback і склад корпусу — за розробником.
+- Компілятор не змінювався; тести не запускались.
