@@ -1550,12 +1550,14 @@ func cSharedImportLibraryArgs(toolchain crosscompile.NativeToolchain, output str
 // На нативній збірці linux/amd64, linux/arm64 і darwin ще додає owngomn:
 // типова модель горутин owngo — M:N; тег owngo1to1 лишає модель 1:1.
 // Під -asan ще додає owngoasan: купу тоді веде malloc ASan, а не алокатор owngo.
+// Тег owngostat тягне owngoreport: лічильники друкує той самий звіт на виході.
 func applyOwngoTag(conf *Config) {
 	tags := splitSourcePatchBuildTags(conf.Tags)
 	mn := conf.Target == "" && !slices.Contains(tags, "owngo1to1") &&
 		(conf.Goos == "darwin" || conf.Goos == "linux" && (conf.Goarch == "amd64" || conf.Goarch == "arm64"))
-	for _, tag := range []string{"owngo", "nogc", "owngomn", "owngoasan"} {
-		if slices.Contains(tags, tag) || tag == "owngomn" && !mn || tag == "owngoasan" && !conf.ASan {
+	stat := slices.Contains(tags, "owngostat")
+	for _, tag := range []string{"owngo", "nogc", "owngomn", "owngoasan", "owngoreport"} {
+		if slices.Contains(tags, tag) || tag == "owngomn" && !mn || tag == "owngoasan" && !conf.ASan || tag == "owngoreport" && !stat {
 			continue
 		}
 		if conf.Tags != "" {
@@ -3415,7 +3417,8 @@ func preparePackageModule(ctx *context, aPkg *aPackage, verbose bool) ([]string,
 	options.StaticByteArrays = aPkg.staticByteArrays
 	// Рантайм llgo вантажиться як окремий головний модуль, тож Module.Main
 	// замало: попередження — лише для модуля пакетів, які збирає користувач.
-	if options.OwnGoFree && pkg.Module != nil && slices.ContainsFunc(ctx.initial, func(root *packages.Package) bool {
+	if options.OwnGoFree && slices.Contains(splitSourcePatchBuildTags(ctx.buildConf.Tags), "owngoreport") &&
+		pkg.Module != nil && slices.ContainsFunc(ctx.initial, func(root *packages.Package) bool {
 		return root.Module != nil && root.Module.Main && root.Module.Path == pkg.Module.Path
 	}) {
 		options.OwnGoWarn = os.Stderr

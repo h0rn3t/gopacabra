@@ -511,9 +511,12 @@ func Live(cat int32) uint64 {
 }
 
 // ReportExit друкує байти, звільнені FreeAccounted, і байти, що дожили
-// до виходу, за категорією місця. З тегом owngostat далі йдуть рядки
-// owngo ops з кількістю кожної операції.
+// до виходу, за категорією місця, лише з тегом owngoreport. З тегом owngostat
+// (він тягне owngoreport) далі йдуть рядки owngo ops з кількістю кожної операції.
 func ReportExit() {
+	if !ownGoReport {
+		return
+	}
 	freed := Freed()
 	var live [accountCats]uint64
 	for cat := range live {
