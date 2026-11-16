@@ -15,15 +15,18 @@ func TestApplyOwngoTag(t *testing.T) {
 		target string
 		want   string
 	}{
-		{name: "empty", tags: "", want: ""},
-		{name: "other", tags: "purego", want: "purego"},
+		// owngo типовий: без тегу збірка — owngo, вимикає його лише noowngo.
+		{name: "empty", tags: "", want: "owngo,nogc,owngomn"},
+		{name: "other", tags: "purego", want: "purego,owngo,nogc,owngomn"},
+		{name: "noowngo", tags: "noowngo", want: "noowngo"},
+		{name: "noowngo among others", tags: "purego,noowngo", asan: true, want: "purego,noowngo"},
+		{name: "empty asan", tags: "", asan: true, want: "owngo,nogc,owngomn,owngoasan"},
 		{name: "owngo", tags: "owngo", want: "owngo,nogc,owngomn"},
 		{name: "owngo among others", tags: "foo,owngo,bar", want: "foo,owngo,bar,nogc,owngomn"},
 		{name: "already nogc", tags: "owngo,nogc", want: "owngo,nogc,owngomn"},
 		{name: "nogc before owngo", tags: "nogc,owngo", want: "nogc,owngo,owngomn"},
 		{name: "owngomn given", tags: "owngo,owngomn", want: "owngo,owngomn,nogc"},
 		{name: "owngo asan", tags: "owngo", asan: true, want: "owngo,nogc,owngomn,owngoasan"},
-		{name: "asan without owngo", tags: "purego", asan: true, want: "purego"},
 		{name: "owngoasan given", tags: "owngo,nogc,owngomn,owngoasan", asan: true, want: "owngo,nogc,owngomn,owngoasan"},
 		{name: "1:1", tags: "owngo,owngo1to1", want: "owngo,owngo1to1,nogc"},
 		{name: "1:1 asan", tags: "owngo,owngo1to1", asan: true, want: "owngo,owngo1to1,nogc,owngoasan"},
@@ -35,6 +38,7 @@ func TestApplyOwngoTag(t *testing.T) {
 		{name: "wasi", tags: "owngo", goos: "wasip1", goarch: "wasm", want: "owngo,nogc"},
 		{name: "js", tags: "owngo", goos: "js", goarch: "wasm", want: "owngo,nogc"},
 		{name: "named target", tags: "owngo", target: "wasi", want: "owngo,nogc"},
+		{name: "named target default", tags: "", target: "wasi", want: "owngo,nogc"},
 	}
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
@@ -49,6 +53,28 @@ func TestApplyOwngoTag(t *testing.T) {
 					test.tags, test.asan, conf.Goos, conf.Goarch, test.target, conf.Tags, test.want)
 			}
 		})
+	}
+}
+
+func TestResolveBuildConfigOwngoDefault(t *testing.T) {
+	t.Setenv("GOAMD64", "")
+	tests := []struct {
+		tags        string
+		wantTags    string
+		wantGOAMD64 string
+	}{
+		{tags: "", wantTags: "owngo,nogc,owngomn", wantGOAMD64: "v3"},
+		{tags: "noowngo", wantTags: "noowngo", wantGOAMD64: "v1"},
+	}
+	for _, test := range tests {
+		conf, err := resolveBuildConfig(&Config{Tags: test.tags, Goos: "linux", Goarch: "amd64"})
+		if err != nil {
+			t.Fatalf("resolveBuildConfig(tags %q) error = %v", test.tags, err)
+		}
+		if conf.Tags != test.wantTags || conf.GOAMD64 != test.wantGOAMD64 {
+			t.Errorf("resolveBuildConfig(tags %q) = tags %q, GOAMD64 %q, want %q, %q",
+				test.tags, conf.Tags, conf.GOAMD64, test.wantTags, test.wantGOAMD64)
+		}
 	}
 }
 
