@@ -3,9 +3,13 @@ module github.com/xgo-dev/llgo/owngo/stand/rest
 go 1.27
 
 require (
+	github.com/gofiber/fiber/v3 v3.4.0
+	modernc.org/sqlite v1.62.0
+)
+
+require (
 	github.com/andybalholm/brotli v1.2.2 // indirect
 	github.com/dustin/go-humanize v1.1.0 // indirect
-	github.com/gofiber/fiber/v3 v3.4.0 // indirect
 	github.com/gofiber/schema v1.8.0 // indirect
 	github.com/gofiber/utils/v2 v2.1.1 // indirect
 	github.com/google/uuid v1.6.0 // indirect
@@ -25,5 +29,4 @@ require (
 	modernc.org/libc v1.80.1 // indirect
 	modernc.org/mathutil v1.7.1 // indirect
 	modernc.org/memory v1.12.1 // indirect
-	modernc.org/sqlite v1.62.0 // indirect
 )
