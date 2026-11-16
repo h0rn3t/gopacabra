@@ -207,29 +207,31 @@ func (p Package) regularMemoryHash(size uint64) Expr {
 	return fn.Expr
 }
 
+// abiMapHasher names a key-specific hasher, as gc does, so a map operation
+// hashes without re-dispatching on the key's type descriptor in typehash.
+// Keys that need the descriptor (interfaces, structs and arrays that are not
+// regular memory) keep the typehash closure.
 func (b Builder) abiMapHasher(key types.Type, global llvm.Value) Expr {
 	prog, pkg := b.Prog, b.Pkg
 	var hash Expr
-	if prog.enableDeadcodeDrop && prog.target.effectiveGOARCH() == "wasm" {
-		if prog.abi.IsRegularMemory(key) {
-			hash = pkg.regularMemoryHash(uint64(prog.abi.Size(key)))
-		} else if basic, ok := key.Underlying().(*types.Basic); ok {
-			var name string
-			switch basic.Kind() {
-			case types.String:
-				name = "strhash"
-			case types.Float32:
-				name = "f32hash"
-			case types.Float64:
-				name = "f64hash"
-			case types.Complex64:
-				name = "c64hash"
-			case types.Complex128:
-				name = "c128hash"
-			}
-			if name != "" {
-				hash = pkg.rtFunc(RuntimeSymbol(name, "strhash", "f32hash", "f64hash", "c64hash", "c128hash"))
-			}
+	if prog.abi.IsRegularMemory(key) {
+		hash = pkg.regularMemoryHash(uint64(prog.abi.Size(key)))
+	} else if basic, ok := key.Underlying().(*types.Basic); ok {
+		var name string
+		switch basic.Kind() {
+		case types.String:
+			name = "strhash"
+		case types.Float32:
+			name = "f32hash"
+		case types.Float64:
+			name = "f64hash"
+		case types.Complex64:
+			name = "c64hash"
+		case types.Complex128:
+			name = "c128hash"
+		}
+		if name != "" {
+			hash = pkg.rtFunc(RuntimeSymbol(name, "strhash", "f32hash", "f64hash", "c64hash", "c128hash"))
 		}
 	}
 	if !hash.IsNil() {
