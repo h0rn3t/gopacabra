@@ -418,19 +418,48 @@ func smallConst(v ssa.Value) (int64, bool) {
 	return x, true
 }
 
-// NeedsEntryPoll каже, чи функції потрібне опитування на вході: так лише
-// за виклику не вбудованої функції (зокрема рекурсії, go і defer), як
-// перевірка стека в gc лише в нелистових функціях. Без викликів функція
-// закінчується за скінченний час або поступається у своїх циклах.
-func NeedsEntryPoll(fn *ssa.Function) bool {
+// EntryPolls каже, яким функціям потрібне опитування на вході, і пам'ятає
+// відповідь. Нульове значення готове до роботи; одне значення — на пакет, що
+// компілюється, бо тіла функцій SSA під час компіляції не змінюються.
+type EntryPolls struct {
+	memo map[*ssa.Function]bool
+}
+
+// Needs каже, чи fn потрібне опитування на вході. Без циклів графа викликів
+// кожен ланцюжок викликів скінченний, а цикли функцій опитуються самі, тож
+// опитування потрібне лише функції, що може лежати на такому циклі: вона кличе
+// невідому ціль — значення функції, інтерфейс, функцію без тіла, go чи defer —
+// або статичну функцію, якій опитування потрібне. Функція на стеку обходу
+// вважається такою, що його потребує: досягти її — означає замкнути цикл.
+// Так виклик листової функції (bits.ReverseBytes64) не додає опитування, яке
+// після вбудовування лягло б у цикл викликача (P-NEW-07.9).
+func (e *EntryPolls) Needs(fn *ssa.Function) bool {
+	if need, ok := e.memo[fn]; ok {
+		return need
+	}
+	if e.memo == nil {
+		e.memo = make(map[*ssa.Function]bool)
+	}
+	e.memo[fn] = true
+	need := e.callsPolled(fn)
+	e.memo[fn] = need
+	return need
+}
+
+func (e *EntryPolls) callsPolled(fn *ssa.Function) bool {
 	for _, b := range fn.Blocks {
 		for _, instr := range b.Instrs {
-			call, ok := instr.(ssa.CallInstruction)
-			if !ok {
-				continue
-			}
-			if _, builtin := call.Common().Value.(*ssa.Builtin); !builtin {
+			switch instr := instr.(type) {
+			case *ssa.Go, *ssa.Defer:
 				return true
+			case *ssa.Call:
+				if _, builtin := instr.Call.Value.(*ssa.Builtin); builtin {
+					continue
+				}
+				callee := instr.Call.StaticCallee()
+				if callee == nil || len(callee.Blocks) == 0 || e.Needs(callee) {
+					return true
+				}
 			}
 		}
 	}

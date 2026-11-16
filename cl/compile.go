@@ -36,6 +36,7 @@ import (
 	"github.com/xgo-dev/llgo/internal/directive"
 	"github.com/xgo-dev/llgo/internal/genmethod"
 	"github.com/xgo-dev/llgo/internal/goembed"
+	"github.com/xgo-dev/llgo/internal/safepointplan"
 	"github.com/xgo-dev/llgo/internal/typepatch"
 	"github.com/xgo-dev/llgo/owngo/census"
 	"golang.org/x/tools/go/ssa"
@@ -216,6 +217,7 @@ type context struct {
 	gcRoots              map[ssa.Value][]llssa.Expr
 	gcClosureRoot        llssa.Expr
 	safepointEntry       bool
+	entryPolls           safepointplan.EntryPolls
 	safepoints           map[ssa.Instruction]struct{}
 	pcLineSeq            uint64
 	pcLineIDs            map[pcLinePosition]uint64

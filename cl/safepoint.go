@@ -41,7 +41,7 @@ func (p *context) prepareCooperativeSafepoints(fn *ssa.Function, isCgo bool) {
 		// M:N лише витісняє: скінченним внутрішнім циклам і листовим
 		// функціям опитування не потрібне, а вбудоване в цикл воно ламає
 		// розгортання й векторизацію.
-		p.safepointEntry = safepointplan.NeedsEntryPoll(fn)
+		p.safepointEntry = p.entryPolls.Needs(fn)
 		p.safepoints = safepointplan.UnboundedBackedges(fn)
 		return
 	}
