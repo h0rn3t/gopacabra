@@ -1861,3 +1861,13 @@
 - Не перевірено: `owngo/fixtures.sh`, `GOROOT/test`, darwin.
 - P11.5.0 не відмічено: умова «кожне нове падіння виправлене або з причиною» виконана лише в частині причин; виправлення — P11.5.0.3 і P11.5.0.4.
 - Лишилось: P11.5.0.3 (почати з `embed` і `sync`), P11.5.0.4, P11.5.0.1, P11.5.0.2, далі P11.5.1–P11.5.5.
+
+## 2026-11-17 — P11.5.0.3 Дефекти рантайму `owngo`: `embed`
+
+- Місце на диску: 3.2 ГБ вільно → 46 ГБ (`go clean -cache`, scratchpad-и старих сесій owngo; каталог з git worktree `runtime/memprofile-shards` лишено).
+- Причина `TestEmbedDirectoryCacheInvalidation`: census звільняв `string(buf)` у `path.Join` одразу після `path.Clean`, а результат `Clean` — підрядок поля локальної `lazybuf`, куди лягає параметр. `applyCall` не вів вміст аргументу в результат цілі з `Alias`. Розклад — `owngo/REPORT-PHASE11.md`, «P11.5.0.3».
+- Тест спершу (`54f7289ec`): `TestLazybufParamAliasesResult` (`owngo/census`), фікстура `owngo/asan/pathjoin`. Червоні: `Alias:[]`, `Join tree/neste<сміття>`, під ASan `heap-use-after-free`.
+- Реалізація (`5265a4b37`): `content[arg]` іде в результат виклику, якщо параметр цілі аліасить результат.
+- Перевірки: `go test ./owngo/census/` — ok; `TestEmbed*` (`internal/build`) — ok; `go test ./cl/ -run OwnGo` з чистим кешем — ok; `fixtures.sh` — 0 з 87; `pathjoin` під `-O0 -asan` — без звіту.
+- Не перевірено: повний `go test ./cl/` і `./internal/build/`, `GOROOT/test`, darwin.
+- Лишилось у P11.5.0.3: `sync: unlock of unlocked mutex` (`TestRuntimeCompilerToolchainPackages`) — наступна, далі покриття на виході, `c-shared`, рантайм у програмі на чистому C, траса паніки під M:N.

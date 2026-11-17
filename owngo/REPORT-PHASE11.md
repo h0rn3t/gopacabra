@@ -117,3 +117,15 @@ func main() {
 | `TestRunAndTestFromTestgo` та інші `TestRunAndTest*` у `internal/build` | ті самі еталони IR, що в `cl` | еталони |
 
 Не перевірено: `owngo/fixtures.sh`, `GOROOT/test`, darwin.
+
+## P11.5.0.3 Дефекти рантайму `owngo`: `embed` (2026-11-17)
+
+**`TestEmbedDirectoryCacheInvalidation` — `panic: open <сміття>xt: file does not exist`.** Під `-O0 -asan` — `heap-use-after-free`: `embed.FS.ReadFile` читає ім'я, яке `path.Join` (виклик з `fs.walkDir`) звільнив одразу після `path.Clean(string(buf))`.
+
+Причина — зведення census. `path.Clean` кладе параметр у поле локальної `lazybuf` (`out := lazybuf{s: path}`, SSA: `*&t1.s = path`, `*t0 = *t1`) і повертає `out.string()` — `b.s[:b.w]`. Зведення методу `(*lazybuf).string` — `Alias [0]` (результат — прочитане з `b`), але в `applyCall` результат виклику отримував лише `tok` і `derived` аргументу `t0`, а не його `content`, де й лежить `path`. Тому `Clean` мав порожній `Alias`, і `Join` звільняв `string(buf)` як тимчасовий.
+
+Виправлення (`5265a4b37`): якщо параметр цілі аліасить результат, у результат іде і вміст аргументу (`content[arg]`). Зміна лише збільшує множину аліасів, тож може лише прибрати звільнення.
+
+Тести (`54f7289ec`): `TestLazybufParamAliasesResult` (`owngo/census`), фікстура `owngo/asan/pathjoin` (до виправлення: `Join tree/neste<сміття>`, під ASan — `heap-use-after-free`). Після: обидва зелені, `TestEmbed*` у `internal/build` — `ok`.
+
+Лишились причини P11.5.0.3: `sync: unlock of unlocked mutex` (`TestRuntimeCompilerToolchainPackages`), покриття на виході, `c-shared`, рантайм у програмі на чистому C, траса паніки під M:N.
