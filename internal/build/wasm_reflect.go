@@ -161,25 +161,11 @@ func isRuntimeFuncForPC(fn *ssa.Function) bool {
 		fn.Pkg.Pkg.Path() == "runtime" && fn.Name() == "FuncForPC"
 }
 
-func wasmReflectRoots(ctx *context) (roots []*ssa.Function) {
-	if ctx == nil || ctx.progSSA == nil {
+func wasmReflectRoots(ctx *context) []*ssa.Function {
+	if ctx == nil {
 		return nil
 	}
-	for _, pkg := range ctx.initial {
-		if pkg == nil || pkg.Types == nil {
-			continue
-		}
-		ssaPkg := ctx.progSSA.Package(pkg.Types)
-		if ssaPkg == nil {
-			continue
-		}
-		for _, name := range []string{"init", "main"} {
-			if fn := ssaPkg.Func(name); fn != nil {
-				roots = append(roots, fn)
-			}
-		}
-	}
-	return roots
+	return initialRoots(ctx.progSSA, ctx.initial)
 }
 
 func programUsesWasmReflectBridges(prog *ssa.Program, roots []*ssa.Function) bool {

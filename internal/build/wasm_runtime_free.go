@@ -8,10 +8,12 @@ import (
 	"go/types"
 	"os"
 	"path/filepath"
+	"slices"
 	"strings"
 
 	"github.com/xgo-dev/llgo/internal/env"
 	"github.com/xgo-dev/llgo/internal/optlevel"
+	"github.com/xgo-dev/llgo/internal/packages"
 	llssa "github.com/xgo-dev/llgo/ssa"
 	"golang.org/x/tools/go/ssa"
 )
@@ -21,13 +23,40 @@ import (
 // lowering: frame bookkeeping itself would otherwise introduce allocations.
 func configureWasmRuntimeFree(ctx *context) {
 	conf := ctx.buildConf
-	if len(ctx.initial) != 1 || ctx.initial[0].Types == nil || ctx.initial[0].Types.Name() != "main" ||
-		conf.Goarch != "wasm" || conf.BuildMode != BuildModeExe || ctx.mode == ModeGen || conf.Coverage != nil ||
-		conf.OptLevel == optlevel.O0 || ctx.prog.Target().WasmProvider != "wasi" ||
-		conf.Target != "" && conf.Target != "wasi" || len(ctx.crossCompile.ExtraFiles) != 0 ||
-		ctx.frontendOptions.DebuggerFrames || needsWasmRuntimeScheduler(ctx) ||
-		os.Getenv("LDFLAGS") != "" || ctx.commands.lookup("LDFLAGS") != "" || conf.LinkOptions.ExternalLinkerFlags != "" {
+	if len(ctx.initial) != 1 || conf.Goarch != "wasm" || ctx.prog.Target().WasmProvider != "wasi" ||
+		conf.Target != "" && conf.Target != "wasi" || needsWasmRuntimeScheduler(ctx) {
 		return
+	}
+	pkgs := make([]*packages.Package, 0, len(ctx.pkgByID))
+	for _, pkg := range ctx.pkgByID {
+		pkgs = append(pkgs, pkg.Package)
+	}
+	if !provenRuntimeFree(ctx, ctx.initial, pkgs) {
+		return
+	}
+	ctx.wasmRuntimeFree = true
+	ctx.frontendOptions.ShadowStack = false
+	ctx.prog.EnableGCRoots(false)
+	ctx.prog.EnableCooperativeSafepoints(false)
+	if conf.Verbose || conf.PrintCommands {
+		fmt.Fprintln(os.Stderr, "llgo: runtime startup omitted: proven allocation-free WASI program")
+	}
+}
+
+// provenRuntimeFree reports whether the main packages initials, linked with
+// pkgs, provably make no runtime call: the target-independent part of the
+// proof above.
+func provenRuntimeFree(ctx *context, initials, pkgs []*packages.Package) bool {
+	conf := ctx.buildConf
+	for _, pkg := range initials {
+		if pkg.Types == nil || pkg.Types.Name() != "main" {
+			return false
+		}
+	}
+	if conf.BuildMode != BuildModeExe || ctx.mode == ModeGen || conf.Coverage != nil ||
+		conf.OptLevel == optlevel.O0 || len(ctx.crossCompile.ExtraFiles) != 0 || ctx.frontendOptions.DebuggerFrames ||
+		os.Getenv("LDFLAGS") != "" || ctx.commands.lookup("LDFLAGS") != "" || conf.LinkOptions.ExternalLinkerFlags != "" {
+		return false
 	}
 	linkname := func(fn *ssa.Function) string {
 		if fn.Pkg == nil {
@@ -46,21 +75,21 @@ func configureWasmRuntimeFree(ctx *context) {
 	}
 	// Check reachable globals even inside the trusted runtime tree. Most
 	// programs also fail this proof without needing any filesystem checks.
-	if !wasmRuntimeFreeFunctions(wasmReflectRoots(ctx), linkname, globalSafe) {
-		return
+	if !wasmRuntimeFreeFunctions(initialRoots(ctx.progSSA, initials), linkname, globalSafe) {
+		return false
 	}
 	// Foreign objects and exported entries can hide calls back into Go.
 	runtimeDir, err := filepath.EvalSymlinks(env.LLGoRuntimeDir())
 	if err != nil {
-		return
+		return false
 	}
 	resolvedDirs := make(map[string]string)
-	for _, pkg := range ctx.pkgByID {
+	for _, pkg := range pkgs {
 		dir, resolved := resolvedDirs[pkg.Dir]
 		if !resolved {
 			dir, err = filepath.EvalSymlinks(pkg.Dir)
 			if err != nil {
-				return
+				return false
 			}
 			resolvedDirs[pkg.Dir] = dir
 		}
@@ -68,18 +97,18 @@ func configureWasmRuntimeFree(ctx *context) {
 			continue
 		}
 		if len(pkg.OtherFiles) != 0 || len(pkg.EmbedFiles) != 0 {
-			return
+			return false
 		}
 		for _, file := range pkg.Syntax {
 			for _, imp := range file.Imports {
 				if imp.Path.Value == `"C"` || imp.Path.Value == "`C`" {
-					return
+					return false
 				}
 			}
 			for _, decl := range file.Decls {
 				if fn, ok := decl.(*ast.FuncDecl); ok && fn.Body != nil {
 					if symbol, linked := ctx.prog.Linkname(llssa.FullName(pkg.Types, fn.Name.Name)); linked && !strings.HasPrefix(symbol, "llgo.") {
-						return
+						return false
 					}
 				}
 			}
@@ -87,19 +116,19 @@ func configureWasmRuntimeFree(ctx *context) {
 				for _, comment := range group.List {
 					fields := strings.Fields(strings.TrimPrefix(comment.Text, "//"))
 					if len(fields) > 0 && (fields[0] == "export" || fields[0] == "go:wasmexport" || fields[0] == "llgo:export") {
-						return
+						return false
 					}
 				}
 			}
 		}
 		if flags, imports := collectGoCgoPragmas(pkg.Syntax); len(flags) != 0 || len(imports) != 0 {
-			return
+			return false
 		}
 		for _, name := range []string{"LLGoFiles", "LLGoPackage"} {
 			if value, ok := pkg.Types.Scope().Lookup(name).(*types.Const); ok && value.Val().Kind() == constant.String {
 				text := constant.StringVal(value.Val())
 				if name == "LLGoFiles" && text != "" || name == "LLGoPackage" && strings.HasPrefix(text, "link") {
-					return
+					return false
 				}
 			}
 		}
@@ -108,20 +137,69 @@ func configureWasmRuntimeFree(ctx *context) {
 				continue
 			}
 			if _, locality, ok, err := ctx.prog.ResolveLocalityFor(pkg.Types, llssa.FullName(pkg.Types, name)); err != nil || ok && locality.Locality != llssa.LocalityNone {
-				return
+				return false
 			}
 		}
 		if _, err := os.Stat(filepath.Join(pkg.Dir, "_wrap")); err == nil || !os.IsNotExist(err) {
-			return
+			return false
 		}
 	}
-	ctx.wasmRuntimeFree = true
-	ctx.frontendOptions.ShadowStack = false
-	ctx.prog.EnableGCRoots(false)
-	ctx.prog.EnableCooperativeSafepoints(false)
-	if conf.Verbose || conf.PrintCommands {
-		fmt.Fprintln(os.Stderr, "llgo: runtime startup omitted: proven allocation-free WASI program")
+	return true
+}
+
+// configureOwnGoMNRuntimeFree: під owngomn кожна функція опитує
+// CooperativeSafepoint, а виклики C позначені EnterSyscall/ExitSyscall, тож
+// навіть програма без рантайму тягнула б планувальник M:N. Програмі, якій
+// рантайм доведено не потрібен, другої горутини не завести: опитування,
+// позначки і запуск планувальника вимикаються.
+func configureOwnGoMNRuntimeFree(ctx *context) {
+	if !ownGoMNExe(ctx) || !provenRuntimeFree(ctx, ctx.initial, importClosure(ctx.initial)) {
+		return
 	}
+	ctx.mnRuntimeFree = true
+	ctx.prog.EnableCooperativeSafepoints(false)
+	ctx.prog.EnablePreemptRequestPoll(false)
+	ctx.prog.EnableBlockingCallMarkers(false)
+	if conf := ctx.buildConf; conf.Verbose || conf.PrintCommands {
+		fmt.Fprintln(os.Stderr, "llgo: owngomn scheduler omitted: proven runtime-free program")
+	}
+}
+
+// ownGoMNExe reports whether ctx builds a native executable under owngomn.
+func ownGoMNExe(ctx *context) bool {
+	return ctx.buildConf.BuildMode == BuildModeExe && ctx.buildConf.Goarch != "wasm" &&
+		slices.Contains(splitSourcePatchBuildTags(ctx.buildConf.Tags), "owngomn")
+}
+
+// importClosure returns pkgs and every package they import.
+func importClosure(pkgs []*packages.Package) []*packages.Package {
+	var closure []*packages.Package
+	packages.Visit(pkgs, nil, func(pkg *packages.Package) {
+		closure = append(closure, pkg)
+	})
+	return closure
+}
+
+// initialRoots returns the init and main functions of initials.
+func initialRoots(prog *ssa.Program, initials []*packages.Package) (roots []*ssa.Function) {
+	if prog == nil {
+		return nil
+	}
+	for _, pkg := range initials {
+		if pkg == nil || pkg.Types == nil {
+			continue
+		}
+		ssaPkg := prog.Package(pkg.Types)
+		if ssaPkg == nil {
+			continue
+		}
+		for _, name := range []string{"init", "main"} {
+			if fn := ssaPkg.Func(name); fn != nil {
+				roots = append(roots, fn)
+			}
+		}
+	}
+	return roots
 }
 
 func wasmRuntimeFreeFunctions(roots []*ssa.Function, linkname func(*ssa.Function) string, globalSafe func(*ssa.Global) bool) bool {

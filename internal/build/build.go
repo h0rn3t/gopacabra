@@ -1045,6 +1045,12 @@ func buildInvocation(inv Invocation, plan *initialBuildPlan) (result []Package, 
 			features = &groups[0].features
 		}
 	}
+	if groups := groupOwnGoMNRuntimeFree(ctx, features); groups != nil {
+		fallback = nil
+		plan.invocations = initialGroupInvocations(inv, ctx, groups)
+		plan.finishTrace = finishTrace
+		return nil, nil
+	}
 	if features != nil {
 		// RTA over a union of roots can conservatively connect otherwise
 		// independent reflection uses. Keep the per-initial feature decision.
@@ -1055,6 +1061,7 @@ func buildInvocation(inv Invocation, plan *initialBuildPlan) (result []Package, 
 		configureWasmFuncInfoEntries(ctx)
 	}
 	configureWasmRuntimeFree(ctx)
+	configureOwnGoMNRuntimeFree(ctx)
 
 	allPkgs := append([]*aPackage{}, pkgs...)
 	configureUnusedGlobalInits(ctx)
@@ -1785,6 +1792,7 @@ type context struct {
 	frontendOptions   cl.Options
 	staticByteArrays  map[string][]byte
 	wasmRuntimeFree   bool
+	mnRuntimeFree     bool // owngomn: програма без рантайму, планувальник не стартує
 	wasmClosedProgram bool // true when native inputs cannot introduce untracked Go references
 
 	cTransformer *cabi.Transformer

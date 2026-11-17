@@ -77,7 +77,7 @@ func needsWasmRuntimeScheduler(ctx *context) bool {
 	// Планувальник M:N owngo (тег owngomn) теж запускає ініціалізацію і main
 	// на стеку горутини: головний потік стає звичайною M.
 	if slices.Contains(splitSourcePatchBuildTags(ctx.buildConf.Tags), "owngomn") {
-		return true
+		return !ctx.mnRuntimeFree
 	}
 	return ctx.crossCompile.WasmProfile == crosscompile.WasmProfileJ32 ||
 		ctx.crossCompile.WasmProfile == crosscompile.WasmProfileJ64
@@ -225,7 +225,7 @@ func genMainModule(ctx *context, rtPkgPath string, pkg *packages.Package, cfg *g
 		wasmRunMain = declareNoArgFunc(mainPkg, rtPkgPath+".RunWasmMain")
 	}
 	var owngoExit llssa.Function
-	if slices.Contains(splitSourcePatchBuildTags(ctx.buildConf.Tags), "owngo") {
+	if slices.Contains(splitSourcePatchBuildTags(ctx.buildConf.Tags), "owngo") && !ctx.mnRuntimeFree {
 		// Як і hook покриття: os.Exit друкує звіт owngo через
 		// os.runtime_beforeExit, а звичайне повернення з main його оминає.
 		// Пакет runtime бібліотеки є не в кожній програмі, тож виклик іде

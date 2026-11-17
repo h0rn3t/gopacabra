@@ -117,3 +117,30 @@ func buildInitialGroups(children []Invocation) ([]Package, error) {
 	}
 	return result, errors.Join(failures...)
 }
+
+// groupOwnGoMNRuntimeFree ділить початкові пакети owngomn за provenRuntimeFree:
+// доказ змінює код пакетів (опитування safepoint, позначки викликів C), тож
+// програма без рантайму не ділить бекенд і архіви з програмою, якій він
+// потрібен. nil — якщо поділ не потрібен.
+func groupOwnGoMNRuntimeFree(ctx *context, features *initialBuildFeatures) []initialBuildGroup {
+	if len(ctx.initial) < 2 || ctx.mode == ModeGen || !ownGoMNExe(ctx) {
+		return nil
+	}
+	var base initialBuildFeatures
+	if features != nil {
+		base = *features
+	}
+	groups := []initialBuildGroup{{features: base}, {features: base}}
+	for _, pkg := range ctx.initial {
+		initial := []*packages.Package{pkg}
+		i := 0
+		if provenRuntimeFree(ctx, initial, importClosure(initial)) {
+			i = 1
+		}
+		groups[i].pkgs = append(groups[i].pkgs, pkg)
+	}
+	if len(groups[0].pkgs) == 0 || len(groups[1].pkgs) == 0 {
+		return nil
+	}
+	return groups
+}
