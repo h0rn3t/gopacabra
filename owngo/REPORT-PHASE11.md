@@ -153,3 +153,15 @@ func main() {
 Тести (`00c697e52`): `TestGenMainModuleCoverageExitMN` (`internal/build`; до виправлення в задачі немає виклику хука). Після: зелений, як і `TestCoverageBuild*`, `TestWorkspaceCoverageAgainstGo` та решта `TestCoverage*`, `TestGenMainModule*`.
 
 Лишились причини P11.5.0.3: `c-shared`, рантайм у програмі на чистому C, траса паніки під M:N.
+
+## P11.5.0.3 Дефекти рантайму `owngo`: `c-shared` (2026-11-17)
+
+**`TestStrippedSharedLibraryExports` — `dlopen`: `undefined symbol: __llgo_wasm_main`.** `applyOwngoTag` давав `owngomn` кожній нативній збірці, і бібліотечним режимам теж. Рантайм M:N (`proc_mn_owngo.go`) посилається на задачу `__llgo_wasm_main` через `RunWasmMain`, а компілятор визначає її лише для `exe` (`needsWasmRuntimeScheduler`). Символ лишався невизначеним, і `dlopen(RTLD_NOW)` падав.
+
+Причина глибша за символ: M:N стартує з точки входу `exe` (`RunWasmMain` робить головний потік M0 і запускає планувальник). Бібліотека точкою входу процесу не володіє, її експорти виконуються на потоках хоста, тож планувальник M:N у ній не запускається ніколи. Модель 1:1 (потік на горутину) з потоками хоста вже працює: експорт `c-shared`, що запускає горутину і чекає на каналі, під `owngo1to1` повертав правильне значення.
+
+Виправлення (`90139a1ae`): `applyOwngoTag` додає `owngomn` лише для `exe` (порожній `BuildMode` — теж `exe`); `c-shared` і `c-archive` лишаються на 1:1. Заглушка `__llgo_wasm_main` у бібліотеці чи передача задачі параметром лише прибрали б симптом: планувальник у бібліотеці однаково не стартує.
+
+Тести (`70b96af3e`): `TestApplyOwngoTag` (рядки `exe`, `c-shared`, `c-archive`; до виправлення бібліотеки отримували `owngomn`), `TestOwnGoCSharedGoroutine` (програма на C завантажує бібліотеку і кличе експорт з горутиною; до виправлення — `undefined symbol: __llgo_wasm_main`). Після: обидва зелені, як і `TestStrippedSharedLibraryExports`, `TestGenMainModule*`. Та сама бібліотека під `-O0 -asan` (з `LD_PRELOAD` рантайму ASan) — `42`, без звіту.
+
+Лишились причини P11.5.0.3: рантайм у програмі на чистому C (`TestPCLN*Pruning*`, `TestPCLNExternalPureCLibraryIdentityRetentionIntegration`, `TestMultiBuildRuntimeIsolationAndCache`), траса паніки під M:N.

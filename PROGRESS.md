@@ -1889,3 +1889,12 @@
 - Перевірки: `go test ./internal/build/ -run 'TestGenMainModule|TestCoverage'` — ok (678 с); `TestWorkspaceCoverageAgainstGo` — ok; `go vet ./internal/build/` — чисто.
 - Не перевірено: повний `go test ./internal/build/`, `fixtures.sh` (рантайм і census не змінювались), wasm-ціль з покриттям, darwin.
 - Лишилось у P11.5.0.3: `c-shared` без `__llgo_wasm_main` (`TestStrippedSharedLibraryExports`) — наступна, далі рантайм у програмі на чистому C, траса паніки під M:N.
+
+## 2026-11-17 — P11.5.0.3 Дефекти рантайму `owngo`: `c-shared`
+
+- Причина `TestStrippedSharedLibraryExports`: `owngomn` діставався й бібліотечним режимам; рантайм M:N посилається на задачу `__llgo_wasm_main`, яку компілятор визначає лише для `exe`, — `dlopen`: `undefined symbol`. Глибше: M:N стартує з точки входу `exe`, у бібліотеці планувальник не запускається ніколи; 1:1 з потоками хоста працює. Розклад — `owngo/REPORT-PHASE11.md`.
+- Тест спершу (`70b96af3e`): рядки `exe`/`c-shared`/`c-archive` у `TestApplyOwngoTag`, `TestOwnGoCSharedGoroutine` (C-завантажувач, експорт з горутиною). Червоні: бібліотеки з `owngomn`, `undefined symbol: __llgo_wasm_main`.
+- Реалізація (`90139a1ae`): `applyOwngoTag` — `owngomn` лише для `exe`. `CLAUDE.md` оновлено.
+- Перевірки: `TestApplyOwngoTag`, `TestOwnGoCSharedGoroutine`, `TestStrippedSharedLibraryExports`, `TestGenMainModule*` — ok; тести `internal/build` за `Shared|Archive|CExport|Library|AllThreads` — ok, крім відомого `TestPCLNExternalPureCLibraryIdentityRetentionIntegration` (наступна причина); бібліотека під `-O0 -asan` — `42` без звіту; `go vet ./internal/build/` — чисто.
+- Не перевірено: повний `go test ./internal/build/`, `fixtures.sh` (зміна стосується лише бібліотечних режимів, фікстури — `exe`), darwin.
+- Лишилось у P11.5.0.3: рантайм у програмі на чистому C (`TestPCLN*Pruning*`, `TestMultiBuildRuntimeIsolationAndCache`) — наступна, далі траса паніки під M:N.

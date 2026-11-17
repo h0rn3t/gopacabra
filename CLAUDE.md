@@ -230,7 +230,8 @@ session did.
   The tracing collectors (BDWGC, `tinygogc`) are being removed (`PLAN.md`,
   P11.5.0.1–P11.5.0.2); `-tags owngo` in commands is redundant.
 - `owngo` adds `nogc` and, on a native linux/amd64, linux/arm64 or
-  darwin build, `owngomn` (M:N goroutines). `-tags owngo,owngo1to1` keeps the
+  darwin executable build, `owngomn` (M:N goroutines); `c-shared` and
+  `c-archive` keep the 1:1 model, since M:N starts from the executable entry. `-tags owngo,owngo1to1` keeps the
   1:1 thread-per-goroutine model (`applyOwngoTag`, `internal/build`).
 - On amd64, `owngo` defaults `GOAMD64` to `v3` (AVX2); an explicit
   `GOAMD64` wins (`resolveGOARCHConfig`, `internal/build`).
