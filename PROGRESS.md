@@ -1898,3 +1898,12 @@
 - Перевірки: `TestApplyOwngoTag`, `TestOwnGoCSharedGoroutine`, `TestStrippedSharedLibraryExports`, `TestGenMainModule*` — ok; тести `internal/build` за `Shared|Archive|CExport|Library|AllThreads` — ok, крім відомого `TestPCLNExternalPureCLibraryIdentityRetentionIntegration` (наступна причина); бібліотека під `-O0 -asan` — `42` без звіту; `go vet ./internal/build/` — чисто.
 - Не перевірено: повний `go test ./internal/build/`, `fixtures.sh` (зміна стосується лише бібліотечних режимів, фікстури — `exe`), darwin.
 - Лишилось у P11.5.0.3: рантайм у програмі на чистому C (`TestPCLN*Pruning*`, `TestMultiBuildRuntimeIsolationAndCache`) — наступна, далі траса паніки під M:N.
+
+## 2026-11-17 — P11.5.0.3 Дефекти рантайму `owngo`: рантайм у програмі на чистому C
+
+- Причина `TestPCLN*Pruning*`, `TestPCLNExternalPureCLibraryIdentityRetentionIntegration`, `TestMultiBuildRuntimeIsolationAndCache`: під `owngomn` компілятор вставляє в кожну функцію опитування `CooperativeSafepoint` і позначки `EnterSyscall`/`ExitSyscall`, а точка входу запускає планувальник і викликає `ReportExit`. Через це програма `c.Printf` тягнула 192 символи рантайму. Розклад — `owngo/REPORT-PHASE11.md`.
+- Тест спершу (`23510ac67`): `TestOwnGoMNRuntimeFreeProgram` (`pure-c` червоний: рантайм злінковано; контроль `goroutine` зелений).
+- Реалізація (`c8868fe8e`): спільна частина доказу upstream `configureWasmRuntimeFree` винесена в `provenRuntimeFree`; `configureOwnGoMNRuntimeFree` вимикає опитування, позначки викликів C, планувальник і `ReportExit`. Ознака входить у відбиток кешу (`OWNGO_MN_RUNTIME_FREE`). Початкові пакети з різним результатом доказу розділяються на групи (`groupOwnGoMNRuntimeFree`).
+- Перевірки: названі тести, `TestMixedInitialGroups*`, `TestInitialGroup*`, тести wasm-доказу і відбитка — ok, крім відомого `TestBuildDo_DepFingerprintAndVersion` (падав і до зміни); `TestCoverageBuildUncoveredMain`, `TestOwnGoCSharedGoroutine` — ok; `fixtures.sh` — 0 з 88; програма на чистому C під `-O0 -asan` — без звіту; `go vet ./internal/build/` — чисто.
+- Не перевірено: повний `go test ./internal/build/` і `./cl/`, wasm-ціль (доказ WASI лише перенесено, тести зелені), darwin.
+- Лишилось у P11.5.0.3: траса паніки під M:N (`TestShallowPanicTraceback*`, `TestTracebackConfiguration`) — остання причина.
