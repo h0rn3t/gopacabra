@@ -152,3 +152,36 @@ int main(int argc, char **argv) {
 		t.Fatalf("loader(libanswer.so) = %q, %v, want \"42\\n\"", out, err)
 	}
 }
+
+// TestOwnGoMNRuntimeFreeProgram: під owngomn програма, якій рантайм не
+// потрібен, не тягне ні планувальника, ні опитувань safepoint; програма з
+// горутиною лишається на M:N.
+func TestOwnGoMNRuntimeFreeProgram(t *testing.T) {
+	if runtime.GOOS != "linux" && runtime.GOOS != "darwin" {
+		t.Skip("owngomn: native linux and darwin")
+	}
+	tests := []struct {
+		name        string
+		src         string
+		want        string
+		wantRuntime bool
+	}{
+		{"pure-c", pclntabPureCLibraryFixture, "pure-c-pclntab\n", false},
+		{"goroutine", "package main\n\nfunc main() {\n\tch := make(chan int)\n\tgo func() { ch <- 1 }()\n\tprintln(<-ch)\n}\n", "1\n", true},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			bin := filepath.Join(t.TempDir(), "app")
+			if _, err := Do([]string{writePCLNIntegrationSource(t, tt.src)}, &Config{Mode: ModeBuild, OutFile: bin}); err != nil {
+				t.Fatal(err)
+			}
+			out, err := exec.CommandContext(t.Context(), bin).CombinedOutput()
+			if err != nil || string(out) != tt.want {
+				t.Fatalf("%s = %q, %v, want %q", tt.name, out, err, tt.want)
+			}
+			if got := pclnIntegrationHasLLGoRuntime(t, bin); got != tt.wantRuntime {
+				t.Errorf("linked LLGo runtime = %v, want %v", got, tt.wantRuntime)
+			}
+		})
+	}
+}
