@@ -1549,11 +1549,14 @@ func cSharedImportLibraryArgs(toolchain crosscompile.NativeToolchain, output str
 // OwnGo немає, owngo вибирає файли рантайму nogc.
 // На нативній збірці linux/amd64, linux/arm64 і darwin ще додає owngomn:
 // типова модель горутин owngo — M:N; тег owngo1to1 лишає модель 1:1.
+// Бібліотека (c-shared, c-archive) лишається 1:1: M:N стартує з точки
+// входу exe, а експорти бібліотеки йдуть на потоках хоста.
 // Під -asan ще додає owngoasan: купу тоді веде malloc ASan, а не алокатор owngo.
 // Тег owngostat тягне owngoreport: лічильники друкує той самий звіт на виході.
 func applyOwngoTag(conf *Config) {
 	tags := splitSourcePatchBuildTags(conf.Tags)
-	mn := conf.Target == "" && !slices.Contains(tags, "owngo1to1") &&
+	exe := conf.BuildMode == "" || conf.BuildMode == BuildModeExe
+	mn := exe && conf.Target == "" && !slices.Contains(tags, "owngo1to1") &&
 		(conf.Goos == "darwin" || conf.Goos == "linux" && (conf.Goarch == "amd64" || conf.Goarch == "arm64"))
 	stat := slices.Contains(tags, "owngostat")
 	for _, tag := range []string{"owngo", "nogc", "owngomn", "owngoasan", "owngoreport"} {
