@@ -298,25 +298,26 @@ func leaves(label string) bool {
 // тож decSite за нею цих місць не бачить.
 func exitSites(fn *ssa.Function, pts map[ssa.Value]siteSet, contents map[ssa.Instruction]siteSet) siteSet {
 	out := siteSet{}
-	var add func(siteSet)
-	add = func(sites siteSet) {
-		for site := range sites {
-			if out.add(site) {
-				add(contents[site])
-			}
-		}
-	}
 	for _, block := range fn.Blocks {
 		switch instr := block.Instrs[len(block.Instrs)-1].(type) {
 		case *ssa.Return:
 			for _, result := range instr.Results {
-				add(pts[result])
+				reach(out, pts[result], contents)
 			}
 		case *ssa.Panic:
-			add(pts[instr.X])
+			reach(out, pts[instr.X], contents)
 		}
 	}
 	return out
+}
+
+// reach додає до out місця sites і все, що досяжне з їхнього вмісту.
+func reach(out, sites siteSet, contents map[ssa.Instruction]siteSet) {
+	for site := range sites {
+		if out.add(site) {
+			reach(out, contents[site], contents)
+		}
+	}
 }
 
 func countedImplicit(site ssa.Instruction, label string) bool {

@@ -1466,12 +1466,14 @@ func (v1 *v1Ctx) transfer(instr ssa.Instruction, call *ssa.CallCommon, pts map[s
 			raise(escape, notes, pts[arg], escapeCall, "shared")
 			raiseHeld(v1, pts[arg], escape, notes, escapeCall, "shared")
 			v1.blockDec(pts[arg])
+			v1.blockHeld(pts[arg])
 			continue
 		}
 		if ps.Side != 0 {
 			word := transferWord(instr, pts[arg], pts)
 			raise(escape, notes, pts[arg], escapeKind(ps.Side), word)
 			v1.noteTransfer(instr, arg, pts[arg], word)
+			v1.blockHeld(pts[arg])
 		}
 		if ps.Content != 0 {
 			word := transferWord(instr, pts[arg], pts)
@@ -1493,6 +1495,19 @@ func (v1 *v1Ctx) blockDec(sites siteSet) {
 	for site := range sites {
 		v1.noDec[site] = true
 	}
+}
+
+// blockHeld знімає Dec з усього, що досяжне з вмісту objs, крім самих objs.
+// Callee, що зберіг об'єкт, тримає й те, на що він вказує (комірки
+// замикання, поля), а звільнення об'єкта Dec вмісту не робить: як для
+// return, на виході функції цим місцям Dec не ставиться.
+func (v1 *v1Ctx) blockHeld(objs siteSet) {
+	held := siteSet{}
+	reach(held, heldBy(objs, v1.contents), v1.contents)
+	for obj := range objs {
+		delete(held, obj)
+	}
+	v1.blockDec(held)
 }
 
 func (v1 *v1Ctx) noteTransfer(call ssa.Instruction, arg ssa.Value, sites siteSet, word string) {
