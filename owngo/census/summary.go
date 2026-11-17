@@ -728,6 +728,9 @@ func applyCall(instr ssa.Instruction, call *ssa.CallCommon, sum *Summary, tok, d
 			}
 			flow[ri] = mergeSets(flow[ri], tok[arg])
 			flow[ri] = mergeSets(flow[ri], derived[arg])
+			// Ціль повертає й прочитане з аргументу: параметр у полі локальної
+			// структури (path.Clean → lazybuf.string) теж іде в результат.
+			flow[ri] = mergeSets(flow[ri], content[arg])
 		}
 	}
 	if value, ok := instr.(ssa.Value); ok && nres == 1 {
