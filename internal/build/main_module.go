@@ -212,17 +212,17 @@ func genMainModule(ctx *context, rtPkgPath string, pkg *packages.Package, cfg *g
 		callbackInit = declareNoArgFunc(mainPkg, llssa.PkgRuntime+".EnableForeignThreadRegistration")
 		defineCExportWrappers(mainPkg, cfg.cExports, nil)
 	}
-	var wasmRunMain llssa.Function
-	if wasmRuntimeScheduler {
-		defineWasmMainTask(mainPkg, packageInits, mainInit, mainMain)
-		wasmRunMain = declareNoArgFunc(mainPkg, rtPkgPath+".RunWasmMain")
-	}
 	var coverageExit llssa.Function
 	if ctx.buildConf.Coverage != nil {
 		// os.Exit runs this hook through os.runtime_beforeExit. Ordinary
 		// main returns bypass os.Exit, so the generated entry must flush too.
 		coverageExit = mainPkg.NewFunc("runtime.runCoverageExitHook",
 			newSignature([]types.Type{types.Typ[types.Int]}, nil), llssa.GoDecl)
+	}
+	var wasmRunMain llssa.Function
+	if wasmRuntimeScheduler {
+		defineWasmMainTask(mainPkg, packageInits, mainInit, mainMain, coverageExit)
+		wasmRunMain = declareNoArgFunc(mainPkg, rtPkgPath+".RunWasmMain")
 	}
 	var owngoExit llssa.Function
 	if slices.Contains(splitSourcePatchBuildTags(ctx.buildConf.Tags), "owngo") {
@@ -493,9 +493,9 @@ func emitRuntimeMainBody(b llssa.Builder, fns entryFunctions) {
 		}
 		b.Call(fns.mainInit.Expr)
 		b.Call(fns.mainMain.Expr)
-	}
-	if fns.coverageExit != nil {
-		b.Call(fns.coverageExit.Expr, b.Prog.IntVal(0, b.Prog.Int()))
+		if fns.coverageExit != nil {
+			b.Call(fns.coverageExit.Expr, b.Prog.IntVal(0, b.Prog.Int()))
+		}
 	}
 	if fns.owngoExit != nil {
 		b.Call(fns.owngoExit.Expr)
@@ -527,7 +527,11 @@ func defineDefaultGODEBUGInit(pkg llssa.Package, defaults string) llssa.Function
 	return fn
 }
 
-func defineWasmMainTask(pkg llssa.Package, packageInits []llssa.Function, mainInit, mainMain llssa.Function) {
+// defineWasmMainTask визначає __llgo_wasm_main: ініціалізація пакетів,
+// main.main і hook покриття на стеку горутини, як runtime.main у Go. Під
+// owngomn повернення з задачі завершує процес у рантаймі (mnGEntry), тож
+// hook не може чекати хвоста точки входу.
+func defineWasmMainTask(pkg llssa.Package, packageInits []llssa.Function, mainInit, mainMain, coverageExit llssa.Function) {
 	prog := pkg.Prog
 	sig := newSignature(
 		[]types.Type{types.Typ[types.UnsafePointer]},
@@ -547,6 +551,9 @@ func defineWasmMainTask(pkg llssa.Package, packageInits []llssa.Function, mainIn
 	}
 	b.Call(mainInit.Expr)
 	b.Call(mainMain.Expr)
+	if coverageExit != nil {
+		b.Call(coverageExit.Expr, prog.IntVal(0, prog.Int()))
+	}
 	b.Return(prog.Nil(prog.VoidPtr()))
 }
 
