@@ -107,7 +107,7 @@ func main() {
 | --- | --- | --- |
 | `TestEmbedDirectoryCacheInvalidation` | `panic: open open    xt: file does not exist` — зіпсований рядок імені файлу | дефект `owngo` (схоже на передчасне звільнення) |
 | `TestRuntimeCompilerToolchainPackages` | `fatal error: sync: unlock of unlocked mutex` | дефект `owngo` |
-| `TestCoverageBuildAgainstGo`, `TestCoverageBuildUncoveredMain`, `TestWorkspaceCoverageAgainstGo` | лічильники покриття не записані на виході (нормальний `return` і `os.Exit`) | дефект `owngo` (шлях виходу) |
+| `TestCoverageBuildAgainstGo`, `TestCoverageBuildUncoveredMain`, `TestWorkspaceCoverageAgainstGo` | лічильники покриття не записані на виході (звичайний `return` з `main`; `os.Exit` пише) | дефект `owngo` (шлях виходу M:N) |
 | `TestShallowPanicTracebackBuildModes`, `TestTracebackConfiguration` | паніка `main` — `goroutine 2`, не `goroutine 1`; немає кадру паркованої горутини | M:N |
 | `TestStrippedSharedLibraryExports` | `c-shared`: `undefined symbol: __llgo_wasm_main` | дефект `owngo` (`c-shared`) |
 | `TestPCLNEmbeddedPruningIntegration`, `TestPCLNExternalPruningIntegration`, `TestPCLNExternalPureCLibraryIdentityRetentionIntegration`, `TestMultiBuildRuntimeIsolationAndCache` | програма на чистому C тягне рантайм llgo | `owngo` додає рантайм без потреби |
@@ -141,3 +141,15 @@ func main() {
 Тести (`680aa3650`): `TestKeptArgumentContentsLive` (`owngo/census`; до виправлення `closure`, `field`, `unknown` — `Dec` на комірці), фікстура `owngo/asan/keptclosure` (до виправлення без ASan — `nil pointer dereference`, під ASan — `heap-use-after-free`). Після: обидва зелені; `TestRuntimeCompilerToolchainPackages` і `TestEmbed*` (`internal/build`) — `ok`; `go test ./cl/ -run OwnGo` з чистим кешем — `ok`; `fixtures.sh` — 0 з 88.
 
 Лишились причини P11.5.0.3: покриття на виході, `c-shared`, рантайм у програмі на чистому C, траса паніки під M:N.
+
+## P11.5.0.3 Дефекти рантайму `owngo`: покриття на виході (2026-11-17)
+
+**`TestCoverageBuildAgainstGo`, `TestCoverageBuildUncoveredMain`, `TestWorkspaceCoverageAgainstGo` — лічильники покриття не записані.** Уточнення до розкладу P11.5.0: `os.Exit` лічильники пише (через `os.runtime_beforeExit`), не пише лише звичайне повернення з `main`. Під `owngo1to1` повернення з `main` теж пише — дефект у моделі M:N.
+
+Причина — точка входу. `runtime.runCoverageExitHook` для звичайного повернення компілятор кликав у хвості точки входу після `main.main` (`emitRuntimeMainBody`). Під `owngomn` ініціалізація і `main.main` ідуть у задачі `__llgo_wasm_main` на окремій G, а `mnGEntry` після повернення з `main` викликає `ReportExit` і `c.Exit(0)` прямо з цієї G: хвіст точки входу після `RunWasmMain` не виконується. Звіт `owngo` (`ReportExit`) рантайм уже кликав сам, хук покриття — ні.
+
+Виправлення (`419cfe70a`): `defineWasmMainTask` кличе хук у задачі одразу після `main.main`, як `runtime.main` у Go; хвіст точки входу кличе його лише для збірок без задачі. Для wasm з асинхронним планувальником хук теж переходить у задачу — порядок той самий (після `main.main`, до виходу).
+
+Тести (`00c697e52`): `TestGenMainModuleCoverageExitMN` (`internal/build`; до виправлення в задачі немає виклику хука). Після: зелений, як і `TestCoverageBuild*`, `TestWorkspaceCoverageAgainstGo` та решта `TestCoverage*`, `TestGenMainModule*`.
+
+Лишились причини P11.5.0.3: `c-shared`, рантайм у програмі на чистому C, траса паніки під M:N.

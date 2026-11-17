@@ -1880,3 +1880,12 @@
 - Перевірки: `go test ./owngo/census/...` — ok; `go test ./cl/ -run OwnGo` з чистим кешем — ok; `fixtures.sh` — 0 з 88; `TestRuntimeCompilerToolchainPackages`, `TestEmbed*` — ok.
 - Не перевірено: повний `go test ./cl/` і `./internal/build/`, `GOROOT/test`, darwin; вплив на `live` корпусу (зміна може лише додати витік).
 - Лишилось у P11.5.0.3: покриття на виході (`TestCoverage*`) — наступна, далі `c-shared`, рантайм у програмі на чистому C, траса паніки під M:N.
+
+## 2026-11-17 — P11.5.0.3 Дефекти рантайму `owngo`: покриття на виході
+
+- Причина `TestCoverageBuild*`, `TestWorkspaceCoverageAgainstGo`: під `owngomn` `main.main` іде в задачі `__llgo_wasm_main`, а `mnGEntry` після повернення з неї завершує процес (`c.Exit(0)`); `runtime.runCoverageExitHook` у хвості точки входу не виконувався. `os.Exit` лічильники писав; під `owngo1to1` повернення з `main` теж. Розклад — `owngo/REPORT-PHASE11.md`.
+- Тест спершу (`00c697e52`): `TestGenMainModuleCoverageExitMN` (`internal/build`). Червоний: у задачі немає виклику хука.
+- Реалізація (`419cfe70a`): хук у задачі `__llgo_wasm_main` одразу після `main.main` (як `runtime.main` у Go); у хвості точки входу — лише без задачі.
+- Перевірки: `go test ./internal/build/ -run 'TestGenMainModule|TestCoverage'` — ok (678 с); `TestWorkspaceCoverageAgainstGo` — ok; `go vet ./internal/build/` — чисто.
+- Не перевірено: повний `go test ./internal/build/`, `fixtures.sh` (рантайм і census не змінювались), wasm-ціль з покриттям, darwin.
+- Лишилось у P11.5.0.3: `c-shared` без `__llgo_wasm_main` (`TestStrippedSharedLibraryExports`) — наступна, далі рантайм у програмі на чистому C, траса паніки під M:N.
