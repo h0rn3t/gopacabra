@@ -1,6 +1,9 @@
 package build
 
 import (
+	"os"
+	"os/exec"
+	"path/filepath"
 	"runtime"
 	"testing"
 )
@@ -13,6 +16,7 @@ func TestApplyOwngoTag(t *testing.T) {
 		goos   string
 		goarch string
 		target string
+		mode   BuildMode
 		want   string
 	}{
 		// owngo — єдина збірка: BDWGC видалено, тег додається завжди.
@@ -41,18 +45,23 @@ func TestApplyOwngoTag(t *testing.T) {
 		{name: "js", tags: "owngo", goos: "js", goarch: "wasm", want: "owngo,nogc"},
 		{name: "named target", tags: "owngo", target: "wasi", want: "owngo,nogc"},
 		{name: "named target default", tags: "", target: "wasi", want: "owngo,nogc"},
+		// M:N запускає планувальник з точки входу exe; бібліотека main не
+		// володіє, її експорти йдуть на потоках хоста — модель 1:1.
+		{name: "exe", tags: "", mode: BuildModeExe, want: "owngo,nogc,owngomn"},
+		{name: "c-shared", tags: "", mode: BuildModeCShared, want: "owngo,nogc"},
+		{name: "c-archive", tags: "", mode: BuildModeCArchive, want: "owngo,nogc"},
 	}
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
 			t.Parallel()
-			conf := &Config{Tags: test.tags, ASan: test.asan, Goos: test.goos, Goarch: test.goarch, Target: test.target}
+			conf := &Config{Tags: test.tags, ASan: test.asan, Goos: test.goos, Goarch: test.goarch, Target: test.target, BuildMode: test.mode}
 			if conf.Goos == "" {
 				conf.Goos, conf.Goarch = "linux", "amd64"
 			}
 			applyOwngoTag(conf)
 			if conf.Tags != test.want {
-				t.Errorf("applyOwngoTag(%q, asan %v, %s/%s, target %q) = %q, want %q",
-					test.tags, test.asan, conf.Goos, conf.Goarch, test.target, conf.Tags, test.want)
+				t.Errorf("applyOwngoTag(%q, asan %v, %s/%s, target %q, mode %q) = %q, want %q",
+					test.tags, test.asan, conf.Goos, conf.Goarch, test.target, test.mode, conf.Tags, test.want)
 			}
 		})
 	}
@@ -96,5 +105,50 @@ func TestASanRequiresNativeHost(t *testing.T) {
 	}
 	if _, err := resolveBuildConfig(&Config{ASan: true, Goos: "linux", Goarch: "amd64"}); err == nil {
 		t.Fatal("resolveBuildConfig(asan cross) error = nil")
+	}
+}
+
+// Горутина з експортованої функції c-shared: бібліотеку завантажує й кличе
+// програма на C, точки входу llgo в процесі немає.
+func TestOwnGoCSharedGoroutine(t *testing.T) {
+	if runtime.GOOS != "linux" && runtime.GOOS != "darwin" {
+		t.Skip("native ELF/Mach-O shared library")
+	}
+	dir := t.TempDir()
+	file := filepath.Join(dir, "main.go")
+	src := "package main\n\nimport \"C\"\n\n//export Answer\nfunc Answer() int32 {\n\tch := make(chan int32)\n\tgo func() { ch <- 40 }()\n\treturn <-ch + 2\n}\n\nfunc main() {}\n"
+	if err := os.WriteFile(file, []byte(src), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	lib := filepath.Join(dir, "libanswer.so")
+	if _, err := Do([]string{"file=" + file}, &Config{Mode: ModeBuild, BuildMode: BuildModeCShared, OutFile: lib}); err != nil {
+		t.Fatal(err)
+	}
+	loader := filepath.Join(dir, "loader.c")
+	const loaderSrc = `#include <dlfcn.h>
+#include <stdio.h>
+int main(int argc, char **argv) {
+  void *lib = dlopen(argv[1], RTLD_NOW);
+  if (!lib) { puts(dlerror()); return 1; }
+  int (*answer)(void) = (int (*)(void))dlsym(lib, "Answer");
+  if (!answer) return 2;
+  printf("%d\n", answer());
+  return 0;
+}
+`
+	if err := os.WriteFile(loader, []byte(loaderSrc), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	app := filepath.Join(dir, "loader")
+	args := []string{loader, "-o", app}
+	if runtime.GOOS == "linux" {
+		args = append(args, "-ldl")
+	}
+	if out, err := exec.CommandContext(t.Context(), "cc", args...).CombinedOutput(); err != nil {
+		t.Fatalf("cc loader: %v\n%s", err, out)
+	}
+	out, err := exec.CommandContext(t.Context(), app, lib).CombinedOutput()
+	if err != nil || string(out) != "42\n" {
+		t.Fatalf("loader(libanswer.so) = %q, %v, want \"42\\n\"", out, err)
 	}
 }
