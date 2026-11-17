@@ -1871,3 +1871,12 @@
 - Перевірки: `go test ./owngo/census/` — ok; `TestEmbed*` (`internal/build`) — ok; `go test ./cl/ -run OwnGo` з чистим кешем — ok; `fixtures.sh` — 0 з 87; `pathjoin` під `-O0 -asan` — без звіту.
 - Не перевірено: повний `go test ./cl/` і `./internal/build/`, `GOROOT/test`, darwin.
 - Лишилось у P11.5.0.3: `sync: unlock of unlocked mutex` (`TestRuntimeCompilerToolchainPackages`) — наступна, далі покриття на виході, `c-shared`, рантайм у програмі на чистому C, траса паніки під M:N.
+
+## 2026-11-17 — P11.5.0.3 Дефекти рантайму `owngo`: `sync: unlock of unlocked mutex`
+
+- Причина `TestRuntimeCompilerToolchainPackages` (симптом цієї сесії — `nil pointer dereference` в `exportdata.FindPkg`): `lookupGorootExport` кладе в `sync.Map` замикання з захопленим `sync.Once`; census давав замиканню Inc, а захопленим коміркам — Dec на виході функції. Загально: вміст аргументу, який callee зберігає (`Side != 0`) або callee без зведення, не блокувався від Dec. Розклад — `owngo/REPORT-PHASE11.md`.
+- Тест спершу (`680aa3650`): `TestKeptArgumentContentsLive` (`owngo/census`), фікстура `owngo/asan/keptclosure`. Червоні: `closure`, `field`, `unknown` — Dec на комірці; фікстура — `heap-use-after-free`.
+- Реалізація (`264fd7edc`): `blockHeld` у `transfer`, обхід `reach` спільний з `exitSites`.
+- Перевірки: `go test ./owngo/census/...` — ok; `go test ./cl/ -run OwnGo` з чистим кешем — ok; `fixtures.sh` — 0 з 88; `TestRuntimeCompilerToolchainPackages`, `TestEmbed*` — ok.
+- Не перевірено: повний `go test ./cl/` і `./internal/build/`, `GOROOT/test`, darwin; вплив на `live` корпусу (зміна може лише додати витік).
+- Лишилось у P11.5.0.3: покриття на виході (`TestCoverage*`) — наступна, далі `c-shared`, рантайм у програмі на чистому C, траса паніки під M:N.

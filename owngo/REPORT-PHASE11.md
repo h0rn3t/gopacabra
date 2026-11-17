@@ -129,3 +129,15 @@ func main() {
 Тести (`54f7289ec`): `TestLazybufParamAliasesResult` (`owngo/census`), фікстура `owngo/asan/pathjoin` (до виправлення: `Join tree/neste<сміття>`, під ASan — `heap-use-after-free`). Після: обидва зелені, `TestEmbed*` у `internal/build` — `ok`.
 
 Лишились причини P11.5.0.3: `sync: unlock of unlocked mutex` (`TestRuntimeCompilerToolchainPackages`), покриття на виході, `c-shared`, рантайм у програмі на чистому C, траса паніки під M:N.
+
+## P11.5.0.3 Дефекти рантайму `owngo`: `sync: unlock of unlocked mutex` (2026-11-17)
+
+**`TestRuntimeCompilerToolchainPackages` — `fatal error: sync: unlock of unlocked mutex`** (у цій сесії симптом був інший — `nil pointer dereference` в `os.Stat` з `internal/exportdata.FindPkg`). Під `-O0 -asan` — `heap-use-after-free` у `sync.(*Once).Do`: `internal/exportdata.lookupGorootExport` кладе в `sync.Map` замикання, що захопило `listOnce`, `exportPath` і `err`, і викликає його через результат `LoadOrStore`. Комірки захоплених змінних звільнялись на виході `lookupGorootExport`, а замикання лишалось у мапі; наступний `go/importer.Import` читав звільнений `sync.Once`.
+
+Причина — `transfer` у census. `LoadOrStore` зберігає параметр у пам'яті приймача і повертає його (`Side` — `call`, результат аліасить параметр). Сам аргумент (замикання) отримував `Inc` у виклику, але те, що він тримає — комірки замикання, поля структури, — лишалось з `Dec` на виході функції: `Dec` вмісту за звільненням об'єкта не йде. Для `return` це вже враховано (`exitSites` знімає `Dec` з усього досяжного з результату), для аргументу, який callee зберіг, — ні. Те саме — для callee без зведення (виклик через інтерфейс): там `Dec` знімався лише з самого аргументу. Дірка не специфічна для `sync.Map`: відтворюється і на власному `LoadOrStore` з `map[string]any`, і на `&T{s: &s}` замість замикання.
+
+Виправлення (`264fd7edc`): `blockHeld` — якщо callee зберігає аргумент (`Side != 0`) або зведення невідоме, з усього, що досяжне з вмісту аргументу (крім самого аргументу), знімається `Dec`. Обхід — спільний з `exitSites` (`reach`). Зміна лише прибирає `Dec`, тож може дати витік, але не звільнення живого. Callee, що лише читає аргумент (`Side == 0`), `Dec` вмісту не втрачає.
+
+Тести (`680aa3650`): `TestKeptArgumentContentsLive` (`owngo/census`; до виправлення `closure`, `field`, `unknown` — `Dec` на комірці), фікстура `owngo/asan/keptclosure` (до виправлення без ASan — `nil pointer dereference`, під ASan — `heap-use-after-free`). Після: обидва зелені; `TestRuntimeCompilerToolchainPackages` і `TestEmbed*` (`internal/build`) — `ok`; `go test ./cl/ -run OwnGo` з чистим кешем — `ok`; `fixtures.sh` — 0 з 88.
+
+Лишились причини P11.5.0.3: покриття на виході, `c-shared`, рантайм у програмі на чистому C, траса паніки під M:N.
