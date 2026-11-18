@@ -1907,3 +1907,13 @@
 - Перевірки: названі тести, `TestMixedInitialGroups*`, `TestInitialGroup*`, тести wasm-доказу і відбитка — ok, крім відомого `TestBuildDo_DepFingerprintAndVersion` (падав і до зміни); `TestCoverageBuildUncoveredMain`, `TestOwnGoCSharedGoroutine` — ok; `fixtures.sh` — 0 з 88; програма на чистому C під `-O0 -asan` — без звіту; `go vet ./internal/build/` — чисто.
 - Не перевірено: повний `go test ./internal/build/` і `./cl/`, wasm-ціль (доказ WASI лише перенесено, тести зелені), darwin.
 - Лишилось у P11.5.0.3: траса паніки під M:N (`TestShallowPanicTraceback*`, `TestTracebackConfiguration`) — остання причина.
+
+## 2026-11-18 — P11.5.0.3 Дефекти рантайму `owngo`: траса паніки під M:N
+
+- Причина `TestShallowPanicTracebackBuildModes`, `TestTracebackConfiguration`: реєстр трас розрахований на «потік на горутину». Під M:N номер 1 лишався в початкової G, яка стає g0 потоку M0, тож `main` отримував номер 2, а вузол g0 давав сміттєві кадри. Вузли G на стеках M:N ніколи не прив'язувались до потоку, тож стек паркованої G був «unavailable». Розклад — `owngo/REPORT-PHASE11.md`.
+- Тест спершу: червоні тести вже були в репозиторії (фікстури `internal/build/testdata/shallowpanic`, `tracebackconfig`); новий тест не додано.
+- Реалізація (`da4fb8bbf`): `RunWasmMain` віддає номер 1 головній G, g0 отримує номер 0 і зникає з трас. Стек G, що не виконується, розгортається від кадру `owngo_mn_swap` (`stacktrace.Saved`, `mn_saved_frame`). `mnGoexit0` знімає вузол з реєстру до звільнення стека.
+- Перевірки: обидва названі тести — ok; тести `internal/build` за `Traceback|Panic|Stack|Goroutine|Debugger|AllThreads|Fault|Crash|Signal|Caller|PCLN` — ok; `go test ./cl/ -run OwnGo` з чистим кешем — ok; `fixtures.sh` — 0 з 88; `tracebackconfig` під `-O0 -asan` — без звіту.
+- P11.5.0.3 відмічено в `PLAN.md`: усі шість причин закрито.
+- Не перевірено: повні `go test ./internal/build/` і `./cl/`, darwin, arm64 (кадр `swap` для arm64 написаний за асемблером, не запускався).
+- Лишилось: P11.5.0 (закрити після P11.5.0.4), P11.5.0.4 (еталони IR під `owngo`) — наступна, далі P11.5.0.1, P11.5.0.2, P11.5.1–P11.5.5.

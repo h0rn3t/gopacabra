@@ -177,3 +177,22 @@ func main() {
 Тести (`23510ac67`): `TestOwnGoMNRuntimeFreeProgram` (`internal/build`). Підтест `pure-c` — без символів рантайму (до виправлення — з ними); `goroutine` — контроль, рантайм і M:N на місці. Після виправлення зелені `TestOwnGoMNRuntimeFreeProgram`, `TestPCLNExternalPureCLibraryIdentityRetentionIntegration`, `TestPCLNEmbeddedPruningIntegration`, `TestPCLNExternalPruningIntegration`, `TestMultiBuildRuntimeIsolationAndCache` і тести груп (`TestMixedInitialGroups*`, `TestInitialGroup*`). Тести доказу wasm і відбитка (`RuntimeFree|Fingerprint|Wasm.*Reflect`) зелені, крім відомого `TestBuildDo_DepFingerprintAndVersion` (падає й до зміни). Та сама програма під `-O0 -asan` — вивід правильний, звіту ASan немає.
 
 Лишилась причина P11.5.0.3: траса паніки під M:N (`TestShallowPanicTraceback*`, `TestTracebackConfiguration`).
+
+## P11.5.0.3 Дефекти рантайму `owngo`: траса паніки під M:N (2026-11-18)
+
+**`TestShallowPanicTracebackBuildModes` — `panic traceback is missing "goroutine 1 [running]:"`; `TestTracebackConfiguration` — немає `main.parkedWorker(` у `GOTRACEBACK=all`.** Під `owngomn` паніка `main` друкувалась як `goroutine 2`. Паркована горутина мала лише `goroutine running on other thread; stack unavailable`. Ще з'являвся зайвий `goroutine 1 [running]` зі сміттєвими кадрами (`abi.splitName +0x7fa8…`).
+
+Причина — реєстр трас (`runtime/internal/stacktrace`) розрахований на модель «потік на горутину». Знімок інших горутин надсилає `SIGURG` потоку кожного вузла і розгортає стек у його обробнику. Під M:N так не працює з двох причин:
+- **Номери.** Початкова G головного потоку створюється ліниво з номером 1, а `RunWasmMain` робить її g0 потоку M0. `main` запускався новою G з номером 2. Вузол g0 лишався прив'язаним до головного потоку, і знімок розгортав стек цього потоку, на якому в той момент виконувалась зовсім інша G. Звідси сміттєві кадри.
+- **Стек паркованої G.** G на стеку M:N не має свого потоку, її вузол ніколи не прив'язувався, тож знімок не мав звідки взяти кадри.
+
+Виправлення (`da4fb8bbf`):
+- `RunWasmMain` віддає номер 1 головній G і створює її без батька (без «created by», як у Go). Початкова G стає g0 з номером 0. Вузли з номером 0 знімок пропускає: це рідний стек потоку планувальника, не горутина.
+- Вузол G під M:N отримує збережений контекст і вказівник на `atomicstatus` (`stacktrace.Saved`, `llgo_traceback_saved`). Для G, що не виконується, знімок розгортає стек від адреси повернення і `fp`, які `owngo_mn_swap` зберіг у кадрі перемикання. Розгортання йде ланцюгом кадрів у межах стека G. Читач кадру (`mn_saved_frame`) живе в `owngo_mn.c`, де відоме компонування кадру `swap` для x86-64 і arm64, і реєструється в `stacktrace` при першому контексті. Для G, що виконується на іншій M, лишається «stack unavailable», як у `gc` без зупинки світу.
+- `mnGoexit0` знімає вузол з реєстру до звільнення стека: знімок читає чужий стек під замком реєстру, тож стек не може зникнути посеред обходу.
+
+Тести: червоні до виправлення `TestShallowPanicTracebackBuildModes` і `TestTracebackConfiguration` (їхні фікстури — `internal/build/testdata/shallowpanic` і `tracebackconfig`); окремої фікстури не додано. Після виправлення обидва зелені. Зелені також тести `internal/build` за `Traceback|Panic|Stack|Goroutine|Debugger|AllThreads|Fault|Crash|Signal|Caller|PCLN` і `go test ./cl/ -run OwnGo` з чистим кешем. `tracebackconfig` під `-O0 -asan` у режимах `all`, `system` і `runtime.Stack(all)` дає `goroutine 1 [running]` і `goroutine 3 [chan receive]` з `main.parkedWorker` без звіту ASan.
+
+Що не змінено, бо так само поводиться модель 1:1: кадр обгортки `go` атрибутований рядку виклику, тож `main.parkedWorker` видно двічі; горутина таймерів видна як `running` з «stack unavailable». `AllThreadsSyscall` під M:N не перевірявся: вузли G без потоку він бачить як неприв'язані (`EAGAIN`), і так було до цієї зміни.
+
+Усі причини P11.5.0.3 закрито.
