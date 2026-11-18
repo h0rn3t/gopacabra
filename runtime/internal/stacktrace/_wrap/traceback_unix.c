@@ -38,6 +38,10 @@ typedef struct thread_node {
     unsigned allcall_state;
     uintptr_t allcall_r1, allcall_r2, allcall_error;
 #endif
+    /* A goroutine without its own thread (owngomn): its saved context and
+     * status. The scheduler unregisters the node before freeing the stack. */
+    void *saved;
+    uint32_t *status;
 } thread_node;
 
 static pthread_mutex_t registry_lock = PTHREAD_MUTEX_INITIALIZER;
@@ -58,6 +62,7 @@ static struct sigaction previous_urgent;
  * must never read a struct sigaction concurrently with os/signal changing it. */
 static void original_urgent(int sig) { (void)sig; }
 static void (*urgent_user)(int) = original_urgent;
+static llgo_traceback_saved_reader saved_reader;
 
 #if defined(__linux__) && (defined(__x86_64__) || defined(__aarch64__))
 static int handle_allthreads(thread_node *);
@@ -329,6 +334,33 @@ void llgo_traceback_unregister(void *raw)
     free(node);
 }
 
+void llgo_traceback_set_saved_reader(llgo_traceback_saved_reader read)
+{
+    __atomic_store_n(&saved_reader, read, __ATOMIC_RELEASE);
+}
+
+void llgo_traceback_saved(void *raw, uint64_t id, void *saved, uint32_t *status)
+{
+    thread_node *node = raw;
+    if (!node)
+        return;
+    pthread_mutex_lock(&registry_lock);
+    node->id = id; node->saved = saved; node->status = status;
+    pthread_mutex_unlock(&registry_lock);
+}
+
+/* Status 2 is running: its stack changes under the reader. */
+static size_t saved_chain(thread_node *node, uintptr_t *pcs, uint32_t *state)
+{
+    llgo_traceback_saved_reader read = __atomic_load_n(&saved_reader, __ATOMIC_ACQUIRE);
+    *state = __atomic_load_n(node->status, __ATOMIC_ACQUIRE);
+    uintptr_t pc, fp, low, high;
+    if (!read || *state == 2 || !read(node->saved, &pc, &fp, &low, &high))
+        return 0;
+    pcs[0] = pc;
+    return 1 + frame_records(fp, pcs+1, LLGO_TRACEBACK_MAX-1, low, high);
+}
+
 void llgo_traceback_state(void *raw, uint32_t state)
 {
     if (raw)
@@ -352,10 +384,13 @@ llgo_traceback_snapshot *llgo_traceback_capture(uint64_t except)
     pthread_mutex_lock(&registry_lock);
     for (thread_node *node = llgo_debugger_threads_v1; node; node = node->next) {
         unsigned state = __atomic_load_n(&node->state, __ATOMIC_ACQUIRE);
-        if (node->id == except || state == 6)
+        /* id 0 is a scheduler thread's own stack, not a goroutine. */
+        if (node->id == except || node->id == 0 || state == 6)
             continue;
         node->count = 0;
-        if (node->attached && nanotime() < deadline) {
+        if (node->saved) {
+            node->count = saved_chain(node, scratch, &state);
+        } else if (node->attached && nanotime() < deadline) {
             node->pcs = scratch;
             __atomic_store_n(&node->request, 1, __ATOMIC_RELEASE);
             int sent = pthread_kill(node->thread, SIGURG);

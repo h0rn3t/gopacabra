@@ -243,8 +243,34 @@ static void mn_fault(int sig, siginfo_t *info, void *uctx) {
 	mn_chain(sig == SIGBUS ? &mn_prev_bus : &mn_prev_segv, sig, info, uctx);
 }
 
+// Траса інших горутин (runtime/internal/stacktrace/_wrap/traceback_unix.c)
+// розгортає стек G, що не виконується, від кадру, збереженого owngo_mn_swap.
+typedef int (*llgo_traceback_saved_reader)(void *, uintptr_t *, uintptr_t *, uintptr_t *, uintptr_t *);
+void llgo_traceback_set_saved_reader(llgo_traceback_saved_reader);
+
+// mn_saved_frame дає адресу повернення й fp, на яких контекст c зупинився в
+// owngo_mn_swap, і межі його стека. 0 — c ще не стартував. Викликач гарантує,
+// що c не виконується і його стек не звільнено.
+static int mn_saved_frame(void *raw, uintptr_t *pc, uintptr_t *fp, uintptr_t *low, uintptr_t *high) {
+	owngo_mn_ctx *c = raw;
+	const uint64_t *f = c->sp;
+#if defined(__x86_64__)
+	*fp = (uintptr_t)f[6];
+	*pc = (uintptr_t)f[7];
+#else
+	*fp = (uintptr_t)f[10];
+	*pc = (uintptr_t)f[11];
+#endif
+	if (*pc == (uintptr_t)owngo_mn_start)
+		return 0;
+	*low = (uintptr_t)c->lo;
+	*high = (uintptr_t)c->lo + c->size;
+	return 1;
+}
+
 static void mn_install(void) {
 	mn_page = sysconf(_SC_PAGESIZE);
+	llgo_traceback_set_saved_reader(mn_saved_frame);
 	struct sigaction sa;
 	memset(&sa, 0, sizeof sa);
 	sa.sa_sigaction = mn_fault;

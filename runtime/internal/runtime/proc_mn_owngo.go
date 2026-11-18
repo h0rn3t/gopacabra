@@ -6,6 +6,7 @@ import (
 	"unsafe"
 
 	c "github.com/xgo-dev/llgo/runtime/internal/clite"
+	"github.com/xgo-dev/llgo/runtime/internal/stacktrace"
 	psync "github.com/xgo-dev/llgo/runtime/internal/sync"
 	"github.com/xgo-dev/llgo/runtime/internal/sync/atomic"
 	"github.com/xgo-dev/llgo/runtime/internal/thread"
@@ -847,7 +848,15 @@ func newprocBackend(fn goroutineFunc, arg unsafe.Pointer, stackSize uintptr, cal
 		panic("runtime: failed to allocate goroutine stack")
 	}
 	gp.context.platform.mn = ctx
+	mnTracebackSaved(gp)
 	mnReady(gp, false)
+}
+
+// mnTracebackSaved: G на стеку M:N не має свого потоку, тож траса інших
+// горутин читає її стек від кадру, збереженого при перемиканні, поки G не
+// виконується.
+func mnTracebackSaved(gp *g) {
+	stacktrace.Saved(gp.tracebackThread, gp.goid, unsafe.Pointer(gp.context.platform.mn), &gp.atomicstatus)
 }
 
 // mnReady робить готову gp видимою: у локальну чергу P поточної M (next —
@@ -896,13 +905,18 @@ func RunWasmMain() {
 	setg(boot)
 	mnInit()
 	mp := boot.m
-	mainG := newproc1(goroutineFunc(mnMainTask), nil, boot)
+	// main — goroutine 1 без «created by», як у Go: номер переходить від
+	// початкової G, а та стає g0 M0, у якої, як у g0 Go, номер 0.
+	mainG := newproc1(goroutineFunc(mnMainTask), nil, nil)
 	mainG.isMain = true
+	mainG.goid, boot.goid = boot.goid, 0
+	stacktrace.Saved(boot.tracebackThread, 0, nil, nil)
 	ctx := mnCtxNew(0, goroutineFunc(mnGEntry), unsafe.Pointer(mainG), mainG.goid)
 	if ctx == nil {
 		fatal("runtime: failed to allocate main goroutine stack")
 	}
 	mainG.context.platform.mn = ctx
+	mnTracebackSaved(mainG)
 	// Початкова G головного потоку стає g0 M0: не користувацька G і не
 	// прив'язана.
 	boot.isMain = false
@@ -933,6 +947,9 @@ func mnGoexit0(mp *m, gp *g) {
 		mp.os.lockedg = nil
 	}
 	releaseGoroutineLocalBlocks(&gp.context.platform.glsContext)
+	// Траса інших горутин читає стек під замком реєстру: вузол — геть до
+	// звільнення стека.
+	unregisterTraceback(gp)
 	mnCtxFree(gp.context.platform.mn)
 	freeRuntimeContext(gp.context)
 }

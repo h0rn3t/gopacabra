@@ -20,6 +20,12 @@ func Unregister(node unsafe.Pointer)
 //go:linkname SetState C.llgo_traceback_state
 func SetState(node unsafe.Pointer, state uint32)
 
+// Saved marks node as a goroutine without its own thread: its stack is read
+// from the saved context while status is not running. It also sets the id.
+//
+//go:linkname Saved C.llgo_traceback_saved
+func Saved(node unsafe.Pointer, id uint64, saved unsafe.Pointer, status *uint32)
+
 // Snapshot is opaque: do not assume its native layout matches a Go struct.
 type Snapshot struct{}
 

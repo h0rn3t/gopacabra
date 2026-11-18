@@ -23,6 +23,11 @@ void *llgo_traceback_register(uint64_t, uint64_t, uintptr_t);
 void llgo_traceback_attach(void *);
 void llgo_traceback_unregister(void *);
 void llgo_traceback_state(void *, uint32_t);
+/* Reads a saved context: return address, frame pointer and stack bounds. */
+typedef int (*llgo_traceback_saved_reader)(void *, uintptr_t *, uintptr_t *,
+                                           uintptr_t *, uintptr_t *);
+void llgo_traceback_set_saved_reader(llgo_traceback_saved_reader);
+void llgo_traceback_saved(void *, uint64_t, void *, uint32_t *);
 llgo_traceback_snapshot *llgo_traceback_capture(uint64_t);
 void llgo_traceback_free(llgo_traceback_snapshot *);
 uintptr_t *llgo_traceback_fault_buffer(void);
