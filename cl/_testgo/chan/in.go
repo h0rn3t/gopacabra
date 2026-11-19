@@ -7,7 +7,9 @@ package main
 // CHECK-NEXT: [[CH1_RECV_BUF:%[0-9]+]] = alloca i64, align 8
 // First channel: box/inspect one channel identity, capture its slot in the
 // sender goroutine, then receive and print the transmitted value.
-// CHECK: [[CH1_SLOT:%.*]] = call ptr @"{{.*}}AllocZ"(i64 8)
+// Під gopacabra слот, захоплений горутиною, — лічильний (AllocCounted) і
+// позначається спільним (IncShared) перед NewProc.
+// CHECK: [[CH1_SLOT:%.*]] = call ptr @"{{.*}}AllocCounted"(i64 8)
 // CHECK: [[CH1:%.*]] = call ptr @"{{.*}}NewChan"(i64 8, i64 10)
 // CHECK-NEXT: store ptr [[CH1]], ptr [[CH1_SLOT]]
 // CHECK: [[CH1_BOX_DATA:%.*]] = load ptr, ptr [[CH1_SLOT]]
@@ -23,6 +25,7 @@ package main
 // CHECK: [[SEND_ENV:%.*]] = call ptr @"{{.*}}AllocU"(i64 8)
 // CHECK: store ptr [[CH1_SLOT]], ptr {{%.*}}
 // CHECK: [[SEND_CLOSURE:%.*]] = insertvalue { ptr, ptr } { ptr @"main.main$1", ptr undef }, ptr [[SEND_ENV]], 1
+// CHECK: call void @"{{.*}}IncShared"(ptr [[CH1_SLOT]])
 // CHECK: store { ptr, ptr } [[SEND_CLOSURE]], ptr {{%.*}}
 // CHECK: call void @"{{.*}}NewProc"(ptr @"main._llgo_routine$1", ptr {{%.*}})
 // CHECK: [[CH1_RECV:%.*]] = load ptr, ptr [[CH1_SLOT]]
@@ -33,12 +36,13 @@ package main
 // CHECK: call void @"{{.*}}PrintInt"(i64 [[CH1_VALUE]])
 // Second channel: capture it in a closer goroutine and preserve the receive ok
 // bit alongside the zero value returned after close.
-// CHECK: [[CH2_SLOT:%.*]] = call ptr @"{{.*}}AllocZ"(i64 8)
+// CHECK: [[CH2_SLOT:%.*]] = call ptr @"{{.*}}AllocCounted"(i64 8)
 // CHECK: [[CH2:%.*]] = call ptr @"{{.*}}NewChan"(i64 8, i64 10)
 // CHECK-NEXT: store ptr [[CH2]], ptr [[CH2_SLOT]]
 // CHECK: [[CLOSE_ENV:%.*]] = call ptr @"{{.*}}AllocU"(i64 8)
 // CHECK: store ptr [[CH2_SLOT]], ptr {{%.*}}
 // CHECK: [[CLOSE_CLOSURE:%.*]] = insertvalue { ptr, ptr } { ptr @"main.main$2", ptr undef }, ptr [[CLOSE_ENV]], 1
+// CHECK: call void @"{{.*}}IncShared"(ptr [[CH2_SLOT]])
 // CHECK: store { ptr, ptr } [[CLOSE_CLOSURE]], ptr {{%.*}}
 // CHECK: call void @"{{.*}}NewProc"(ptr @"main._llgo_routine$2", ptr {{%.*}})
 // CHECK: [[CH2_RECV:%.*]] = load ptr, ptr [[CH2_SLOT]]
@@ -48,6 +52,7 @@ package main
 // CHECK-NEXT: call void @llvm.stackrestore
 // CHECK: [[CH2_PAIR0:%.*]] = insertvalue { i64, i1 } undef, i64 [[CH2_VALUE]], 0
 // CHECK-NEXT: [[CH2_PAIR:%.*]] = insertvalue { i64, i1 } [[CH2_PAIR0]], i1 [[CH2_OK]], 1
+// CHECK-NEXT: call void @"{{.*}}DecShared"(ptr [[CH2_SLOT]], ptr {{.*}})
 // CHECK-NEXT: [[CH2_PRINT_VALUE:%.*]] = extractvalue { i64, i1 } [[CH2_PAIR]], 0
 // CHECK-NEXT: [[CH2_PRINT_OK:%.*]] = extractvalue { i64, i1 } [[CH2_PAIR]], 1
 // CHECK-NEXT: call void @"{{.*}}PrintInt"(i64 [[CH2_PRINT_VALUE]])

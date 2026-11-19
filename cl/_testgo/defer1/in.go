@@ -12,17 +12,14 @@ package main
 // CHECK-NEXT: ret i1 [[F_RESULT]]
 
 // CHECK-LABEL: define void @main.main(){{.*}} {
-// CHECK: [[PREV_DEFER:%.*]] = call ptr @"{{.*}}GetThreadDefer"()
-// CHECK: [[FRAME:%.*]] = call ptr @"{{.*}}AllocU"(i64 48)
-// CHECK: store ptr [[PREV_DEFER]], ptr {{%.*}}
-// CHECK: call void @"{{.*}}SetThreadDefer"(ptr [[FRAME]])
-// CHECK: [[FLAGS:%.*]] = getelementptr inbounds nuw %"{{.*}}Defer", ptr [[FRAME]], i32 0, i32 1
-// CHECK: [[HEAD:%.*]] = getelementptr inbounds nuw %"{{.*}}Defer", ptr [[FRAME]], i32 0, i32 5
+// Тіло вхідного блоку (налаштування кадру defer) стоїть після блока-з'єднання
+// M:N-поллу і друкується після гілок реєстрації, тож FLAGS і HEAD ловимо з
+// першого використання, а їхнє походження з кадру перевіряємо нижче.
 // True branch: capture s, then bye, as distinct nodes and flag bits.
-// CHECK: [[HELLO_FLAGS0:%.*]] = load i64, ptr [[FLAGS]]
+// CHECK: [[HELLO_FLAGS0:%.*]] = load i64, ptr [[FLAGS:%[0-9]+]]
 // CHECK-NEXT: [[HELLO_FLAGS:%.*]] = or i64 [[HELLO_FLAGS0]], 1
 // CHECK-NEXT: store i64 [[HELLO_FLAGS]], ptr [[FLAGS]]
-// CHECK: [[HELLO_PREV:%.*]] = load ptr, ptr [[HEAD]]
+// CHECK: [[HELLO_PREV:%.*]] = load ptr, ptr [[HEAD:%[0-9]+]]
 // CHECK: [[HELLO_NODE:%.*]] = call ptr @"{{.*}}AllocU"(i64 32)
 // CHECK: store ptr [[HELLO_PREV]], ptr {{%.*}}
 // CHECK: store i64 1, ptr {{%.*}}
@@ -47,6 +44,13 @@ package main
 // CHECK: store i64 3, ptr {{%.*}}
 // CHECK: store %"{{.*}}String" { ptr [[WORLD]], i64 5 }, ptr {{%.*}}
 // CHECK: store ptr [[WORLD_NODE]], ptr [[HEAD]]
+// Кадр defer під gopacabra живе на стеку (alloca), а не в купі.
+// CHECK: [[PREV_DEFER:%.*]] = call ptr @"{{.*}}GetThreadDefer"()
+// CHECK: [[FRAME:%[0-9]+]] = alloca %"{{.*}}Defer"
+// CHECK: store ptr [[PREV_DEFER]], ptr {{%.*}}
+// CHECK: call void @"{{.*}}SetThreadDefer"(ptr [[FRAME]])
+// CHECK: [[FLAGS]] = getelementptr inbounds nuw %"{{.*}}Defer", ptr [[FRAME]], i32 0, i32 1
+// CHECK: [[HEAD]] = getelementptr inbounds nuw %"{{.*}}Defer", ptr [[FRAME]], i32 0, i32 5
 // The shared cleanup first tests the false-branch bit.
 // CHECK: [[WORLD_MASK:%.*]] = and i64 {{%.*}}, 4
 // CHECK: [[COND:%.*]] = call i1 @main.f(%"{{.*}}String" { ptr [[HELLO]], i64 5 })
@@ -109,14 +113,15 @@ func main() {
 // zLoopJoin preserves the former nextblock regression exactly: an empty range
 // before and after registration must not let block[0] movement bypass cleanup.
 // CHECK-LABEL: define void @main.zLoopJoin(){{.*}} {
-// CHECK: [[LOOP_FRAME:%[0-9]+]] = call ptr @"{{.*}}AllocU"(i64 48)
-// CHECK: call void @"{{.*}}SetThreadDefer"(ptr [[LOOP_FRAME]])
-// CHECK: [[LOOP_FLAGS:%[0-9]+]] = getelementptr inbounds nuw %"{{.*}}Defer", ptr [[LOOP_FRAME]], i32 0, i32 1
+// Налаштування кадру (тіло вхідного блоку) друкується після обох циклів.
 // CHECK: [[FIRST_INDEX:%[0-9]+]] = phi i64
-// CHECK: [[OLD_LOOP_FLAGS:%[0-9]+]] = load i64, ptr [[LOOP_FLAGS]]
+// CHECK: [[OLD_LOOP_FLAGS:%[0-9]+]] = load i64, ptr [[LOOP_FLAGS:%[0-9]+]]
 // CHECK-NEXT: [[NEW_LOOP_FLAGS:%[0-9]+]] = or i64 [[OLD_LOOP_FLAGS]], 1
 // CHECK-NEXT: store i64 [[NEW_LOOP_FLAGS]], ptr [[LOOP_FLAGS]]
 // CHECK: [[SECOND_INDEX:%[0-9]+]] = phi i64
+// CHECK: [[LOOP_FRAME:%[0-9]+]] = alloca %"{{.*}}Defer"
+// CHECK: call void @"{{.*}}SetThreadDefer"(ptr [[LOOP_FRAME]])
+// CHECK: [[LOOP_FLAGS]] = getelementptr inbounds nuw %"{{.*}}Defer", ptr [[LOOP_FRAME]], i32 0, i32 1
 // CHECK: [[ACTIVE_LOOP_BIT:%[0-9]+]] = and i64 {{%[0-9]+}}, 1
 // CHECK: call void @"{{.*}}FreeDeferNode"(ptr %{{[0-9]+}})
 // CHECK-NEXT: call void @"{{.*}}PrintString"(%"{{.*}}String" %{{[0-9]+}})

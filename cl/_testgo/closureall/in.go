@@ -110,6 +110,7 @@ func makeWithFree(base int) Fn {
 // CHECK: call i64 @main.globalAdd(i64 1, i64 2)
 // A bound pointer method stores the receiver in the closure environment.
 // CHECK: [[S:%.*]] = call ptr @"{{.*}}/runtime/internal/runtime.AllocZ"(i64 8)
+// CHECK-NEXT: call void @"{{.*}}/runtime/internal/runtime.NoteAlloc"(i64 8, i32 1)
 // CHECK-NEXT: [[S_FIELD:%[0-9]+]] = getelementptr inbounds nuw %main.S, ptr [[S]], i32 0, i32 0
 // CHECK-NEXT: store i64 5, ptr [[S_FIELD]]
 // CHECK: [[METHOD_ENV:%.*]] = call ptr @"{{.*}}/runtime/internal/runtime.AllocU"(i64 8)
@@ -156,6 +157,7 @@ func makeWithFree(base int) Fn {
 
 // CHECK-LABEL: define %main.Fn @main.makeWithFree(i64 %0){{.*}} {
 // CHECK: [[BASE_ADDR:%[0-9]+]] = call ptr @"{{.*}}/runtime/internal/runtime.AllocZ"(i64 8)
+// CHECK-NEXT: call void @"{{.*}}/runtime/internal/runtime.NoteAlloc"(i64 8, i32 1)
 // CHECK-NEXT: store i64 %0, ptr [[BASE_ADDR]]
 // CHECK-NEXT: [[WITH_FREE_ENV_OUT:%[0-9]+]] = call ptr @"{{.*}}/runtime/internal/runtime.AllocU"(i64 8)
 // CHECK-NEXT: [[WITH_FREE_ENV_SLOT:%[0-9]+]] = getelementptr inbounds nuw { ptr }, ptr [[WITH_FREE_ENV_OUT]], i32 0, i32 0

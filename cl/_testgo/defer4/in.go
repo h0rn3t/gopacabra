@@ -9,8 +9,9 @@ package main
 // CHECK: @[[D4_HELLO:[0-9]+]] = private unnamed_addr constant [5 x i8] c"hello"
 // CHECK: @[[D4_WORLD:[0-9]+]] = private unnamed_addr constant [5 x i8] c"world"
 // CHECK-LABEL: define void @main.fail(){{.*}} {
+// Кадр defer під gopacabra живе на стеку (alloca).
 // CHECK: [[D4_FAIL_PREV:%[0-9]+]] = call ptr @"{{.*}}GetThreadDefer"()
-// CHECK: [[D4_FAIL_FRAME:%[0-9]+]] = call ptr @"{{.*}}AllocU"(i64 48)
+// CHECK: [[D4_FAIL_FRAME:%[0-9]+]] = alloca %"{{.*}}Defer"
 // CHECK: store ptr [[D4_FAIL_PREV]], ptr %{{[0-9]+}}
 // CHECK: call void @"{{.*}}SetThreadDefer"(ptr [[D4_FAIL_FRAME]])
 // CHECK: [[D4_FAIL_HEAD:%[0-9]+]] = getelementptr inbounds nuw %"{{.*}}Defer", ptr [[D4_FAIL_FRAME]], i32 0, i32 5
@@ -49,14 +50,16 @@ package main
 // CHECK-NEXT: [[D4_RECOVER_STRING:%[0-9]+]] = load %"{{.*}}String", ptr [[D4_RECOVER_DATA]]
 // CHECK: call void @"{{.*}}PrintString"(%"{{.*}}String" [[D4_RECOVER_STRING]])
 // CHECK-LABEL: define void @main.main(){{.*}} {
-// CHECK: [[D4_MAIN_PREV:%[0-9]+]] = call ptr @"{{.*}}GetThreadDefer"()
-// CHECK: [[D4_MAIN_FRAME:%[0-9]+]] = call ptr @"{{.*}}AllocU"(i64 48)
-// CHECK: store ptr [[D4_MAIN_PREV]], ptr %{{[0-9]+}}
-// CHECK: call void @"{{.*}}SetThreadDefer"(ptr [[D4_MAIN_FRAME]])
+// Налаштування кадру (тіло вхідного блоку після M:N-поллу) друкується після
+// гілок реєстрації defer.
 // CHECK: store %"{{.*}}String" { ptr @[[D4_HELLO]], i64 5 }, ptr %{{[0-9]+}}
 // CHECK: call void @main.fail()
 // CHECK-NEXT: call void @"{{.*}}PrintString"(%"{{.*}}String" { ptr @{{[0-9]+}}, i64 9 })
 // CHECK: store %"{{.*}}String" { ptr @[[D4_WORLD]], i64 5 }, ptr %{{[0-9]+}}
+// CHECK: [[D4_MAIN_PREV:%[0-9]+]] = call ptr @"{{.*}}GetThreadDefer"()
+// CHECK: [[D4_MAIN_FRAME:%[0-9]+]] = alloca %"{{.*}}Defer"
+// CHECK: store ptr [[D4_MAIN_PREV]], ptr %{{[0-9]+}}
+// CHECK: call void @"{{.*}}SetThreadDefer"(ptr [[D4_MAIN_FRAME]])
 // CHECK: [[D4_COND:%[0-9]+]] = call i1 @main.f(%"{{.*}}String" { ptr @[[D4_HELLO]], i64 5 })
 // CHECK-NEXT: br i1 [[D4_COND]], label %{{.*}}, label %{{.*}}
 // CHECK: call void @"main.main$1"()

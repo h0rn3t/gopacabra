@@ -27,18 +27,19 @@ import "unsafe"
 // CHECK-LABEL: define i32 @main._Cfunc_add(i32 %0, i32 %1){{.*}} {
 // CHECK: [[ADD_SLOT:%[0-9]+]] = load ptr, ptr @main._cgo_{{.*}}_Cfunc_add
 // CHECK-NEXT: [[ADD_FN:%[0-9]+]] = load ptr, ptr [[ADD_SLOT]]
+// Під M:N виклик C обгорнуто EnterSyscall/ExitSyscall.
+// CHECK-NEXT: call void @"{{.*}}EnterSyscall"()
 // CHECK-NEXT: [[ADD_RESULT:%[0-9]+]] = call i32 [[ADD_FN]](i32 %0, i32 %1)
+// CHECK-NEXT: call void @"{{.*}}ExitSyscall"()
 // CHECK-NEXT: ret i32 [[ADD_RESULT]]
 
 // Keep each compiler-owned conversion helper once, and carry the converted
 // values into ordinary Go validation. TEST_OBJECT exercises an object-like C
 // macro getter without pulling Python into the compiler fixture.
+// Тіло вхідного блоку стоїть після блока-з'єднання M:N-поллу, тобто
+// друкується останнім: GoStringN-гілка йде в IR раніше за CString.
 // CHECK-LABEL: define void @main.main(){{.*}} {
-// CHECK: [[CSTRING:%[0-9]+]] = call ptr @"{{.*}}CString"(%"{{.*}}String" {{.*}})
-// CHECK-NEXT: store ptr [[CSTRING]], ptr [[CSTRING_SLOT:%[0-9]+]]
-// CHECK: [[CSTRING_FOR_GO:%[0-9]+]] = load ptr, ptr [[CSTRING_SLOT]]
-// CHECK-NEXT: [[GOSTRING:%[0-9]+]] = call %"{{.*}}String" @"{{.*}}GoString"(ptr [[CSTRING_FOR_GO]])
-// CHECK: [[CSTRING_FOR_N:%[0-9]+]] = load ptr, ptr [[CSTRING_SLOT]]
+// CHECK: [[CSTRING_FOR_N:%[0-9]+]] = load ptr, ptr [[CSTRING_SLOT:%[0-9]+]]
 // CHECK-NEXT: call %"{{.*}}String" @"{{.*}}GoStringN"(ptr [[CSTRING_FOR_N]], i64 2)
 // CHECK: [[CBYTES:%[0-9]+]] = call ptr @"main.main$1"()
 // CHECK: call %"{{.*}}Slice" %__llgo_funcval_code
@@ -51,6 +52,10 @@ import "unsafe"
 // CHECK: [[WRAPPED:%[0-9]+]] = call ptr @main._Cfunc_new_wrapped(i32 11)
 // CHECK-NOT: _Cgo_use
 // CHECK: call i32 @main._Cfunc_read_wrapped(ptr [[WRAPPED]])
+// CHECK: [[CSTRING:%[0-9]+]] = call ptr @"{{.*}}CString"(%"{{.*}}String" {{.*}})
+// CHECK-NEXT: store ptr [[CSTRING]], ptr [[CSTRING_SLOT]]
+// CHECK: [[CSTRING_FOR_GO:%[0-9]+]] = load ptr, ptr [[CSTRING_SLOT]]
+// CHECK-NEXT: [[GOSTRING:%[0-9]+]] = call %"{{.*}}String" @"{{.*}}GoString"(ptr [[CSTRING_FOR_GO]])
 
 // CBytes and GoBytes are emitted in compiler-generated expression helpers.
 // CHECK-LABEL: define ptr @"main.main$1"(){{.*}} {

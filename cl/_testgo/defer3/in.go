@@ -8,8 +8,9 @@ package main
 // CHECK: @[[D3_HELLO:[0-9]+]] = private unnamed_addr constant [5 x i8] c"hello"
 // CHECK: @[[D3_WORLD:[0-9]+]] = private unnamed_addr constant [5 x i8] c"world"
 // CHECK-LABEL: define void @main.fail(){{.*}} {
+// Кадр defer під gopacabra живе на стеку (alloca).
 // CHECK: [[D3_FAIL_PREV:%[0-9]+]] = call ptr @"{{.*}}GetThreadDefer"()
-// CHECK: [[D3_FAIL_FRAME:%[0-9]+]] = call ptr @"{{.*}}AllocU"(i64 48)
+// CHECK: [[D3_FAIL_FRAME:%[0-9]+]] = alloca %"{{.*}}Defer"
 // CHECK: [[D3_FAIL_PREV_SLOT:%[0-9]+]] = getelementptr inbounds nuw %"{{.*}}Defer", ptr [[D3_FAIL_FRAME]], i32 0, i32 2
 // CHECK-NEXT: store ptr [[D3_FAIL_PREV]], ptr [[D3_FAIL_PREV_SLOT]]
 // CHECK: call void @"{{.*}}SetThreadDefer"(ptr [[D3_FAIL_FRAME]])
@@ -31,13 +32,15 @@ package main
 // CHECK-NEXT: [[D3_FAIL_RESTORE:%[0-9]+]] = extractvalue %"{{.*}}Defer" [[D3_FAIL_SAVED]], 2
 // CHECK-NEXT: call void @"{{.*}}SetThreadDefer"(ptr [[D3_FAIL_RESTORE]])
 // CHECK-LABEL: define void @main.main(){{.*}} {
-// CHECK: [[D3_MAIN_PREV:%[0-9]+]] = call ptr @"{{.*}}GetThreadDefer"()
-// CHECK: [[D3_MAIN_FRAME:%[0-9]+]] = call ptr @"{{.*}}AllocU"(i64 48)
-// CHECK: store ptr [[D3_MAIN_PREV]], ptr %{{[0-9]+}}
-// CHECK: call void @"{{.*}}SetThreadDefer"(ptr [[D3_MAIN_FRAME]])
+// Налаштування кадру (тіло вхідного блоку після M:N-поллу) друкується після
+// гілок реєстрації defer.
 // CHECK: store %"{{.*}}String" { ptr @[[D3_HELLO]], i64 5 }, ptr %{{[0-9]+}}
 // CHECK: call void @main.fail()
 // CHECK: store %"{{.*}}String" { ptr @[[D3_WORLD]], i64 5 }, ptr %{{[0-9]+}}
+// CHECK: [[D3_MAIN_PREV:%[0-9]+]] = call ptr @"{{.*}}GetThreadDefer"()
+// CHECK: [[D3_MAIN_FRAME:%[0-9]+]] = alloca %"{{.*}}Defer"
+// CHECK: store ptr [[D3_MAIN_PREV]], ptr %{{[0-9]+}}
+// CHECK: call void @"{{.*}}SetThreadDefer"(ptr [[D3_MAIN_FRAME]])
 // CHECK: call void @"{{.*}}Rethrow"(ptr [[D3_MAIN_PREV]])
 // CHECK: [[D3_COND:%[0-9]+]] = call i1 @main.f(%"{{.*}}String" { ptr @[[D3_HELLO]], i64 5 })
 // CHECK-NEXT: br i1 [[D3_COND]], label %{{.*}}, label %{{.*}}

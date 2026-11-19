@@ -17,7 +17,8 @@ func main() {
 	// thread frame and the initial resume block used after longjmp.
 	// CHECK: [[OUTER_DEFER:%[0-9]+]] = call ptr @"{{.*}}.GetThreadDefer"()
 	// CHECK-NEXT: [[DEFER_JMPBUF:%[0-9]+]] = alloca i8, i64 {{[0-9]+}}, align 1
-	// CHECK-NEXT: [[DEFER_FRAME:%[0-9]+]] = call ptr @"{{.*}}.AllocU"(i64 48)
+	// Під gopacabra кадр defer живе на стеку (alloca).
+	// CHECK-NEXT: [[DEFER_FRAME:%[0-9]+]] = alloca %"{{.*}}.Defer"
 	// CHECK: [[FRAME_BUF_FIELD:%[0-9]+]] = getelementptr inbounds nuw %"{{.*}}.Defer", ptr [[DEFER_FRAME]], i32 0, i32 0
 	// CHECK-NEXT: store ptr [[DEFER_JMPBUF]], ptr [[FRAME_BUF_FIELD]]
 	// CHECK: [[FRAME_PREV_FIELD:%[0-9]+]] = getelementptr inbounds nuw %"{{.*}}.Defer", ptr [[DEFER_FRAME]], i32 0, i32 2

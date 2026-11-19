@@ -18,6 +18,7 @@ package main
 // CHECK: ret i64 42
 // CHECK-LABEL: define { ptr, ptr } @main.zeroSizedPointerCapture(ptr %0){{.*}} {
 // CHECK: [[ZSP_VALUE:%[0-9]+]] = call ptr @"{{.*}}/runtime/internal/runtime.AllocZ"(i64 8)
+// CHECK-NEXT: call void @"{{.*}}/runtime/internal/runtime.NoteAlloc"(i64 8, i32 1)
 // CHECK-NEXT: store ptr %0, ptr [[ZSP_VALUE]]
 // CHECK-NEXT: [[ZSP_ENV:%[0-9]+]] = call ptr @"{{.*}}/runtime/internal/runtime.AllocU"(i64 8)
 // CHECK: store ptr [[ZSP_VALUE]], ptr %{{[0-9]+}}

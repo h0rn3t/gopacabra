@@ -15,7 +15,10 @@ func values(yield func(int) bool) {
 }
 
 // CHECK-LABEL: define i64 @main.sum(%main.Seq %0){{.*}} {
-// CHECK: [[ENV:%[0-9]+]] = call ptr @"{{.*}}AllocU"
+// Оточення — два окремі вказівникові поля (а не одне злите), і саме його
+// отримує замикання range-тіла. Panic-гілка з AllocU стоїть раніше в IR,
+// тому оточення ловимо за getelementptr.
+// CHECK: getelementptr inbounds nuw { ptr, ptr }, ptr [[ENV:%[0-9]+]], i32 0, i32 1
 // CHECK: [[RANGE_CLOSURE:%[0-9]+]] = insertvalue { ptr, ptr } { ptr @"main.sum$1", ptr undef }, ptr [[ENV]], 1
 // CHECK: [[SEQ_ENV:%[0-9]+]] = extractvalue %main.Seq %0, 1
 // CHECK: [[SEQ_CODE:%[0-9]+]] = extractvalue %main.Seq %0, 0
