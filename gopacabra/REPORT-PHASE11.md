@@ -196,3 +196,51 @@ func main() {
 Що не змінено, бо так само поводиться модель 1:1: кадр обгортки `go` атрибутований рядку виклику, тож `main.parkedWorker` видно двічі; горутина таймерів видна як `running` з «stack unavailable». `AllThreadsSyscall` під M:N не перевірявся: вузли G без потоку він бачить як неприв'язані (`EAGAIN`), і так було до цієї зміни.
 
 Усі причини P11.5.0.3 закрито.
+
+## P11.5.0.4 Еталони IR під `gopacabra` (2026-11-19)
+
+74 підтести `cl` `TestRunAndTest*` і `localitycodegen`, а також `internal/build` `TestSIMD128LLVM`, перевіряли IR збірки BDWGC. Під `gopacabra` IR інший з трьох причин, жодна не змінює поведінки програм (`expect.txt` усіх фікстур не змінювались):
+
+- **Опитування M:N.** Кожна не-листова функція починається з `load atomic i32 PreemptRequested` → `icmp ne` → `br` у блок `CooperativeSafepoint`, далі блок злиття; цикли з необмеженим зворотним ребром мають таке саме. Ланцюги `CHECK-NEXT` після мітки входу рвались, нумерація значень і блоків зсувалась.
+- **Алокація.** Escape-аналіз кладе колишні `AllocZ`/`AllocU` на стек (`alloca` + `llvm.memset`); купа — з `NoteAlloc`, звільнення — `FreeAccounted`/`DecAccounted`, лічильні й регіональні алокатори (`AllocCounted`, `RegionAlloc`), `EnterSyscall`/`ExitSyscall` навколо викликів C.
+- **gls під M:N.** Змінні горутини — у `__llgo_gls_block` через `GoroutineLocalPackage` з ключем `@main.__llgo_gls_key`, не `thread_local`.
+
+Що зроблено (правило `CLAUDE.md`, «Maintain LLVM IR checks by test intent»):
+
+| Коміт | Що |
+| --- | --- |
+| `3020f6ff1` | еталони `meta-expect.txt` 12 фікстур `_testmeta` (разом з `api/`, `model/`): граф викликів містить `CooperativeSafepoint`/`PreemptRequested`. Узяті з `.new`, які пише сам тест; `chore/gentests` не годиться — обрізає `meta` і друкує float інакше |
+| `7f497dac4` | 14 знімків `litgen` (`go run ./chore/litgen -u cl`); `embedunexport-1598` лишився як був |
+| `a2ce3815f` | `_testdata` (`cpkg`, `embedunexport`, `llgointrinsics`, `vargs`), `_testlibc` (`argv`, `defer`, `setjmp`), `localitycodegen` |
+| `89b9ee1fd`, `600bc0570` | 24 фікстури `_testgo` |
+| `f06250b66` | 15 фікстур `_testrt` |
+| `cd25eeede` | `tpinst`, `typerecur`, `tpabi` (з першого прогону, пропущені при розподілі) |
+| `39ea29d04` | `TestSIMD128LLVM` |
+
+Для кожної рукописної фікстури спершу названо властивість, яку вона захищає, і лишено найменші перевірки цієї властивості: `CHECK-NEXT` після входу — `CHECK`; перевірки, що фіксували лише форму `AllocZ`/`AllocU` у тестах не про алокацію, прибрано (причина — у коміті); у тестах про алокацію, escape чи середовище замикання — перевірено форму `gopacabra`. Рукописні тести на `litgen` не переводились.
+
+`localitycodegen` тепер перевіряє `LocalPackage(..., i64 8, i64 8)`, `GoroutineLocalPackage(ptr @main.__llgo_gls_key, i64 8, i64 8)` і `__llgo_gls_block`. Дві старі перевірки `CHECK-NOT: @main.pointer = thread_local` і `@main.initialized = thread_local` не могли спрацювати ні за якого IR; їх виправлено.
+
+**`TestSIMD128LLVM`.** Властивість «стала смуга без гілки перевірки меж» під `gopacabra` тримається: `main.fixed` — `extractelement <4 x float> %0, i32 1` без `icmp uge` і `PanicSIMDImmediate` на amd64 і arm64. Тест падав, бо шукав будь-який `br` — а це гілка опитування. Так само перевірка «перетворення маски без зовнішнього виклику» ловила `call CooperativeSafepoint`. Тепер тест шукає саме гілку меж (`icmp uge`, `PanicSIMDImmediate`) і вимагає сталу смугу в `extractelement`; серед викликів не враховує лише `CooperativeSafepoint`.
+
+У таблиці P11.5.0 рядок «`TestRunAndTestFromTestgo` та інші `TestRunAndTest*` у `internal/build`» помилковий: таких тестів у `internal/build` немає, вони лише в `cl/compile_test.go`.
+
+### Прийняття
+
+- `go test -count=1 -timeout 90m ./cl/` з чистим `~/.cache/llgo` — `ok` (721 с).
+- `go run ./chore/litgen -u cl` змінює лише `embedunexport-1598` (відомий виняток; зміну відкинуто). `litgen -u --check cl` зупиняється на першому застарілому файлі, тож решту знімків перевірено через `-u` і `git status`.
+- `go test ./internal/build/` (44 хв): падають `TestBuildDo_DepFingerprintAndVersion`, `TestSIMDFMVLLVM`, `TestSIMDFMVAggregatesLLVM`, `TestSIMDMidwayFMVLLVM` (середовище, відомі до P11.5.0) і `TestWasmGCRootFrameLinksRuntimeChain` (`tinygogc`, P11.5.0.2). `TestSIMD128LLVM` — зелений на amd64, arm64, wasm.
+
+Цим закрито всі падіння таблиці P11.5.0, крім `TestWasmGCRootFrameLinksRuntimeChain` (P11.5.0.2) і падінь середовища.
+
+### Помічене в IR, не виправлене
+
+Не дефекти поведінки (тести поведінки зелені); кандидати на окремі задачі, не перевірені:
+
+- Відкладені виклики C (`defer C.printf(...)`) ідуть без `EnterSyscall`/`ExitSyscall`: блокувальний відкладений виклик C тримає M. Так само `_Cfunc_free` (результат `[0 x i8]`) не обгорнуто.
+- Вхід `_Cfunc_*` має невикористаний `AllocZ` з `NoteAlloc(..., i32 4)`.
+- `alloca` кадру `Defer` стоїть у блоці злиття після опитування, а не в блоці входу: `mem2reg`/статичний кадр не застосовуються, у циклі стек може рости.
+- `cgobasic`: блоки `PanicIndex` закінчуються `br` на себе (замість `unreachable`).
+- Бокси `AllocU` звільняються `FreeAccounted(ptr, i64 0, i32 0)` — розмір 0 в обліку.
+- `typalias`: `&Foo{}` лишається в купі — немає міжпроцедурного escape.
+- Листова за суттю `main.fixed` (SIMD) отримує вхідне опитування — зайва ціна на гарячих коротких функціях.

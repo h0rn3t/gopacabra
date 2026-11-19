@@ -1917,3 +1917,15 @@
 - P11.5.0.3 відмічено в `PLAN.md`: усі шість причин закрито.
 - Не перевірено: повні `go test ./internal/build/` і `./cl/`, darwin, arm64 (кадр `swap` для arm64 написаний за асемблером, не запускався).
 - Лишилось: P11.5.0 (закрити після P11.5.0.4), P11.5.0.4 (еталони IR під `gopacabra`) — наступна, далі P11.5.0.1, P11.5.0.2, P11.5.1–P11.5.5.
+
+## 2026-11-19 — P11.5.0.4 Еталони IR під `gopacabra`
+
+- 74 підтести `cl` `TestRunAndTest*`, `localitycodegen` і `TestSIMD128LLVM` перевіряли IR збірки BDWGC. Під `gopacabra` IR інший через вхідне опитування M:N, escape-алокацію на стеку з обліком купи та gls у `__llgo_gls_block`; вивід програм не змінився. Розклад — `gopacabra/REPORT-PHASE11.md`, «P11.5.0.4».
+- Еталони `_testmeta` узято з `.new`, які пише тест (`3020f6ff1`); `chore/gentests` псує еталони, не використовувати. Знімки `litgen` оновлено (`7f497dac4`), крім `embedunexport-1598`.
+- Рукописні FileCheck — за правилом `CLAUDE.md`: властивість тесту, найменша перевірка. Перевірки, що фіксували лише форму `AllocZ`/`AllocU`, прибрано з причиною в коміті (`a2ce3815f`, `89b9ee1fd`, `600bc0570`, `f06250b66`, `cd25eeede`). У `localitycodegen` виправлено дві `CHECK-NOT`, які не могли спрацювати.
+- `TestSIMD128LLVM` (`39ea29d04`): гілки меж для сталої смуги немає; тест ловив `br` і `call` опитування. Тепер шукає `icmp uge`/`PanicSIMDImmediate` і сталу смугу в `extractelement`.
+- Перевірки: `go test ./cl/` з чистим кешем — ok; `litgen -u cl` змінює лише `embedunexport-1598`; `go test ./internal/build/` — лише відомі падіння (`TestBuildDo_DepFingerprintAndVersion`, три `TestSIMDFMV*`, `TestWasmGCRootFrameLinksRuntimeChain` — P11.5.0.2).
+- У звіті сім спостережень IR без виправлення (відкладені виклики C без `EnterSyscall`, `alloca` кадру `Defer` не в блоці входу, `FreeAccounted` з розміром 0 тощо) — кандидати на задачі.
+- P11.5.0.4 і P11.5.0 відмічено в `PLAN.md`.
+- Не перевірено: `fixtures.sh`, `GOROOT/test`, darwin-хост (darwin/arm64 перевірено лише крос-IR фікстур з матрицею).
+- Наступне: P11.5.0.1 (видалити BDWGC), далі P11.5.0.2.
