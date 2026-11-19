@@ -124,7 +124,10 @@ func TestSIMD128LLVM(t *testing.T) {
 			if strings.Contains(fn.String(), "extractvalue") || strings.Contains(fn.String(), "insertelement") || strings.Contains(fn.String(), "extractelement") {
 				t.Fatalf("arithmetic repacks vectors:\n%s", fn.String())
 			}
-			if fixed := mod.NamedFunction("main.fixed").String(); strings.Contains(fixed, "PanicSIMDImmediate") || strings.Contains(fixed, "br ") {
+			// Гілка меж — це icmp uge і виклик PanicSIMDImmediate (simd128Index);
+			// br сам по собі не ознака: під M:N функція має вхідне опитування.
+			if fixed := mod.NamedFunction("main.fixed").String(); strings.Contains(fixed, "PanicSIMDImmediate") || strings.Contains(fixed, "icmp uge") ||
+				!strings.Contains(fixed, "extractelement <4 x float> %0, i32 1") {
 				t.Fatalf("valid constant lane retained a bounds branch:\n%s", fixed)
 			}
 			if ir := mod.NamedFunction("main.invoke").String(); !strings.Contains(ir, "AllocUAligned") {
@@ -171,7 +174,9 @@ func TestSIMD128LLVM(t *testing.T) {
 			if target.arch == "amd64" {
 				for _, name := range []string{"maskFrom8", "maskFrom16", "maskFrom32", "maskFrom64", "maskTo8", "maskTo16", "maskTo32", "maskTo64"} {
 					ir := mod.NamedFunction("main." + name).String()
-					if strings.Contains(ir, "call ") || !strings.Contains(ir, "bitcast") {
+					// Виклик CooperativeSafepoint — це вхідне M:N-опитування, не перетворення.
+					calls := strings.Count(ir, "call ") - strings.Count(ir, "CooperativeSafepoint\"()")
+					if calls != 0 || !strings.Contains(ir, "bitcast") {
 						t.Fatalf("mask bitmap conversion uses an external call:\n%s", ir)
 					}
 				}
