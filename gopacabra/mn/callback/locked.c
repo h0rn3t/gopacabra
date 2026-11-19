@@ -1,3 +1,5 @@
+//go:build gopacabra && gopacabramn
+
 #include <pthread.h>
 
 extern void goBlock(int id);
