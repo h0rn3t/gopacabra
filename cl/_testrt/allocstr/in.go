@@ -41,22 +41,24 @@ func hello() string {
 // copy, constant C string, raw stack allocation, and a null-terminated C-string
 // vector. The checks intentionally follow only the defining data flow.
 // CHECK-LABEL: define void @main.main(){{.*}} {
+// CHECK: [[STRLEN:%[0-9]+]] = call i64 @strlen(ptr @main.strlenInput)
+// CHECK-NEXT: [[BAD_LENGTH:%[0-9]+]] = icmp ne i64 [[STRLEN]], 3
+// CHECK-NEXT: br i1 [[BAD_LENGTH]], label %{{[^, ]+}}, label %{{[^, ]+}}
 // CHECK: [[TEXT:%[0-9]+]] = call %"{{.*}}String" @main.hello()
 // CHECK-NEXT: [[TEXT_LEN:%[0-9]+]] = extractvalue %"{{.*}}String" [[TEXT]], 1
 // CHECK-NEXT: [[CSTR_LEN:%[0-9]+]] = add i64 [[TEXT_LEN]], 1
 // CHECK-NEXT: [[CSTR_BUF:%[0-9]+]] = alloca i8, i64 [[CSTR_LEN]]
 // CHECK-NEXT: [[DYNAMIC_CSTR:%[0-9]+]] = call ptr @"{{.*}}CStrCopy"(ptr [[CSTR_BUF]], %"{{.*}}String" [[TEXT]])
+// CHECK-NEXT: call void @"{{.*}}/runtime/internal/runtime.EnterSyscall"()
 // CHECK-NEXT: call i32 (ptr, ...) @printf(ptr [[DYNAMIC_CSTR]])
 // CHECK: call i32 (ptr, ...) @printf(ptr @{{[0-9]+}})
 // CHECK: [[RAW_BUF:%[0-9]+]] = alloca i8, i64 4
 // CHECK-NEXT: call ptr @memcpy(ptr [[RAW_BUF]], ptr @{{[0-9]+}}, i64 4)
+// CHECK-NEXT: call void @"{{.*}}/runtime/internal/runtime.EnterSyscall"()
 // CHECK-NEXT: call i32 (ptr, ...) @printf(ptr @{{[0-9]+}}, ptr [[RAW_BUF]])
 // CHECK: [[SLICE_LEN:%[0-9]+]] = extractvalue %{{.*}}Slice{{.*}}, 1
 // CHECK-NEXT: [[VECTOR_LEN:%[0-9]+]] = add i64 [[SLICE_LEN]], 1
 // CHECK-NEXT: [[VECTOR:%[0-9]+]] = alloca ptr, i64 [[VECTOR_LEN]]
-// CHECK: [[STRLEN:%[0-9]+]] = call i64 @strlen(ptr @main.strlenInput)
-// CHECK-NEXT: [[BAD_LENGTH:%[0-9]+]] = icmp ne i64 [[STRLEN]], 3
-// CHECK-NEXT: br i1 [[BAD_LENGTH]], label %{{[^, ]+}}, label %{{[^, ]+}}
 // CHECK: store ptr null, ptr %{{[0-9]+}}
 // CHECK: call ptr @"{{.*}}CStrCopy"(ptr %{{[0-9]+}}, %"{{.*}}String" %{{[0-9]+}})
 func main() {

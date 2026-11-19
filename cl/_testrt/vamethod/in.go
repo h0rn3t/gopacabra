@@ -77,19 +77,12 @@ func main() {
 
 // Direct calls pass the receiver's loaded format pointer. Interface calls use
 // slots 4 (SetFormat) and 3 (Printf) with the same receiver data as environment.
+// Both &CFmt{} values do not escape and live on the stack. Under gopacabra the
+// entry poll moves the entry continuation after the interface-call block, so
+// the checks follow that textual order.
 // CHECK-LABEL: define void @main.main(){{.*}} {
-// CHECK: %[[CFMT:[0-9]+]] = call ptr @"{{.*}}/runtime/internal/runtime.AllocZ"(i64 8)
-// CHECK: call void @"main.(*CFmt).SetFormat"(ptr %[[CFMT]], ptr @{{[0-9]+}})
-// CHECK: %[[DIRECTFIELD1:[0-9]+]] = getelementptr inbounds nuw %main.CFmt, ptr %[[CFMT]], i32 0, i32 0
-// CHECK: %[[DIRECTFMT1:[0-9]+]] = load ptr, ptr %[[DIRECTFIELD1]], align 8
-// CHECK: call i32 (ptr, ...) @printf(ptr %[[DIRECTFMT1]], ptr @{{[0-9]+}}, i64 100)
-// CHECK: call void @"main.(*CFmt).SetFormat"(ptr %[[CFMT]], ptr @{{[0-9]+}})
-// CHECK: %[[DIRECTFIELD2:[0-9]+]] = getelementptr inbounds nuw %main.CFmt, ptr %[[CFMT]], i32 0, i32 0
-// CHECK: %[[DIRECTFMT2:[0-9]+]] = load ptr, ptr %[[DIRECTFIELD2]], align 8
-// CHECK: call i32 (ptr, ...) @printf(ptr %[[DIRECTFMT2]], i64 200, ptr @{{[0-9]+}})
-// CHECK: %[[EBOX:[0-9]+]] = insertvalue %"{{.*}}/runtime/internal/runtime.eface" { ptr @"*_llgo_main.CFmt", ptr undef }, ptr %{{[0-9]+}}, 1
-// CHECK: %[[TYPE:[0-9]+]] = extractvalue %"{{.*}}/runtime/internal/runtime.eface" %[[EBOX]], 0
-// CHECK: call i1 @"{{.*}}/runtime/internal/runtime.Implements"(ptr @_llgo_main.IFmt, ptr %[[TYPE]])
+// CHECK: %[[EBOXDATA:[0-9]+]] = alloca %main.CFmt, align 8
+// CHECK-NEXT: %[[CFMT:[0-9]+]] = alloca %main.CFmt, align 8
 // CHECK: %[[SETDATA:[0-9]+]] = call ptr @"{{.*}}/runtime/internal/runtime.IfacePtrData"(%"{{.*}}/runtime/internal/runtime.iface" %[[DYNIFACE:[0-9]+]])
 // CHECK: %[[SETVTAB:[0-9]+]] = extractvalue %"{{.*}}/runtime/internal/runtime.iface" %[[DYNIFACE]], 0
 // CHECK: %[[SETSLOT:[0-9]+]] = getelementptr ptr, ptr %[[SETVTAB]], i64 4
@@ -108,6 +101,19 @@ func main() {
 // CHECK: %[[PRINTENV:[0-9]+]] = extractvalue { ptr, ptr } %[[PRINTPAIR]], 1
 // CHECK: %[[PRINTCALL:[0-9]+]] = extractvalue { ptr, ptr } %[[PRINTPAIR]], 0
 // CHECK: call i32 (ptr, ...) %[[PRINTCALL]](ptr %[[PRINTENV]], ptr @{{[0-9]+}}, i64 100, i64 200)
+// CHECK: call void @llvm.memset.p0.i64(ptr %[[CFMT]], i8 0, i64 8, i1 false)
+// CHECK: call void @"main.(*CFmt).SetFormat"(ptr %[[CFMT]], ptr @{{[0-9]+}})
+// CHECK: %[[DIRECTFIELD1:[0-9]+]] = getelementptr inbounds nuw %main.CFmt, ptr %[[CFMT]], i32 0, i32 0
+// CHECK: %[[DIRECTFMT1:[0-9]+]] = load ptr, ptr %[[DIRECTFIELD1]], align 8
+// CHECK: call i32 (ptr, ...) @printf(ptr %[[DIRECTFMT1]], ptr @{{[0-9]+}}, i64 100)
+// CHECK: call void @"main.(*CFmt).SetFormat"(ptr %[[CFMT]], ptr @{{[0-9]+}})
+// CHECK: %[[DIRECTFIELD2:[0-9]+]] = getelementptr inbounds nuw %main.CFmt, ptr %[[CFMT]], i32 0, i32 0
+// CHECK: %[[DIRECTFMT2:[0-9]+]] = load ptr, ptr %[[DIRECTFIELD2]], align 8
+// CHECK: call i32 (ptr, ...) @printf(ptr %[[DIRECTFMT2]], i64 200, ptr @{{[0-9]+}})
+// CHECK: call void @llvm.memset.p0.i64(ptr %[[EBOXDATA]], i8 0, i64 8, i1 false)
+// CHECK: %[[EBOX:[0-9]+]] = insertvalue %"{{.*}}/runtime/internal/runtime.eface" { ptr @"*_llgo_main.CFmt", ptr undef }, ptr %[[EBOXDATA]], 1
+// CHECK: %[[TYPE:[0-9]+]] = extractvalue %"{{.*}}/runtime/internal/runtime.eface" %[[EBOX]], 0
+// CHECK: call i1 @"{{.*}}/runtime/internal/runtime.Implements"(ptr @_llgo_main.IFmt, ptr %[[TYPE]])
 // CHECK: %[[NEWITAB:[0-9]+]] = call ptr @"{{.*}}/runtime/internal/runtime.NewItab"(ptr {{.*}}, ptr %[[TYPE]])
 // CHECK: %[[NEWIFACE0:[0-9]+]] = insertvalue %"{{.*}}/runtime/internal/runtime.iface" undef, ptr %[[NEWITAB]], 0
 // CHECK: %[[NEWIFACE:[0-9]+]] = insertvalue %"{{.*}}/runtime/internal/runtime.iface" %[[NEWIFACE0]], ptr %{{[0-9]+}}, 1

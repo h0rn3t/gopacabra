@@ -8,13 +8,13 @@ package main
 // CHECK: [[INT_HINT:%[0-9]+]] = sext i32 %0 to i64
 // CHECK-NEXT: [[INT_MAP:%[0-9]+]] = call ptr @"{{.*}}MakeMap"(ptr @"map[_llgo_string]_llgo_int", i64 [[INT_HINT]])
 // CHECK-NEXT: [[INT_LEN:%[0-9]+]] = call i64 @"{{.*}}MapLen"(ptr [[INT_MAP]])
-// CHECK-NEXT: ret i64 [[INT_LEN]]
+// CHECK: ret i64 [[INT_LEN]]
 
 // CHECK-LABEL: define i64 @main.fromUint32(i32 %0){{.*}} {
 // CHECK: [[UINT_HINT:%[0-9]+]] = zext i32 %0 to i64
 // CHECK-NEXT: [[UINT_MAP:%[0-9]+]] = call ptr @"{{.*}}MakeMap"(ptr @"map[_llgo_string]_llgo_int", i64 [[UINT_HINT]])
 // CHECK-NEXT: [[UINT_LEN:%[0-9]+]] = call i64 @"{{.*}}MapLen"(ptr [[UINT_MAP]])
-// CHECK-NEXT: ret i64 [[UINT_LEN]]
+// CHECK: ret i64 [[UINT_LEN]]
 
 // make1 covers the full lifecycle. Tie every operation to the map returned by
 // MakeMap, while leaving scalar extraction and control flow to focused tests.

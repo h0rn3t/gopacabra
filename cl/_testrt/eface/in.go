@@ -22,24 +22,27 @@ func dump(v any) {
 }
 
 // CHECK-LABEL: define void @main.dumpTyp(ptr %0, %"{{.*}}/runtime/internal/runtime.String" %1){{.*}} {
+// The M:N entry poll lays the entry continuation out after the recursion
+// blocks, so the checks follow the textual block order.
+// CHECK: [[RECURSE_ELEM:%.*]] = call ptr @"{{.*}}/runtime/abi.(*Type).Elem"(ptr %0)
+// CHECK-NEXT: [[ELEM_SEP:%.*]] = call %"{{.*}}String" @"{{.*}}/runtime/internal/runtime.StringCat"(%"{{.*}}String" %1, %"{{.*}}String" { ptr @{{.*}}, i64 7 })
+// CHECK: call void @main.dumpTyp(ptr [[RECURSE_ELEM]], %"{{.*}}String" [[ELEM_SEP]])
+// CHECK: [[RECHECK_UNCOMMON:%.*]] = call ptr @"{{.*}}/runtime/abi.(*Type).Uncommon"(ptr %0)
+// CHECK-NEXT: [[HAS_UNCOMMON:%.*]] = icmp ne ptr [[RECHECK_UNCOMMON]], null
+// CHECK-NEXT: br i1 [[HAS_UNCOMMON]], label %{{.*}}, label %{{.*}}
+// CHECK: [[DUMP_UNCOMMON:%.*]] = call ptr @"{{.*}}/runtime/abi.(*Type).Uncommon"(ptr %0)
+// CHECK-NEXT: [[UNCOMMON_SEP:%.*]] = call %"{{.*}}String" @"{{.*}}/runtime/internal/runtime.StringCat"(%"{{.*}}String" %1, %"{{.*}}String" { ptr @{{.*}}, i64 9 })
+// CHECK: call void @main.dumpUncommon(ptr [[DUMP_UNCOMMON]], %"{{.*}}String" [[UNCOMMON_SEP]])
 // CHECK: call void @"{{.*}}/runtime/internal/runtime.PrintString"(%"{{.*}}String" %1)
 // CHECK: [[TYPE_NAME:%.*]] = call %"{{.*}}String" @"{{.*}}/runtime/abi.(*Type).String"(ptr %0)
 // CHECK: [[TYPE_KIND:%.*]] = call i64 @"{{.*}}/runtime/abi.(*Type).Kind"(ptr %0)
 // CHECK: [[TYPE_UNCOMMON:%.*]] = call ptr @"{{.*}}/runtime/abi.(*Type).Uncommon"(ptr %0)
 // CHECK: call void @"{{.*}}/runtime/internal/runtime.PrintString"(%"{{.*}}String" [[TYPE_NAME]])
 // CHECK: call void @"{{.*}}/runtime/internal/runtime.PrintUint"(i64 [[TYPE_KIND]])
+// CHECK: call void @"{{.*}}/runtime/internal/runtime.PrintPointer"(ptr [[TYPE_UNCOMMON]])
 // CHECK: [[TYPE_ELEM:%.*]] = call ptr @"{{.*}}/runtime/abi.(*Type).Elem"(ptr %0)
-// CHECK: [[HAS_ELEM:%.*]] = icmp ne ptr [[TYPE_ELEM]], null
-// CHECK: br i1 [[HAS_ELEM]], label %{{.*}}, label %{{.*}}
-// CHECK: [[RECURSE_ELEM:%.*]] = call ptr @"{{.*}}/runtime/abi.(*Type).Elem"(ptr %0)
-// CHECK: [[ELEM_SEP:%.*]] = call %"{{.*}}String" @"{{.*}}/runtime/internal/runtime.StringCat"(%"{{.*}}String" %1, %"{{.*}}String" { ptr @{{.*}}, i64 7 })
-// CHECK: call void @main.dumpTyp(ptr [[RECURSE_ELEM]], %"{{.*}}String" [[ELEM_SEP]])
-// CHECK: [[RECHECK_UNCOMMON:%.*]] = call ptr @"{{.*}}/runtime/abi.(*Type).Uncommon"(ptr %0)
-// CHECK: [[HAS_UNCOMMON:%.*]] = icmp ne ptr [[RECHECK_UNCOMMON]], null
-// CHECK: br i1 [[HAS_UNCOMMON]], label %{{.*}}, label %{{.*}}
-// CHECK: [[DUMP_UNCOMMON:%.*]] = call ptr @"{{.*}}/runtime/abi.(*Type).Uncommon"(ptr %0)
-// CHECK: [[UNCOMMON_SEP:%.*]] = call %"{{.*}}String" @"{{.*}}/runtime/internal/runtime.StringCat"(%"{{.*}}String" %1, %"{{.*}}String" { ptr @{{.*}}, i64 9 })
-// CHECK: call void @main.dumpUncommon(ptr [[DUMP_UNCOMMON]], %"{{.*}}String" [[UNCOMMON_SEP]])
+// CHECK-NEXT: [[HAS_ELEM:%.*]] = icmp ne ptr [[TYPE_ELEM]], null
+// CHECK-NEXT: br i1 [[HAS_ELEM]], label %{{.*}}, label %{{.*}}
 func dumpTyp(t *abi.Type, sep string) {
 	print(sep)
 	println(t.String(), t.Kind(), t.Size_, t.PtrBytes, t.Hash, t.TFlag, t.Align_, t.PtrToThis_, t.Uncommon())

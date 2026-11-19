@@ -22,7 +22,7 @@ const (
 )
 
 // CHECK-LABEL: define double @main.Float64frombits(i64 %0){{.*}} {
-// CHECK: [[BITS_ADDR:%.*]] = call ptr @"{{.*}}/runtime/internal/runtime.AllocZ"(i64 8)
+// CHECK: [[BITS_ADDR:%.*]] = alloca i64
 // CHECK: store i64 %0, ptr [[BITS_ADDR]]
 // CHECK: [[FLOAT:%.*]] = load double, ptr [[BITS_ADDR]]
 // CHECK: ret double [[FLOAT]]
@@ -67,22 +67,30 @@ func demo() {
 
 // CHECK-LABEL: define void @main.main(){{.*}} {
 // make([]byte, 4, 10) must preserve both the requested length and capacity.
-// CHECK: [[D_STORAGE:%.*]] = call ptr @"{{.*}}/runtime/internal/runtime.AllocZ"(i64 10)
+// CHECK: call void @llvm.memset.p0.i64(ptr [[D_STORAGE:%[0-9]+]], i8 0, i64 10, i1 false)
 // CHECK: [[D:%.*]] = call %"{{.*}}Slice" @"{{.*}}/runtime/internal/runtime.NewSlice2"(ptr [[D_STORAGE]], i64 1, i64 10, i64 0, i64 4, i1 true, i1 true, i1 true)
-// append(s, 5, 6, 7, 8) forwards the materialized four-element tail.
+// append(s, 5, 6, 7, 8) forwards the materialized four-element tail; the
+// gopacabra owned append sizes the new buffer with 8-byte elements and copies
+// the tail after the old elements.
 // CHECK: call %"{{.*}}String" @"{{.*}}/runtime/internal/runtime.StringSlice"(%"{{.*}}String" { ptr @{{.*}}, i64 5 }, i64 5, i64 5)
-// CHECK: [[INT_TAIL:%.*]] = call ptr @"{{.*}}/runtime/internal/runtime.AllocZ"(i64 32)
-// CHECK: [[INT_TAIL_0:%.*]] = getelementptr inbounds i64, ptr [[INT_TAIL]], i64 0
-// CHECK: store i64 5, ptr [[INT_TAIL_0]]
+// CHECK: store i64 5, ptr
+// CHECK: store i64 8, ptr
 // CHECK: [[INT_TAIL_PTR:%.*]] = extractvalue %"{{.*}}Slice" %{{.*}}, 0
-// CHECK: [[INT_TAIL_LEN:%.*]] = extractvalue %"{{.*}}Slice" %{{.*}}, 1
-// CHECK: [[INT_APPEND:%.*]] = call %"{{.*}}Slice" @"{{.*}}/runtime/internal/runtime.SliceAppend"(%"{{.*}}Slice" %{{.*}}, ptr [[INT_TAIL_PTR]], i64 [[INT_TAIL_LEN]], i64 8)
+// CHECK-NEXT: [[INT_TAIL_LEN:%.*]] = extractvalue %"{{.*}}Slice" %{{.*}}, 1
+// CHECK: call i64 @"{{.*}}/runtime/internal/runtime.OwnedAppendCap"(i64 %{{.*}}, i64 %{{.*}}, i64 8)
+// CHECK: [[INT_TAIL_DST:%.*]] = getelementptr i64, ptr %{{.*}}, i64 %{{.*}}
+// CHECK-NEXT: [[INT_TAIL_BYTES:%.*]] = mul i64 [[INT_TAIL_LEN]], 8
+// CHECK-NEXT: call void @llvm.memcpy.p0.p0.i64(ptr [[INT_TAIL_DST]], ptr [[INT_TAIL_PTR]], i64 [[INT_TAIL_BYTES]], i1 false)
 // append(data, "def"...) uses three one-byte elements.
-// CHECK: [[DATA_APPEND:%.*]] = call %"{{.*}}Slice" @"{{.*}}/runtime/internal/runtime.SliceAppend"(%"{{.*}}Slice" %{{.*}}, ptr @{{.*}}, i64 3, i64 1)
+// CHECK: call i64 @"{{.*}}/runtime/internal/runtime.OwnedAppendCap"(i64 %{{.*}}, i64 %{{.*}}, i64 1)
+// CHECK: call void @llvm.memcpy.p0.p0.i64(ptr %{{.*}}, ptr @{{.*}}, i64 3, i1 false)
 // Appending a function closure uses the two-word function representation.
 // CHECK: [[FN_PTR:%.*]] = extractvalue %"{{.*}}Slice" [[FN_SLICE:%.*]], 0
-// CHECK: [[FN_LEN:%.*]] = extractvalue %"{{.*}}Slice" [[FN_SLICE]], 1
-// CHECK: [[FN_APPEND:%.*]] = call %"{{.*}}Slice" @"{{.*}}/runtime/internal/runtime.SliceAppend"(%"{{.*}}Slice" { ptr @"__llgo.moduleZeroSizedAlloc$", i64 0, i64 0 }, ptr [[FN_PTR]], i64 [[FN_LEN]], i64 16)
+// CHECK-NEXT: [[FN_LEN:%.*]] = extractvalue %"{{.*}}Slice" [[FN_SLICE]], 1
+// CHECK: call i64 @"{{.*}}/runtime/internal/runtime.OwnedAppendCap"(i64 %{{.*}}, i64 0, i64 16)
+// CHECK: call void @llvm.memcpy.p0.p0.i64(ptr %{{.*}}, ptr @"__llgo.moduleZeroSizedAlloc$", i64 0, i1 false)
+// CHECK: [[FN_BYTES:%.*]] = mul i64 [[FN_LEN]], 16
+// CHECK-NEXT: call void @llvm.memcpy.p0.p0.i64(ptr %{{.*}}, ptr [[FN_PTR]], i64 [[FN_BYTES]], i1 false)
 // Both copy forms retain destination/source lengths and the byte element size.
 // CHECK: [[COPY_DATA:%.*]] = call i64 @"{{.*}}/runtime/internal/runtime.SliceCopy"(%"{{.*}}Slice" %{{.*}}, ptr %{{.*}}, i64 %{{.*}}, i64 1)
 // CHECK: store i64 [[COPY_DATA]], ptr [[COPY_N:%.*]]

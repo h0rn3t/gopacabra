@@ -23,19 +23,16 @@ func main() {
 
 // CHECK-LABEL: define void @main.main(){{.*}} {
 // The named string uses an exact (panicking) assertion, then deliberately fails
-// a comma-ok assertion to the underlying unnamed string type.
-// CHECK: [[T_DATA:%.*]] = call ptr @"{{.*}}AllocU"(i64 16)
-// CHECK: [[T_EFACE:%.*]] = insertvalue %"{{.*}}eface" { ptr @_llgo_main.T, ptr undef }, ptr [[T_DATA]], 1
-// CHECK: [[T_DYN_TYPE:%.*]] = extractvalue %"{{.*}}eface" [[T_EFACE]], 0
-// CHECK-NEXT: [[IS_T:%.*]] = icmp eq ptr [[T_DYN_TYPE]], @_llgo_main.T
-// CHECK: br i1 [[IS_T]], label %{{.*}}, label %{{.*}}
-// CHECK: [[T_DYN_DATA:%.*]] = extractvalue %"{{.*}}eface" [[T_EFACE]], 1
-// CHECK-NEXT: [[T_VALUE:%.*]] = load %"{{.*}}String", ptr [[T_DYN_DATA]]
+// a comma-ok assertion to the underlying unnamed string type. The constant
+// string is boxed in a static eface { T, @box }, so both type tests fold: the
+// exact assertion to true, the comma-ok one to false.
+// CHECK: br i1 true, label %{{.*}}, label %{{.*}}
+// CHECK: [[T_VALUE:%.*]] = load %"{{.*}}String", ptr [[T_BOX:@[0-9]+]]
 // CHECK-NEXT: call void @"{{.*}}PrintString"(%"{{.*}}String" [[T_VALUE]])
-// CHECK: [[STRING_DYN_TYPE:%.*]] = extractvalue %"{{.*}}eface" [[T_EFACE]], 0
-// CHECK-NEXT: [[IS_STRING:%.*]] = icmp eq ptr [[STRING_DYN_TYPE]], @_llgo_string
-// CHECK: call void @"{{.*}}PanicTypeAssert"(ptr null, ptr [[T_DYN_TYPE]], ptr @_llgo_main.T)
+// CHECK: br i1 false, label %{{.*}}, label %{{.*}}
+// CHECK: call void @"{{.*}}PanicTypeAssert"(ptr null, ptr @_llgo_main.T, ptr @_llgo_main.T)
 // CHECK-NEXT: unreachable
+// CHECK: load %"{{.*}}String", ptr [[T_BOX]]
 // CHECK: [[STRING_OK_RESULT:%.*]] = phi { %"{{.*}}String", i1 } [ {{%.*}}, %{{.*}} ], [ zeroinitializer, %{{.*}} ]
 // CHECK: [[STRING_VALUE:%.*]] = extractvalue { %"{{.*}}String", i1 } [[STRING_OK_RESULT]], 0
 // CHECK-NEXT: [[STRING_OK:%.*]] = extractvalue { %"{{.*}}String", i1 } [[STRING_OK_RESULT]], 1

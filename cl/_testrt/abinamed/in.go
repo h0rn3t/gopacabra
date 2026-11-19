@@ -12,13 +12,13 @@ import (
 // runtime type descriptors; the test body then exercises lazy pointer-to-this
 // and element links from those descriptors.
 // CHECK-LABEL: define void @main.checkBasicNames(){{.*}} {
-// CHECK-DAG: insertvalue %"{{.*}}eface" { ptr @_llgo_int32,
-// CHECK-DAG: insertvalue %"{{.*}}eface" { ptr @_llgo_uint8,
+// CHECK-DAG: %"{{.*}}eface" { ptr @_llgo_int32,
+// CHECK-DAG: %"{{.*}}eface" { ptr @_llgo_uint8,
 // CHECK: call %"{{.*}}String" @"{{.*}}/runtime/abi.(*Type).String"
 // CHECK: call %"{{.*}}String" @"{{.*}}/runtime/abi.(*Type).String"
 // CHECK-LABEL: define void @main.main(){{.*}} {
-// CHECK: insertvalue %"{{.*}}eface" { ptr @_llgo_main.T,
-// CHECK: insertvalue %"{{.*}}eface" { ptr @"_llgo_{{.*}}/runtime/abi.Type",
+// CHECK: call ptr @main.toEface(%"{{.*}}eface" { ptr @_llgo_main.T,
+// CHECK: call ptr @main.toEface(%"{{.*}}eface" { ptr @"_llgo_{{.*}}/runtime/abi.Type",
 // CHECK: call ptr @"{{.*}}/runtime/abi.(*Type).StructType"
 // CHECK: call ptr @"{{.*}}/runtime/abi.(*Type).Elem"
 
@@ -84,6 +84,7 @@ func main() {
 func toEface(i any) *eface {
 	// CHECK-LABEL: define ptr @main.toEface(%"{{.*}}eface" %{{[0-9]+}}){{.*}} {
 	// CHECK: [[TO_EFACE_ADDR:%[0-9]+]] = call ptr @"{{.*}}/runtime/internal/runtime.AllocZ"(i64 16)
+	// CHECK-NEXT: call void @"{{.*}}/runtime/internal/runtime.NoteAlloc"(i64 16,
 	// CHECK-NEXT: store %"{{.*}}eface" [[TO_EFACE_VALUE:%[0-9]+]], ptr [[TO_EFACE_ADDR]]
 	// CHECK-NEXT: ret ptr [[TO_EFACE_ADDR]]
 	return (*eface)(unsafe.Pointer(&i))
