@@ -111,24 +111,6 @@ func main() {
 // CHECK: ret %"{{.*}}String" [[IMPL_TWO_RESULT]]
 
 // CHECK-LABEL: define void @main.main(){{.*}} {
-// CHECK: [[IMPL_DATA:%.*]] = call ptr @"{{.*}}/runtime/internal/runtime.AllocU"(i64 0)
-// CHECK: [[IMPL_ITAB:%.*]] = call ptr @"{{.*}}/runtime/internal/runtime.NewItab"(ptr @"{{.*}}/cl/_testgo/ifaceprom.iface${{[-A-Za-z0-9_]+}}", ptr @_llgo_main.impl)
-// CHECK: [[MAIN_IFACE_0:%.*]] = insertvalue %"{{.*}}iface" undef, ptr [[IMPL_ITAB]], 0
-// CHECK: [[MAIN_IFACE:%.*]] = insertvalue %"{{.*}}iface" [[MAIN_IFACE_0]], ptr [[IMPL_DATA]], 1
-// CHECK: store %"{{.*}}iface" [[MAIN_IFACE]], ptr [[S_IFACE_FIELD:%.*]]
-// Direct s.I.one uses slot 3 and compares that call result with 1.
-// CHECK: [[DIRECT_ONE_IFACE:%.*]] = load %"{{.*}}iface", ptr %{{.*}}
-// CHECK: [[DIRECT_ONE_DATA:%.*]] = call ptr @"{{.*}}/runtime/internal/runtime.IfacePtrData"(%"{{.*}}iface" [[DIRECT_ONE_IFACE]])
-// CHECK: [[DIRECT_ONE_ITAB:%.*]] = extractvalue %"{{.*}}iface" [[DIRECT_ONE_IFACE]], 0
-// CHECK: [[DIRECT_ONE_SLOT:%.*]] = getelementptr ptr, ptr [[DIRECT_ONE_ITAB]], i64 3
-// CHECK: [[DIRECT_ONE_CODE:%.*]] = load ptr, ptr [[DIRECT_ONE_SLOT]]
-// CHECK: [[DIRECT_ONE_PAIR_0:%.*]] = insertvalue { ptr, ptr } undef, ptr [[DIRECT_ONE_CODE]], 0
-// CHECK: [[DIRECT_ONE_PAIR:%.*]] = insertvalue { ptr, ptr } [[DIRECT_ONE_PAIR_0]], ptr [[DIRECT_ONE_DATA]], 1
-// CHECK: [[DIRECT_ONE_CALL_DATA:%.*]] = extractvalue { ptr, ptr } [[DIRECT_ONE_PAIR]], 1
-// CHECK: [[DIRECT_ONE_CALL_CODE:%.*]] = extractvalue { ptr, ptr } [[DIRECT_ONE_PAIR]], 0
-// CHECK: [[DIRECT_ONE_RESULT:%.*]] = call i64 [[DIRECT_ONE_CALL_CODE]](ptr [[DIRECT_ONE_CALL_DATA]])
-// CHECK: [[DIRECT_ONE_BAD:%.*]] = icmp ne i64 [[DIRECT_ONE_RESULT]], 1
-// CHECK: br i1 [[DIRECT_ONE_BAD]], label %{{.*}}, label %{{.*}}
 // Promoted s.one extracts the embedded interface and still uses slot 3.
 // CHECK: [[PROMOTED_ONE_S:%.*]] = load %main.S, ptr %{{.*}}
 // CHECK: [[PROMOTED_ONE_IFACE:%.*]] = extractvalue %main.S [[PROMOTED_ONE_S]], 0
@@ -186,6 +168,26 @@ func main() {
 // CHECK: [[PROMOTED_TWO_CLOSURE_S:%.*]] = load %main.S, ptr %{{.*}}
 // CHECK: [[PROMOTED_TWO_CLOSURE_IFACE:%.*]] = extractvalue %main.S [[PROMOTED_TWO_CLOSURE_S]], 0
 // CHECK: call ptr @"{{.*}}/runtime/internal/runtime.IfaceType"(%"{{.*}}iface" [[PROMOTED_TWO_CLOSURE_IFACE]])
+// The entry safepoint poll moves the setup and direct s.I.one call after the
+// other method-call blocks.
+// CHECK: [[IMPL_DATA:%.*]] = call ptr @"{{.*}}/runtime/internal/runtime.AllocU"(i64 0)
+// CHECK: [[IMPL_ITAB:%.*]] = call ptr @"{{.*}}/runtime/internal/runtime.NewItab"(ptr @"{{.*}}/cl/_testgo/ifaceprom.iface${{[-A-Za-z0-9_]+}}", ptr @_llgo_main.impl)
+// CHECK: [[MAIN_IFACE_0:%.*]] = insertvalue %"{{.*}}iface" undef, ptr [[IMPL_ITAB]], 0
+// CHECK: [[MAIN_IFACE:%.*]] = insertvalue %"{{.*}}iface" [[MAIN_IFACE_0]], ptr [[IMPL_DATA]], 1
+// CHECK: store %"{{.*}}iface" [[MAIN_IFACE]], ptr [[S_IFACE_FIELD:%.*]]
+// Direct s.I.one uses slot 3 and compares that call result with 1.
+// CHECK: [[DIRECT_ONE_IFACE:%.*]] = load %"{{.*}}iface", ptr %{{.*}}
+// CHECK: [[DIRECT_ONE_DATA:%.*]] = call ptr @"{{.*}}/runtime/internal/runtime.IfacePtrData"(%"{{.*}}iface" [[DIRECT_ONE_IFACE]])
+// CHECK: [[DIRECT_ONE_ITAB:%.*]] = extractvalue %"{{.*}}iface" [[DIRECT_ONE_IFACE]], 0
+// CHECK: [[DIRECT_ONE_SLOT:%.*]] = getelementptr ptr, ptr [[DIRECT_ONE_ITAB]], i64 3
+// CHECK: [[DIRECT_ONE_CODE:%.*]] = load ptr, ptr [[DIRECT_ONE_SLOT]]
+// CHECK: [[DIRECT_ONE_PAIR_0:%.*]] = insertvalue { ptr, ptr } undef, ptr [[DIRECT_ONE_CODE]], 0
+// CHECK: [[DIRECT_ONE_PAIR:%.*]] = insertvalue { ptr, ptr } [[DIRECT_ONE_PAIR_0]], ptr [[DIRECT_ONE_DATA]], 1
+// CHECK: [[DIRECT_ONE_CALL_DATA:%.*]] = extractvalue { ptr, ptr } [[DIRECT_ONE_PAIR]], 1
+// CHECK: [[DIRECT_ONE_CALL_CODE:%.*]] = extractvalue { ptr, ptr } [[DIRECT_ONE_PAIR]], 0
+// CHECK: [[DIRECT_ONE_RESULT:%.*]] = call i64 [[DIRECT_ONE_CALL_CODE]](ptr [[DIRECT_ONE_CALL_DATA]])
+// CHECK: [[DIRECT_ONE_BAD:%.*]] = icmp ne i64 [[DIRECT_ONE_RESULT]], 1
+// CHECK: br i1 [[DIRECT_ONE_BAD]], label %{{.*}}, label %{{.*}}
 // The four late closure paths store those same interfaces into their bound environments.
 // CHECK: store %"{{.*}}iface" [[ONE_CLOSURE_IFACE]], ptr %{{.*}}
 // CHECK: [[ONE_BOUND:%.*]] = insertvalue { ptr, ptr } { ptr @"main.I.one$bound", ptr undef }, ptr [[ONE_BOUND_ENV:%.*]], 1

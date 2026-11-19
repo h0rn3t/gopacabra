@@ -17,7 +17,9 @@ type namedFunc func(int) int
 // each distinct Value.Convert path LLGo must lower.
 //
 // FileCheck follows LLGo's deterministic lexical function order. Each block
-// checks only the conversion bridge and the value consumed from it.
+// checks only the conversion bridge and the value consumed from it. The entry
+// safepoint poll moves each function's first statements into a block placed
+// after the later statements, so the groups follow that block order.
 // CHECK-LABEL: define void @main.functionConversion(){{.*}} {
 // CHECK: [[FUNC_VALUE:%[0-9]+]] = call %reflect.Value @reflect.ValueOf(
 // CHECK: [[FUNC_TYPE:%[0-9]+]] = call %{{.*}} @reflect.TypeOf(
@@ -54,34 +56,34 @@ type namedFunc func(int) int
 // CHECK: bitcast float {{.*}} to i32
 
 // CHECK-LABEL: define void @main.numericConversions(){{.*}} {
-// CHECK: [[INT_VALUE:%[0-9]+]] = call %reflect.Value @reflect.ValueOf(
-// CHECK: [[UINT_TYPE:%[0-9]+]] = call %{{.*}} @reflect.TypeOf(
-// CHECK: [[UINT_VALUE:%[0-9]+]] = call %reflect.Value @reflect.Value.Convert(%reflect.Value [[INT_VALUE]], {{.*}} [[UINT_TYPE]])
-// CHECK: call i64 @reflect.Value.Uint(%reflect.Value [[UINT_VALUE]])
 // CHECK: [[FLOAT_VALUE:%[0-9]+]] = call %reflect.Value @reflect.ValueOf(
 // CHECK: [[INT_TYPE:%[0-9]+]] = call %{{.*}} @reflect.TypeOf(
 // CHECK: [[TRUNCATED:%[0-9]+]] = call %reflect.Value @reflect.Value.Convert(%reflect.Value [[FLOAT_VALUE]], {{.*}} [[INT_TYPE]])
 // CHECK: call i64 @reflect.Value.Int(%reflect.Value [[TRUNCATED]])
+// CHECK: [[INT_VALUE:%[0-9]+]] = call %reflect.Value @reflect.ValueOf(
+// CHECK: [[UINT_TYPE:%[0-9]+]] = call %{{.*}} @reflect.TypeOf(
+// CHECK: [[UINT_VALUE:%[0-9]+]] = call %reflect.Value @reflect.Value.Convert(%reflect.Value [[INT_VALUE]], {{.*}} [[UINT_TYPE]])
+// CHECK: call i64 @reflect.Value.Uint(%reflect.Value [[UINT_VALUE]])
 
 // CHECK-LABEL: define void @main.sliceArrayConversions(){{.*}} {
-// CHECK: [[SLICE_VALUE:%[0-9]+]] = call %reflect.Value @reflect.ValueOf(
-// CHECK: [[ARRAY_TYPE:%[0-9]+]] = call %{{.*}} @reflect.TypeOf(
-// CHECK: [[ARRAY_VALUE:%[0-9]+]] = call %reflect.Value @reflect.Value.Convert(%reflect.Value [[SLICE_VALUE]], {{.*}} [[ARRAY_TYPE]])
 // CHECK: [[POINTER_TYPE:%[0-9]+]] = call %{{.*}} @reflect.TypeOf(
-// CHECK: [[POINTER_VALUE:%[0-9]+]] = call %reflect.Value @reflect.Value.Convert({{.*}}[[POINTER_TYPE]])
+// CHECK-NEXT: [[POINTER_VALUE:%[0-9]+]] = call %reflect.Value @reflect.Value.Convert(%reflect.Value [[SLICE_VALUE:%[0-9]+]], {{.*}} [[POINTER_TYPE]])
 // CHECK: call i1 @reflect.Value.CanConvert(
+// CHECK: [[SLICE_VALUE]] = call %reflect.Value @reflect.ValueOf(
+// CHECK-NEXT: [[ARRAY_TYPE:%[0-9]+]] = call %{{.*}} @reflect.TypeOf(
+// CHECK-NEXT: [[ARRAY_VALUE:%[0-9]+]] = call %reflect.Value @reflect.Value.Convert(%reflect.Value [[SLICE_VALUE]], {{.*}} [[ARRAY_TYPE]])
 // CHECK: call %reflect.Value @reflect.Value.Index(%reflect.Value [[ARRAY_VALUE]], i64 0)
 // CHECK: call %reflect.Value @reflect.Value.Elem(%reflect.Value [[POINTER_VALUE]])
 
 // CHECK-LABEL: define void @main.textConversions(){{.*}} {
-// CHECK: [[STRING_VALUE:%[0-9]+]] = call %reflect.Value @reflect.ValueOf(
-// CHECK: [[BYTES_TYPE:%[0-9]+]] = call %{{.*}} @reflect.TypeOf(
-// CHECK: [[BYTES_VALUE:%[0-9]+]] = call %reflect.Value @reflect.Value.Convert(%reflect.Value [[STRING_VALUE]], {{.*}} [[BYTES_TYPE]])
-// CHECK: call %{{.*}} @reflect.Value.Interface(%reflect.Value [[BYTES_VALUE]])
 // CHECK: [[NAMED_BYTES:%[0-9]+]] = call %reflect.Value @reflect.ValueOf(
 // CHECK: [[STRING_TYPE:%[0-9]+]] = call %{{.*}} @reflect.TypeOf(
 // CHECK: [[STRING_RESULT:%[0-9]+]] = call %reflect.Value @reflect.Value.Convert(%reflect.Value [[NAMED_BYTES]], {{.*}} [[STRING_TYPE]])
 // CHECK: call %{{.*}} @reflect.Value.String(%reflect.Value [[STRING_RESULT]])
+// CHECK: [[STRING_VALUE:%[0-9]+]] = call %reflect.Value @reflect.ValueOf(
+// CHECK: [[BYTES_TYPE:%[0-9]+]] = call %{{.*}} @reflect.TypeOf(
+// CHECK: [[BYTES_VALUE:%[0-9]+]] = call %reflect.Value @reflect.Value.Convert(%reflect.Value [[STRING_VALUE]], {{.*}} [[BYTES_TYPE]])
+// CHECK: call %{{.*}} @reflect.Value.Interface(%reflect.Value [[BYTES_VALUE]])
 
 func main() {
 	numericConversions()

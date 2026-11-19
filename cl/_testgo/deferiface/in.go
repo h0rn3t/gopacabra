@@ -28,8 +28,9 @@ func main() {
 // CHECK: call void @"{{.*}}PrintInt"(i64 [[RESET_VALUE]])
 
 // CHECK-LABEL: define void @main.main(){{.*}} {
-// CHECK: [[ITEM:%.*]] = call ptr @"{{.*}}AllocZ"(i64 8)
-// CHECK-NEXT: [[ITEM_VALUE:%.*]] = getelementptr inbounds nuw %main.item, ptr [[ITEM]], i32 0, i32 0
+// The receiver does not escape run, so it lives in main's frame.
+// CHECK: [[ITEM:%.*]] = alloca %main.item
+// CHECK: [[ITEM_VALUE:%.*]] = getelementptr inbounds nuw %main.item, ptr [[ITEM]], i32 0, i32 0
 // CHECK-NEXT: store i64 42, ptr [[ITEM_VALUE]]
 // CHECK: [[ITEM_ITAB:%.*]] = call ptr @"{{.*}}NewItab"(ptr @"_llgo_iface${{[-A-Za-z0-9_]+}}", ptr @"*_llgo_main.item")
 // CHECK-NEXT: [[ITEM_IFACE0:%.*]] = insertvalue %"{{.*}}iface" undef, ptr [[ITEM_ITAB]], 0
@@ -46,7 +47,7 @@ func main() {
 // CHECK-NEXT: [[RESET_CALL0:%.*]] = insertvalue { ptr, ptr } undef, ptr [[RESET_METHOD]], 0
 // CHECK-NEXT: [[RESET_CALL:%.*]] = insertvalue { ptr, ptr } [[RESET_CALL0]], ptr [[RESET_RECEIVER]], 1
 // CHECK: [[PREV_DEFER:%.*]] = call ptr @"{{.*}}GetThreadDefer"()
-// CHECK: [[FRAME:%.*]] = call ptr @"{{.*}}AllocU"(i64 48)
+// CHECK: [[FRAME:%.*]] = alloca %"{{.*}}Defer"
 // CHECK: store ptr [[PREV_DEFER]], ptr {{%.*}}
 // CHECK: call void @"{{.*}}SetThreadDefer"(ptr [[FRAME]])
 // CHECK: [[HEAD:%.*]] = getelementptr inbounds nuw %"{{.*}}Defer", ptr [[FRAME]], i32 0, i32 5

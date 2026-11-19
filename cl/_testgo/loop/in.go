@@ -6,15 +6,10 @@ package main
 // compile: dynamic defer nodes and allocation-free constant strings.
 // CHECK: [[LOOP_TEXT:@[0-9]+]] = private unnamed_addr constant [4 x i8] c"loop"
 // CHECK-LABEL: define void @main.main(){{.*}} {
-// CHECK: [[PREV_DEFER:%.*]] = call ptr @"{{.*}}GetThreadDefer"()
-// CHECK: [[FRAME:%.*]] = call ptr @"{{.*}}AllocU"(i64 48)
-// CHECK: store ptr [[PREV_DEFER]], ptr {{%.*}}
-// CHECK: call void @"{{.*}}SetThreadDefer"(ptr [[FRAME]])
-// CHECK: [[HEAD:%.*]] = getelementptr inbounds nuw %"{{.*}}Defer", ptr [[FRAME]], i32 0, i32 5
 // CHECK: [[I:%.*]] = phi i64 [ 0, %{{.*}} ], [ [[NEXT_I:%.*]], %{{.*}} ]
 // CHECK: [[IN_RANGE:%.*]] = icmp slt i64 [[I]], 3
 // CHECK: br i1 [[IN_RANGE]], label %{{.*}}, label %{{.*}}
-// CHECK: [[OLD_HEAD:%.*]] = load ptr, ptr [[HEAD]]
+// CHECK: [[OLD_HEAD:%.*]] = load ptr, ptr [[HEAD:%[0-9]+]]
 // CHECK: [[NODE:%.*]] = call ptr @"{{.*}}AllocU"(i64 40)
 // CHECK: store ptr [[OLD_HEAD]], ptr %{{.*}}
 // CHECK: store %"{{.*}}String" { ptr [[LOOP_TEXT]], i64 4 }, ptr %{{.*}}
@@ -22,6 +17,13 @@ package main
 // CHECK: store ptr [[NODE]], ptr [[HEAD]]
 // CHECK: [[NEXT_I]] = add i64 [[I]], 1
 // CHECK: call i64 @main.zStringLoop()
+// The defer frame is set up after the entry safepoint poll, so its block
+// follows the loop body; the frame itself lives on the stack.
+// CHECK: [[PREV_DEFER:%.*]] = call ptr @"{{.*}}GetThreadDefer"()
+// CHECK: [[FRAME:%.*]] = alloca %"{{.*}}Defer"
+// CHECK: store ptr [[PREV_DEFER]], ptr {{%.*}}
+// CHECK: call void @"{{.*}}SetThreadDefer"(ptr [[FRAME]])
+// CHECK: [[HEAD]] = getelementptr inbounds nuw %"{{.*}}Defer", ptr [[FRAME]], i32 0, i32 5
 // CHECK: [[HEAD_CANDIDATE:%.*]] = load ptr, ptr [[HEAD]]
 // CHECK-NEXT: [[HAS_NODE:%.*]] = icmp ne ptr [[HEAD_CANDIDATE]], null
 // CHECK: [[NODE_HEADER:%.*]] = load { ptr, i64 }, ptr [[HEAD_CANDIDATE]]

@@ -12,19 +12,10 @@ package main
 // CHECK: @[[NESTED:[0-9]+]] = private unnamed_addr constant [6 x i8] c"nested"
 // CHECK: @[[NESTED_TAIL:[0-9]+]] = private unnamed_addr constant [11 x i8] c"nested-tail"
 // CHECK-LABEL: define %"{{.*}}Slice" @main.complexOrder(){{.*}} {
-// CHECK: [[RESULT_SLOT:%[0-9]+]] = call ptr @"{{.*}}AllocZ"(i64 24)
-// CHECK: store ptr [[RESULT_SLOT]], ptr [[RECORD_ENV_SLOT:%[0-9]+]]
-// CHECK: [[RECORD_FN:%[0-9]+]] = insertvalue { ptr, ptr } { ptr @"main.complexOrder$1", ptr undef }, ptr [[RECORD_ENV:%[0-9]+]], 1
-// CHECK-NEXT: [[FINAL_LABEL:%[0-9]+]] = call %"{{.*}}String" @main.label1(%"{{.*}}String" { ptr @[[CLEANUP_FINAL]], i64 13 }, i64 0)
-// CHECK-NEXT: [[PREVIOUS_DEFER:%[0-9]+]] = call ptr @"{{.*}}GetThreadDefer"()
-// CHECK: [[DEFER_FRAME:%[0-9]+]] = call ptr @"{{.*}}AllocU"(i64 48)
-// CHECK: store ptr [[PREVIOUS_DEFER]], ptr %{{[0-9]+}}
-// CHECK: call void @"{{.*}}SetThreadDefer"(ptr [[DEFER_FRAME]])
-// CHECK: [[DEFER_HEAD:%[0-9]+]] = getelementptr inbounds nuw %"{{.*}}Defer", ptr [[DEFER_FRAME]], i32 0, i32 5
 // CHECK: [[OUTER_LABEL:%[0-9]+]] = call %"{{.*}}String" @main.label1(%"{{.*}}String" { ptr @[[EXIT_OUTER]], i64 10 }, i64 [[OUTER_I:%[0-9]+]])
-// CHECK: store { ptr, ptr } [[RECORD_FN]], ptr %{{[0-9]+}}
+// CHECK: store { ptr, ptr } [[RECORD_FN:%[0-9]+]], ptr %{{[0-9]+}}
 // CHECK: store %"{{.*}}String" [[OUTER_LABEL]], ptr %{{[0-9]+}}
-// CHECK-NEXT: store ptr [[OUTER_NODE:%[0-9]+]], ptr [[DEFER_HEAD]]
+// CHECK-NEXT: store ptr [[OUTER_NODE:%[0-9]+]], ptr [[DEFER_HEAD:%[0-9]+]]
 // CHECK: [[POST_LABEL:%[0-9]+]] = call %"{{.*}}String" @main.label1(%"{{.*}}String" { ptr @[[POST_LOOP]], i64 9 }, i64 0)
 // CHECK: store { ptr, ptr } [[RECORD_FN]], ptr %{{[0-9]+}}
 // CHECK: store %"{{.*}}String" [[POST_LABEL]], ptr %{{[0-9]+}}
@@ -45,6 +36,17 @@ package main
 // CHECK: store { ptr, ptr } [[RECORD_FN]], ptr %{{[0-9]+}}
 // CHECK: store %"{{.*}}String" [[TAIL_LABEL]], ptr %{{[0-9]+}}
 // CHECK-NEXT: store ptr [[TAIL_NODE:%[0-9]+]], ptr [[DEFER_HEAD]]
+// The entry safepoint poll moves the function setup after the loop blocks.
+// The captured result slice is a counted shared allocation.
+// CHECK: [[RESULT_SLOT:%[0-9]+]] = call ptr @"{{.*}}AllocCounted"(i64 24)
+// CHECK: store ptr [[RESULT_SLOT]], ptr [[RECORD_ENV_SLOT:%[0-9]+]]
+// CHECK: [[RECORD_FN]] = insertvalue { ptr, ptr } { ptr @"main.complexOrder$1", ptr undef }, ptr [[RECORD_ENV:%[0-9]+]], 1
+// CHECK-NEXT: [[FINAL_LABEL:%[0-9]+]] = call %"{{.*}}String" @main.label1(%"{{.*}}String" { ptr @[[CLEANUP_FINAL]], i64 13 }, i64 0)
+// CHECK-NEXT: [[PREVIOUS_DEFER:%[0-9]+]] = call ptr @"{{.*}}GetThreadDefer"()
+// CHECK: [[DEFER_FRAME:%[0-9]+]] = alloca %"{{.*}}Defer"
+// CHECK: store ptr [[PREVIOUS_DEFER]], ptr %{{[0-9]+}}
+// CHECK: call void @"{{.*}}SetThreadDefer"(ptr [[DEFER_FRAME]])
+// CHECK: [[DEFER_HEAD]] = getelementptr inbounds nuw %"{{.*}}Defer", ptr [[DEFER_FRAME]], i32 0, i32 5
 // CHECK: call void @"{{.*}}Rethrow"(ptr [[PREVIOUS_DEFER]])
 // CHECK: store { ptr, ptr } [[RECORD_FN]], ptr %{{[0-9]+}}
 // CHECK: store %"{{.*}}String" [[FINAL_LABEL]], ptr %{{[0-9]+}}
@@ -74,9 +76,9 @@ package main
 // CHECK-NEXT: [[UPDATED_RESULT_SLOT:%[0-9]+]] = extractvalue { ptr } [[RECORD_ENV_VALUE]], 0
 // CHECK-NEXT: store %"{{.*}}Slice" [[NEW_RESULT]], ptr [[UPDATED_RESULT_SLOT]]
 // CHECK-LABEL: define void @main.main(){{.*}} {
-// CHECK: [[ORDER:%[0-9]+]] = call %"{{.*}}Slice" @main.complexOrder()
+// CHECK: [[ORDER_DATA:%[0-9]+]] = extractvalue %"{{.*}}Slice" [[ORDER:%[0-9]+]], 0
+// CHECK: [[ORDER]] = call %"{{.*}}Slice" @main.complexOrder()
 // CHECK-NEXT: [[ORDER_LEN:%[0-9]+]] = extractvalue %"{{.*}}Slice" [[ORDER]], 1
-// CHECK: [[ORDER_DATA:%[0-9]+]] = extractvalue %"{{.*}}Slice" [[ORDER]], 0
 // CHECK: [[LABEL_PTR:%[0-9]+]] = getelementptr inbounds %"{{.*}}String", ptr [[ORDER_DATA]], i64 %{{[0-9]+}}
 // CHECK-NEXT: [[LABEL:%[0-9]+]] = load %"{{.*}}String", ptr [[LABEL_PTR]]
 // CHECK-NEXT: call void @"{{.*}}PrintString"(%"{{.*}}String" [[LABEL]])

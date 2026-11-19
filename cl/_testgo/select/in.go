@@ -14,10 +14,6 @@ package main
 // CHECK-NEXT: _llgo_{{[0-9]+}}:
 // CHECK-NEXT: [[RECV_BUF2:%[0-9]+]] = alloca %"{{.*}}String", align 8
 // CHECK-NEXT: [[RECV_BUF1:%[0-9]+]] = alloca %"{{.*}}String", align 8
-// CHECK: [[RECV_CH1_OBJ:%[0-9]+]] = call ptr @"{{.*}}NewChan"(i64 16, i64 0)
-// CHECK: [[RECV_CH2_OBJ:%[0-9]+]] = call ptr @"{{.*}}NewChan"(i64 16, i64 0)
-// CHECK: call void @"{{.*}}NewProc"(ptr @"main._llgo_routine$1", ptr %{{[0-9]+}})
-// CHECK: call void @"{{.*}}NewProc"(ptr @"main._llgo_routine$2", ptr %{{[0-9]+}})
 // CHECK: [[RECV_CH1:%[0-9]+]] = load ptr, ptr %{{[0-9]+}}
 // CHECK-NEXT: [[RECV_CH2:%[0-9]+]] = load ptr, ptr %{{[0-9]+}}
 // CHECK: call void @llvm.memset.p0.i64(ptr [[RECV_BUF1]], i8 0, i64 16, i1 false)
@@ -54,6 +50,11 @@ package main
 // CHECK: [[RECV_PRINT2:%[0-9]+]] = extractvalue { i64, i1, %"{{.*}}String", %"{{.*}}String" } [[RECV_RESULT]], 3
 // CHECK-NEXT: call void @"{{.*}}PrintString"(%"{{.*}}String" [[RECV_PRINT2]])
 // CHECK: call void @"{{.*}}PrintString"(%"{{.*}}String" { ptr @[[EXIT_TEXT]], i64 4 })
+// The entry safepoint poll moves the channel and goroutine setup after the loop.
+// CHECK: [[RECV_CH1_OBJ:%[0-9]+]] = call ptr @"{{.*}}NewChan"(i64 16, i64 0)
+// CHECK: [[RECV_CH2_OBJ:%[0-9]+]] = call ptr @"{{.*}}NewChan"(i64 16, i64 0)
+// CHECK: call void @"{{.*}}NewProc"(ptr @"main._llgo_routine$1", ptr %{{[0-9]+}})
+// CHECK: call void @"{{.*}}NewProc"(ptr @"main._llgo_routine$2", ptr %{{[0-9]+}})
 // ARM64-LABEL: define void @"main.recv$1"(ptr swiftself %0){{.*}} {
 // AMD64-LABEL: define void @"main.recv$1"(ptr nest %0){{.*}} {
 // CHECK: [[RECV1_ENV:%[0-9]+]] = load { ptr }, ptr %0
@@ -69,6 +70,8 @@ package main
 // CHECK: store %"{{.*}}String" { ptr @[[CH2_TEXT]], i64 3 }, ptr [[RECV2_VALUE:%[0-9]+]]
 // CHECK-NEXT: call i1 @"{{.*}}ChanSend"(ptr [[RECV2_CH]], ptr [[RECV2_VALUE]], i64 16)
 // CHECK-LABEL: define void @main.send(){{.*}} {
+// The entry safepoint poll moves the setup and select after the case-1 test.
+// CHECK: [[SEND_IS_CASE1:%[0-9]+]] = icmp eq i64 [[SEND_DISPATCH:%[0-9]+]], 1
 // CHECK: [[SEND_CH1_OBJ:%[0-9]+]] = call ptr @"{{.*}}NewChan"(i64 8, i64 0)
 // CHECK: [[SEND_CH2_OBJ:%[0-9]+]] = call ptr @"{{.*}}NewChan"(i64 8, i64 0)
 // CHECK: [[SEND_CH1:%[0-9]+]] = load ptr, ptr %{{[0-9]+}}
@@ -88,9 +91,8 @@ package main
 // CHECK: [[SEND_CASES:%[0-9]+]] = insertvalue %"{{.*}}Slice" %{{[0-9]+}}, i64 2, 2
 // CHECK-NEXT: [[SEND_SELECT:%[0-9]+]] = call { i64, i1 } @"{{.*}}Select"(%"{{.*}}Slice" [[SEND_CASES]])
 // CHECK-NEXT: [[SEND_CASE:%[0-9]+]] = extractvalue { i64, i1 } [[SEND_SELECT]], 0
-// CHECK: [[SEND_DISPATCH:%[0-9]+]] = extractvalue { i64, i1 } %{{[0-9]+}}, 0
+// CHECK: [[SEND_DISPATCH]] = extractvalue { i64, i1 } %{{[0-9]+}}, 0
 // CHECK-NEXT: [[SEND_IS_CASE0:%[0-9]+]] = icmp eq i64 [[SEND_DISPATCH]], 0
-// CHECK: [[SEND_IS_CASE1:%[0-9]+]] = icmp eq i64 [[SEND_DISPATCH]], 1
 // ARM64-LABEL: define void @"main.send$1"(ptr swiftself %0){{.*}} {
 // AMD64-LABEL: define void @"main.send$1"(ptr nest %0){{.*}} {
 // CHECK: [[SEND1_ENV:%[0-9]+]] = load { ptr }, ptr %0

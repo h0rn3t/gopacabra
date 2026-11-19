@@ -19,13 +19,19 @@ package main
 // CHECK-NEXT: call void @"{{.*}}/runtime/internal/runtime.PrintString"(%"{{.*}}String" [[ROUTINE1_TEXT]])
 // CHECK: ret ptr null
 // CHECK-LABEL: define ptr @"main._llgo_routine$2"(ptr
-// CHECK: [[ROUTINE2_ARGS:%[0-9]+]] = load { { ptr, ptr }, %"{{.*}}String" }, ptr [[ROUTINE2_ROOT:%[0-9]+]]
-// CHECK-NEXT: [[ROUTINE2_CLOSURE:%[0-9]+]] = extractvalue { { ptr, ptr }, %"{{.*}}String" } [[ROUTINE2_ARGS]], 0
-// CHECK-NEXT: [[ROUTINE2_TEXT:%[0-9]+]] = extractvalue { { ptr, ptr }, %"{{.*}}String" } [[ROUTINE2_ARGS]], 1
+// The goroutine also carries the shared `done` cell; the entry releases its
+// reference and the closure environment only after the call has returned.
+// CHECK: [[ROUTINE2_ARGS:%[0-9]+]] = load { { ptr, ptr }, %"{{.*}}String", ptr }, ptr [[ROUTINE2_ROOT:%[0-9]+]]
+// CHECK-NEXT: [[ROUTINE2_CLOSURE:%[0-9]+]] = extractvalue { { ptr, ptr }, %"{{.*}}String", ptr } [[ROUTINE2_ARGS]], 0
+// CHECK-NEXT: [[ROUTINE2_TEXT:%[0-9]+]] = extractvalue { { ptr, ptr }, %"{{.*}}String", ptr } [[ROUTINE2_ARGS]], 1
+// CHECK-NEXT: [[ROUTINE2_SHARED:%[0-9]+]] = extractvalue { { ptr, ptr }, %"{{.*}}String", ptr } [[ROUTINE2_ARGS]], 2
 // CHECK-NEXT: [[ROUTINE2_ENV:%[0-9]+]] = extractvalue { ptr, ptr } [[ROUTINE2_CLOSURE]], 1
 // CHECK-NEXT: [[ROUTINE2_CODE:%[0-9]+]] = extractvalue { ptr, ptr } [[ROUTINE2_CLOSURE]], 0
 // ARM64: call void %{{.*}}(ptr swiftself [[ROUTINE2_ENV]], %"{{.*}}String" [[ROUTINE2_TEXT]])
 // AMD64: call void %{{.*}}(ptr nest [[ROUTINE2_ENV]], %"{{.*}}String" [[ROUTINE2_TEXT]])
+// CHECK-NEXT: call void @"{{.*}}DecShared"(ptr [[ROUTINE2_SHARED]], ptr @"main.__gopacabra_shared$0")
+// CHECK-NEXT: [[ROUTINE2_ENV_FREE:%[0-9]+]] = extractvalue { ptr, ptr } [[ROUTINE2_CLOSURE]], 1
+// CHECK-NEXT: call void @"{{.*}}FreeAccounted"(ptr [[ROUTINE2_ENV_FREE]],
 // CHECK-NEXT: ret ptr null
 
 func main() {

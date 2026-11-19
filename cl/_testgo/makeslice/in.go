@@ -8,13 +8,13 @@ package main
 // CHECK-NEXT: [[VALID1_LEN:%[0-9]+]] = extractvalue %"{{.*}}Slice" [[VALID1]], 1
 // CHECK-NEXT: [[VALID1_BAD_LEN:%[0-9]+]] = icmp ne i64 [[VALID1_LEN]], 2
 // CHECK: [[VALID1_CAP:%[0-9]+]] = extractvalue %"{{.*}}Slice" [[VALID1]], 2
-// CHECK-NEXT: [[VALID1_BAD_CAP:%[0-9]+]] = icmp ne i64 [[VALID1_CAP]], 4
+// CHECK: [[VALID1_BAD_CAP:%[0-9]+]] = icmp ne i64 [[VALID1_CAP]], 4
 // CHECK-LABEL: define void @"main.init#2"(){{.*}} {
 // CHECK: [[VALID2:%[0-9]+]] = call %"{{.*}}Slice" @"{{.*}}MakeSlice"(i64 2, i64 4, i64 8)
 // CHECK-NEXT: [[VALID2_LEN:%[0-9]+]] = extractvalue %"{{.*}}Slice" [[VALID2]], 1
 // CHECK-NEXT: [[VALID2_BAD_LEN:%[0-9]+]] = icmp ne i64 [[VALID2_LEN]], 2
 // CHECK: [[VALID2_CAP:%[0-9]+]] = extractvalue %"{{.*}}Slice" [[VALID2]], 2
-// CHECK-NEXT: [[VALID2_BAD_CAP:%[0-9]+]] = icmp ne i64 [[VALID2_CAP]], 4
+// CHECK: [[VALID2_BAD_CAP:%[0-9]+]] = icmp ne i64 [[VALID2_CAP]], 4
 // CHECK-LABEL: define void @"main.init#3"(){{.*}} {
 // CHECK: [[NEG_STATE:%[0-9]+]] = call %"{{.*}}recoverState" @"{{.*}}StartRecoverFrame"(ptr @"main.init#3$1")
 // CHECK-NEXT: call void @"main.init#3$1"()

@@ -182,12 +182,13 @@ func mapDemo2() {
 }
 
 // CHECK-LABEL: define void @main.callClosure(){{.*}} {
+// The entry safepoint poll moves the reflective setup after the direct closure call block.
+// ARM64: call i64 %__llgo_funcval_code(ptr swiftself %{{[0-9]+}}, i64 100)
+// AMD64: call i64 %__llgo_funcval_code(ptr nest %{{[0-9]+}}, i64 100)
 // CHECK: %[[CLOSURE_VALUE:[0-9]+]] = call %reflect.Value @reflect.ValueOf
 // CHECK: %[[CLOSURE_RESULTS:[0-9]+]] = call %"{{.*}}/runtime/internal/runtime.Slice" @reflect.Value.Call(%reflect.Value %[[CLOSURE_VALUE]], %"{{.*}}/runtime/internal/runtime.Slice" %{{[0-9]+}})
 // CHECK: %[[CLOSURE_LEN:[0-9]+]] = extractvalue %"{{.*}}/runtime/internal/runtime.Slice" %[[CLOSURE_RESULTS]], 1
 // CHECK: br i1 %{{[0-9]+}}, label %{{_llgo_[0-9]+}}, label %{{_llgo_[0-9]+}}
-// ARM64: call i64 %__llgo_funcval_code(ptr swiftself %{{[0-9]+}}, i64 100)
-// AMD64: call i64 %__llgo_funcval_code(ptr nest %{{[0-9]+}}, i64 100)
 // CHECK: call void @"{{.*}}/runtime/internal/runtime.PanicIndex"(i64 0, i64 %[[CLOSURE_LEN]])
 // CHECK-NEXT: br label %{{_llgo_[0-9]+}}
 // CHECK: %[[CLOSURE_IFACE:[0-9]+]] = call %"{{.*}}/runtime/internal/runtime.eface" @reflect.Value.Interface(%reflect.Value %[[CLOSURE_VALUE]])
@@ -213,16 +214,16 @@ func mapDemo2() {
 // CHECK: call %"{{.*}}/runtime/internal/runtime.eface" @reflect.Value.Interface(%reflect.Value %[[FUNC_VALUE]])
 
 // CHECK-LABEL: define void @main.callIMethod(){{.*}} {
-// CHECK: %[[IFACE_VALUE:[0-9]+]] = call %reflect.Value @reflect.ValueOf
-// CHECK: %[[IFACE_METHOD:[0-9]+]] = call %reflect.Value @reflect.Value.Method(%reflect.Value %[[IFACE_VALUE]], i64 0)
-// CHECK: %[[IFACE_RESULTS:[0-9]+]] = call %"{{.*}}/runtime/internal/runtime.Slice" @reflect.Value.Call(%reflect.Value %[[IFACE_METHOD]],{{.*}})
+// The entry safepoint poll moves the reflective setup after the direct method call block.
 // ARM64: call i64 %__llgo_funcval_code(ptr swiftself %{{[0-9]+}}, i64 1)
 // AMD64: call i64 %__llgo_funcval_code(ptr nest %{{[0-9]+}}, i64 1)
+// CHECK: %[[IFACE_METHOD:[0-9]+]] = call %reflect.Value @reflect.Value.Method(%reflect.Value %{{[0-9]+}}, i64 0)
+// CHECK: %[[IFACE_RESULTS:[0-9]+]] = call %"{{.*}}/runtime/internal/runtime.Slice" @reflect.Value.Call(%reflect.Value %[[IFACE_METHOD]],{{.*}})
 // CHECK: call %"{{.*}}/runtime/internal/runtime.eface" @reflect.Value.Interface(%reflect.Value %[[IFACE_METHOD]])
 
 // CHECK-LABEL: define void @main.callMethod(){{.*}} {
-// CHECK: %[[RECV_VALUE:[0-9]+]] = call %reflect.Value @reflect.ValueOf
-// CHECK: %[[METHOD_VALUE:[0-9]+]] = call %reflect.Value @reflect.Value.Method(%reflect.Value %[[RECV_VALUE]], i64 0)
+// The entry safepoint poll moves the reflective setup after the result-check blocks.
+// CHECK: %[[METHOD_VALUE:[0-9]+]] = call %reflect.Value @reflect.Value.Method(%reflect.Value %{{[0-9]+}}, i64 0)
 // CHECK: %[[METHOD_RESULTS:[0-9]+]] = call %"{{.*}}/runtime/internal/runtime.Slice" @reflect.Value.Call(%reflect.Value %[[METHOD_VALUE]],{{.*}})
 // CHECK: call %"{{.*}}/runtime/internal/runtime.eface" @reflect.Value.Interface(%reflect.Value %[[METHOD_VALUE]])
 
@@ -244,8 +245,8 @@ func mapDemo2() {
 // CHECK: call void @main.mapDemo2()
 
 // CHECK-LABEL: define void @main.mapDemo1(){{.*}} {
-// CHECK: %[[MAP_VALUE:[0-9]+]] = call %reflect.Value @reflect.ValueOf
-// CHECK: %[[MAP_ENTRY:[0-9]+]] = call %reflect.Value @reflect.Value.MapIndex(%reflect.Value %[[MAP_VALUE]], %reflect.Value %{{[0-9]+}})
+// The entry safepoint poll moves the map setup after the map-use blocks.
+// CHECK: %[[MAP_ENTRY:[0-9]+]] = call %reflect.Value @reflect.Value.MapIndex(%reflect.Value %[[MAP_VALUE:[0-9]+]], %reflect.Value %{{[0-9]+}})
 // CHECK: %[[MAP_STRING:[0-9]+]] = call %"{{.*}}/runtime/internal/runtime.String" @reflect.Value.String(%reflect.Value %[[MAP_ENTRY]])
 // CHECK: call i1 @"{{.*}}/runtime/internal/runtime.StringEqual"(%"{{.*}}/runtime/internal/runtime.String" %[[MAP_STRING]],{{.*}})
 // CHECK: call void @reflect.Value.SetMapIndex(%reflect.Value %[[MAP_VALUE]], %reflect.Value %{{[0-9]+}}, %reflect.Value %{{[0-9]+}})
@@ -253,6 +254,7 @@ func mapDemo2() {
 // CHECK: call void @reflect.Value.SetIterKey(%reflect.Value %{{[0-9]+}}, ptr %[[MAP_ITER]])
 // CHECK: call void @reflect.Value.SetIterValue(%reflect.Value %{{[0-9]+}}, ptr %[[MAP_ITER]])
 // CHECK: call i1 @"reflect.(*MapIter).Next"(ptr %[[MAP_ITER]])
+// CHECK: %[[MAP_VALUE]] = call %reflect.Value @reflect.ValueOf
 
 // CHECK-LABEL: define void @main.mapDemo2(){{.*}} {
 // CHECK: %[[MAP_TYPE:[0-9]+]] = call %"{{.*}}/runtime/internal/runtime.iface" @reflect.MapOf(%"{{.*}}/runtime/internal/runtime.iface" %{{[0-9]+}}, %"{{.*}}/runtime/internal/runtime.iface" %{{[0-9]+}})

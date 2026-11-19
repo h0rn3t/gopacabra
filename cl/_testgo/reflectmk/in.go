@@ -81,14 +81,16 @@ func methodByName(name string) {
 // CHECK-NEXT: %{{[0-9]+}} = alloca %reflect.Method, align 8
 // CHECK-NEXT: %[[METHOD_SLOT:[0-9]+]] = alloca %reflect.Method, align 8
 // Recover the element Type from *Point and reuse that exact interface for all
-// constructor inputs.
+// constructor inputs. The entry safepoint poll moves that setup after the
+// other blocks, so RT is captured from its first use in ArrayOf rather than
+// from the first indirect iface-returning call.
+// CHECK-DAG: %[[ARRAY_TYPE:[0-9]+]] = call %"{{.*}}/runtime/internal/runtime.iface" @reflect.ArrayOf(i64 1, %"{{.*}}/runtime/internal/runtime.iface" %[[RT:[0-9]+]])
 // CHECK-DAG: %[[PTR_TYPE:[0-9]+]] = call %"{{.*}}/runtime/internal/runtime.iface" @reflect.TypeOf(%"{{.*}}/runtime/internal/runtime.eface" { ptr @"*_llgo_main.Point", ptr null })
 // CHECK-DAG: %[[PTR_DATA:[0-9]+]] = call ptr @"{{.*}}/runtime/internal/runtime.IfacePtrData"(%"{{.*}}/runtime/internal/runtime.iface" %[[PTR_TYPE]])
-// CHECK-DAG: %[[RT:[0-9]+]] = call %"{{.*}}/runtime/internal/runtime.iface" %{{[0-9]+}}(ptr %{{[0-9]+}})
+// CHECK-DAG: %[[RT]] = call %"{{.*}}/runtime/internal/runtime.iface" %{{[0-9]+}}(ptr %{{[0-9]+}})
 
 // Each constructed type must be queried and compared back to RT. This proves
 // more than the presence of seven reflect helper calls.
-// CHECK-DAG: %[[ARRAY_TYPE:[0-9]+]] = call %"{{.*}}/runtime/internal/runtime.iface" @reflect.ArrayOf(i64 1, %"{{.*}}/runtime/internal/runtime.iface" %[[RT]])
 // CHECK-DAG: call ptr @"{{.*}}/runtime/internal/runtime.IfacePtrData"(%"{{.*}}/runtime/internal/runtime.iface" %[[ARRAY_TYPE]])
 // CHECK-DAG: call i1 @"{{.*}}/runtime/internal/runtime.EfaceEqual"
 // CHECK-DAG: %[[CHAN_TYPE:[0-9]+]] = call %"{{.*}}/runtime/internal/runtime.iface" @reflect.ChanOf(i64 2, %"{{.*}}/runtime/internal/runtime.iface" %[[RT]])

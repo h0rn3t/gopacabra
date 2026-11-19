@@ -3,14 +3,15 @@ package main
 
 // Evaluate the mutating second result before loading the first result value.
 // CHECK-LABEL: define void @main.main(){{.*}} {
+// The entry safepoint poll moves the call block after the result check block.
+// CHECK: [[MAIN_BAD_RESULT:%[0-9]+]] = icmp ne i64 [[MAIN_MUTATED:%[0-9]+]], 2
+// CHECK-NEXT: br i1 [[MAIN_BAD_RESULT]], label %{{.*}}, label %{{.*}}
 // CHECK: [[MAIN_RESULT:%[0-9]+]] = call { %main.state, i64 } @main.returnStateAndMut()
 // CHECK-NEXT: [[MAIN_STATE:%[0-9]+]] = extractvalue { %main.state, i64 } [[MAIN_RESULT]], 0
-// CHECK: [[MAIN_MUTATED:%[0-9]+]] = extractvalue { %main.state, i64 } [[MAIN_RESULT]], 1
+// CHECK: [[MAIN_MUTATED]] = extractvalue { %main.state, i64 } [[MAIN_RESULT]], 1
 // CHECK: [[MAIN_VALUE:%[0-9]+]] = load i64, ptr %{{[0-9]+}}
 // CHECK-NEXT: [[MAIN_BAD_STATE:%[0-9]+]] = icmp ne i64 [[MAIN_VALUE]], 2
 // CHECK-NEXT: br i1 [[MAIN_BAD_STATE]], label %{{.*}}, label %{{.*}}
-// CHECK: [[MAIN_BAD_RESULT:%[0-9]+]] = icmp ne i64 [[MAIN_MUTATED]], 2
-// CHECK-NEXT: br i1 [[MAIN_BAD_RESULT]], label %{{.*}}, label %{{.*}}
 // CHECK-LABEL: define { %main.state, i64 } @main.returnStateAndMut(){{.*}} {
 // CHECK: [[RETURN_MUTATED:%[0-9]+]] = call i64 @"main.(*state).mutate"(ptr [[RETURN_STATE:%[0-9]+]], i64 2)
 // CHECK-NEXT: [[RETURN_VALUE:%[0-9]+]] = load %main.state, ptr [[RETURN_STATE]]
