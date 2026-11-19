@@ -1,6 +1,8 @@
 [OrdinaryEdges]
 github.com/xgo-dev/llgo/cl/_testmeta/interface_generic_crosspkg/api.UseInt:
+    github.com/xgo-dev/llgo/runtime/internal/runtime.CooperativeSafepoint
     github.com/xgo-dev/llgo/runtime/internal/runtime.IfacePtrData
+    github.com/xgo-dev/llgo/runtime/internal/runtime.PreemptRequested
 github.com/xgo-dev/llgo/cl/_testmeta/interface_generic_crosspkg/api.init:
     github.com/xgo-dev/llgo/cl/_testmeta/interface_generic_crosspkg/api.init$guard
 

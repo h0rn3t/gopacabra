@@ -20,12 +20,16 @@ main.(*T).m:
     github.com/xgo-dev/llgo/runtime/internal/runtime.PanicWrapNilPointer
     main.T.m
 main.init:
+    github.com/xgo-dev/llgo/runtime/internal/runtime.CooperativeSafepoint
+    github.com/xgo-dev/llgo/runtime/internal/runtime.PreemptRequested
     main.init$guard
     reflect.init
 main.main:
     _llgo_main.T
     github.com/xgo-dev/llgo/runtime/internal/runtime.AllocU
+    github.com/xgo-dev/llgo/runtime/internal/runtime.CooperativeSafepoint
     github.com/xgo-dev/llgo/runtime/internal/runtime.IfacePtrData
+    github.com/xgo-dev/llgo/runtime/internal/runtime.PreemptRequested
     reflect.TypeOf
 
 [UseIface]

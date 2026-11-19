@@ -1,8 +1,12 @@
 [OrdinaryEdges]
 github.com/xgo-dev/llgo/cl/_testmeta/interface_generic_crosspkg/model.NewIntBox:
-    github.com/xgo-dev/llgo/runtime/internal/runtime.AllocZ
+    github.com/xgo-dev/llgo/runtime/internal/runtime.AllocCounted
+    github.com/xgo-dev/llgo/runtime/internal/runtime.NoteAlloc
+github.com/xgo-dev/llgo/cl/_testmeta/interface_generic_crosspkg/model.NewIntBox$region:
+    github.com/xgo-dev/llgo/runtime/internal/runtime.RegionAlloc
 github.com/xgo-dev/llgo/cl/_testmeta/interface_generic_crosspkg/model.NewStringBox:
-    github.com/xgo-dev/llgo/runtime/internal/runtime.AllocZ
+    github.com/xgo-dev/llgo/runtime/internal/runtime.AllocCounted
+    github.com/xgo-dev/llgo/runtime/internal/runtime.NoteAlloc
 github.com/xgo-dev/llgo/cl/_testmeta/interface_generic_crosspkg/model.init:
     github.com/xgo-dev/llgo/cl/_testmeta/interface_generic_crosspkg/model.init$guard
 

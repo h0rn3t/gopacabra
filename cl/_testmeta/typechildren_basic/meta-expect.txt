@@ -25,7 +25,6 @@ main.init:
     main.init$guard
 main.main:
     _llgo_main.Outer
-    github.com/xgo-dev/llgo/runtime/internal/runtime.AllocU
     main.use
 
 [UseIface]

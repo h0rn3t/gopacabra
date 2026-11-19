@@ -16,13 +16,19 @@ main.(*T).M:
     github.com/xgo-dev/llgo/runtime/internal/runtime.PanicWrapNilPointer
     main.T.M
 main.init:
+    github.com/xgo-dev/llgo/runtime/internal/runtime.CooperativeSafepoint
+    github.com/xgo-dev/llgo/runtime/internal/runtime.PreemptRequested
     main.init$guard
     reflect.init
 main.main:
+    github.com/xgo-dev/llgo/runtime/internal/runtime.CooperativeSafepoint
+    github.com/xgo-dev/llgo/runtime/internal/runtime.PreemptRequested
     main.use
 main.use:
     _llgo_main.T
     github.com/xgo-dev/llgo/runtime/internal/runtime.AllocU
+    github.com/xgo-dev/llgo/runtime/internal/runtime.CooperativeSafepoint
+    github.com/xgo-dev/llgo/runtime/internal/runtime.PreemptRequested
     reflect.Value.MethodByName
     reflect.ValueOf
 

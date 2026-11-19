@@ -70,7 +70,10 @@ main.main:
     github.com/xgo-dev/llgo/cl/_testmeta/interface_generic_crosspkg/model.NewIntBox
     github.com/xgo-dev/llgo/cl/_testmeta/interface_generic_crosspkg/model.NewStringBox
     github.com/xgo-dev/llgo/cl/_testmeta/interface_generic_crosspkg/model.UseStringBox
+    github.com/xgo-dev/llgo/runtime/internal/runtime.CooperativeSafepoint
+    github.com/xgo-dev/llgo/runtime/internal/runtime.DecAccounted
     github.com/xgo-dev/llgo/runtime/internal/runtime.NewItab
+    github.com/xgo-dev/llgo/runtime/internal/runtime.PreemptRequested
     github.com/xgo-dev/llgo/runtime/internal/runtime.PrintByte
     github.com/xgo-dev/llgo/runtime/internal/runtime.PrintInt
     main.sink

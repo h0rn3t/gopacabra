@@ -30,10 +30,14 @@ main.main:
     _llgo_iface$f14WsslTA1u5wwC83jLU0HU2u2mmAWxBVE38vPBbRAo
     _llgo_main.T
     github.com/xgo-dev/llgo/runtime/internal/runtime.AllocU
+    github.com/xgo-dev/llgo/runtime/internal/runtime.CooperativeSafepoint
     github.com/xgo-dev/llgo/runtime/internal/runtime.NewItab
+    github.com/xgo-dev/llgo/runtime/internal/runtime.PreemptRequested
     main.use
 main.use:
+    github.com/xgo-dev/llgo/runtime/internal/runtime.CooperativeSafepoint
     github.com/xgo-dev/llgo/runtime/internal/runtime.IfacePtrData
+    github.com/xgo-dev/llgo/runtime/internal/runtime.PreemptRequested
 
 [UseIface]
 main.main:

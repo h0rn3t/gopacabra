@@ -131,16 +131,21 @@ _llgo_uint8:
     github.com/xgo-dev/llgo/runtime/internal/runtime.memequal8
 main.init:
     encoding/binary.init
+    github.com/xgo-dev/llgo/runtime/internal/runtime.CooperativeSafepoint
+    github.com/xgo-dev/llgo/runtime/internal/runtime.PreemptRequested
     main.init$guard
 main.main:
     _llgo_encoding/binary.littleEndian
     _llgo_iface$J1wM-rGcIPemx5jloXBmH7pUzUCSqpgNkOdb0QIFTxw
     encoding/binary.LittleEndian
     github.com/xgo-dev/llgo/runtime/internal/runtime.AllocU
-    github.com/xgo-dev/llgo/runtime/internal/runtime.AllocZ
+    github.com/xgo-dev/llgo/runtime/internal/runtime.CooperativeSafepoint
+    github.com/xgo-dev/llgo/runtime/internal/runtime.FreeAccounted
     github.com/xgo-dev/llgo/runtime/internal/runtime.IfacePtrData
     github.com/xgo-dev/llgo/runtime/internal/runtime.NewItab
+    github.com/xgo-dev/llgo/runtime/internal/runtime.PreemptRequested
     github.com/xgo-dev/llgo/runtime/internal/runtime.Typedmemmove
+    llvm.memset.p0.i64
 
 [UseIface]
 main.main:

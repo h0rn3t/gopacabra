@@ -246,14 +246,19 @@ bytes.struct$8M6lRFZ7Fk2XCr2laNI9Y7uQtk2A8VDBrezMuq2Fkuo$fields:
     _llgo_int
 main.init:
     bytes.init
+    github.com/xgo-dev/llgo/runtime/internal/runtime.CooperativeSafepoint
+    github.com/xgo-dev/llgo/runtime/internal/runtime.PreemptRequested
     io.init
     main.init$guard
 main.main:
     *_llgo_bytes.Buffer
     _llgo_iface$uycIKA3bbxRhudEjW1hHKWKdLqHQsCVy8NdW1bkQmNw
     bytes.NewBuffer
+    github.com/xgo-dev/llgo/runtime/internal/runtime.CooperativeSafepoint
+    github.com/xgo-dev/llgo/runtime/internal/runtime.DecAccounted
     github.com/xgo-dev/llgo/runtime/internal/runtime.IfacePtrData
     github.com/xgo-dev/llgo/runtime/internal/runtime.NewItab
+    github.com/xgo-dev/llgo/runtime/internal/runtime.PreemptRequested
 
 [UseIface]
 main.main:

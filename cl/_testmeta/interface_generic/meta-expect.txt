@@ -33,11 +33,15 @@ main.init:
 main.main:
     *_llgo_main.Box[int]
     _llgo_iface$Jvxc0PCI_drlfK7S5npMGdZkQLeRkQ_x2e2CifPE6w8
-    github.com/xgo-dev/llgo/runtime/internal/runtime.AllocZ
+    github.com/xgo-dev/llgo/runtime/internal/runtime.CooperativeSafepoint
     github.com/xgo-dev/llgo/runtime/internal/runtime.NewItab
+    github.com/xgo-dev/llgo/runtime/internal/runtime.PreemptRequested
+    llvm.memset.p0.i64
     main.useInt
 main.useInt:
+    github.com/xgo-dev/llgo/runtime/internal/runtime.CooperativeSafepoint
     github.com/xgo-dev/llgo/runtime/internal/runtime.IfacePtrData
+    github.com/xgo-dev/llgo/runtime/internal/runtime.PreemptRequested
 
 [UseIface]
 main.main:
