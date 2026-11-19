@@ -68,7 +68,8 @@ func main() {
 // CHECK-SAME: %"{{.*}}/runtime/internal/runtime.eface" %[[TMP0:[0-9]+]]){{.*}} {
 // CHECK-NEXT: _llgo_[[BB0:[0-9]+]]:
 // CHECK-NEXT:   %[[TMP1:[0-9]+]] = alloca %main.eface, align 8
-// CHECK-NEXT:   %[[TMP2:[0-9]+]] = call ptr @"{{.*}}/runtime/internal/runtime.AllocZ"(i64 16)
+// CHECK-NEXT:   %[[TMP2:[0-9]+]] = alloca %"{{.*}}/runtime/internal/runtime.eface", align 8
+// CHECK-NEXT:   call void @llvm.memset.p0.i64(ptr %[[TMP2]], i8 0, i64 16, i1 false)
 // CHECK-NEXT:   store %"{{.*}}/runtime/internal/runtime.eface" %[[TMP0]], ptr %[[TMP2]], align 8
 // CHECK-NEXT:   %[[TMP3:[0-9]+]] = load %"{{.*}}/runtime/internal/runtime.eface", ptr %[[TMP2]], align 8
 // CHECK-NEXT:   %[[TMP4:[0-9]+]] = extractvalue %"{{.*}}/runtime/internal/runtime.eface" %[[TMP3]], 0
@@ -124,7 +125,8 @@ func main() {
 // CHECK-NEXT: _llgo_[[BB0:[0-9]+]]:
 // CHECK-NEXT:   %[[TMP1:[0-9]+]] = alloca %main.u64parts, align 8
 // CHECK-NEXT:   %[[TMP2:[0-9]+]] = alloca %main.eface, align 8
-// CHECK-NEXT:   %[[TMP3:[0-9]+]] = call ptr @"{{.*}}/runtime/internal/runtime.AllocZ"(i64 16)
+// CHECK-NEXT:   %[[TMP3:[0-9]+]] = alloca %"{{.*}}/runtime/internal/runtime.eface", align 8
+// CHECK-NEXT:   call void @llvm.memset.p0.i64(ptr %[[TMP3]], i8 0, i64 16, i1 false)
 // CHECK-NEXT:   store %"{{.*}}/runtime/internal/runtime.eface" %[[TMP0]], ptr %[[TMP3]], align 8
 // CHECK-NEXT:   %[[TMP4:[0-9]+]] = load %"{{.*}}/runtime/internal/runtime.eface", ptr %[[TMP3]], align 8
 // CHECK-NEXT:   %[[TMP5:[0-9]+]] = extractvalue %"{{.*}}/runtime/internal/runtime.eface" %[[TMP4]], 0
@@ -202,10 +204,14 @@ func main() {
 // CHECK-NEXT:   store float %[[TMP0]], ptr %[[TMP1]], align 4
 // CHECK-NEXT:   %[[TMP2:[0-9]+]] = insertvalue %"{{.*}}/runtime/internal/runtime.eface" { ptr @_llgo_float32, ptr undef }, ptr %[[TMP1]], 1
 // CHECK-NEXT:   call void @main.check32(%"{{.*}}/runtime/internal/runtime.eface" %[[TMP2]])
-// CHECK-NEXT:   %[[TMP3:[0-9]+]] = call double @main.f64()
-// CHECK-NEXT:   %[[TMP4:[0-9]+]] = call ptr @"{{.*}}/runtime/internal/runtime.AllocU"(i64 8)
-// CHECK-NEXT:   store double %[[TMP3]], ptr %[[TMP4]], align 8
-// CHECK-NEXT:   %[[TMP5:[0-9]+]] = insertvalue %"{{.*}}/runtime/internal/runtime.eface" { ptr @_llgo_float64, ptr undef }, ptr %[[TMP4]], 1
-// CHECK-NEXT:   call void @main.check64(%"{{.*}}/runtime/internal/runtime.eface" %[[TMP5]])
+// CHECK-NEXT:   %[[TMP3:[0-9]+]] = extractvalue %"{{.*}}/runtime/internal/runtime.eface" %[[TMP2]], 1
+// CHECK-NEXT:   call void @"{{.*}}/runtime/internal/runtime.FreeAccounted"(ptr %[[TMP3]], i64 0, i32 0)
+// CHECK-NEXT:   %[[TMP4:[0-9]+]] = call double @main.f64()
+// CHECK-NEXT:   %[[TMP5:[0-9]+]] = call ptr @"{{.*}}/runtime/internal/runtime.AllocU"(i64 8)
+// CHECK-NEXT:   store double %[[TMP4]], ptr %[[TMP5]], align 8
+// CHECK-NEXT:   %[[TMP6:[0-9]+]] = insertvalue %"{{.*}}/runtime/internal/runtime.eface" { ptr @_llgo_float64, ptr undef }, ptr %[[TMP5]], 1
+// CHECK-NEXT:   call void @main.check64(%"{{.*}}/runtime/internal/runtime.eface" %[[TMP6]])
+// CHECK-NEXT:   %[[TMP7:[0-9]+]] = extractvalue %"{{.*}}/runtime/internal/runtime.eface" %[[TMP6]], 1
+// CHECK-NEXT:   call void @"{{.*}}/runtime/internal/runtime.FreeAccounted"(ptr %[[TMP7]], i64 0, i32 0)
 // CHECK-NEXT:   ret void
 // CHECK-NEXT: }

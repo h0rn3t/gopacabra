@@ -30,18 +30,27 @@ func rawSyscall6(fn, a1, a2, a3, a4, a5, a6 uintptr) (r1, r2, err uintptr)
 
 // CHECK-LABEL: define i64 @"{{.*}}/cl/_testdata/llgosyscall.Use"(){{.*}} {
 // CHECK-NEXT: _llgo_[[BB0:[0-9]+]]:
-// CHECK-NEXT:   %[[TMP0:[0-9]+]] = call i64 null(i64 1, i64 2, i64 3)
-// CHECK-NEXT:   %[[TMP1:[0-9]+]] = icmp eq i64 %[[TMP0]], -1
-// CHECK-NEXT:   %[[TMP2:[0-9]+]] = call i32 @cliteErrno()
-// CHECK-NEXT:   %[[TMP3:[0-9]+]] = sext i32 %[[TMP2]] to i64
-// CHECK-NEXT:   %[[TMP4:[0-9]+]] = select i1 %[[TMP1]], i64 %[[TMP3]], i64 0
-// CHECK-NEXT:   %[[TMP5:[0-9]+]] = insertvalue { i64, i64, i64 } undef, i64 %[[TMP0]], 0
-// CHECK-NEXT:   %[[TMP6:[0-9]+]] = insertvalue { i64, i64, i64 } %[[TMP5]], i64 0, 1
-// CHECK-NEXT:   %[[TMP7:[0-9]+]] = insertvalue { i64, i64, i64 } %[[TMP6]], i64 %[[TMP4]], 2
-// CHECK-NEXT:   %[[TMP8:[0-9]+]] = extractvalue { i64, i64, i64 } %[[TMP7]], 0
-// CHECK-NEXT:   %[[TMP9:[0-9]+]] = extractvalue { i64, i64, i64 } %[[TMP7]], 1
-// CHECK-NEXT:   %[[TMP10:[0-9]+]] = extractvalue { i64, i64, i64 } %[[TMP7]], 2
-// CHECK-NEXT:   ret i64 %[[TMP8]]
+// CHECK-NEXT:   %[[TMP0:[0-9]+]] = load atomic i32, ptr @"{{.*}}/runtime/internal/runtime.PreemptRequested" monotonic, align 4
+// CHECK-NEXT:   %[[TMP1:[0-9]+]] = icmp ne i32 %[[TMP0]], 0
+// CHECK-NEXT:   br i1 %[[TMP1]], label %_llgo_[[BB1:[0-9]+]], label %_llgo_[[BB2:[0-9]+]]
+// CHECK-EMPTY:
+// CHECK-NEXT: _llgo_[[BB1]]:
+// CHECK-NEXT:   call void @"{{.*}}/runtime/internal/runtime.CooperativeSafepoint"()
+// CHECK-NEXT:   br label %_llgo_[[BB2]]
+// CHECK-EMPTY:
+// CHECK-NEXT: _llgo_[[BB2]]:
+// CHECK-NEXT:   %[[TMP2:[0-9]+]] = call i64 null(i64 1, i64 2, i64 3)
+// CHECK-NEXT:   %[[TMP3:[0-9]+]] = icmp eq i64 %[[TMP2]], -1
+// CHECK-NEXT:   %[[TMP4:[0-9]+]] = call i32 @cliteErrno()
+// CHECK-NEXT:   %[[TMP5:[0-9]+]] = sext i32 %[[TMP4]] to i64
+// CHECK-NEXT:   %[[TMP6:[0-9]+]] = select i1 %[[TMP3]], i64 %[[TMP5]], i64 0
+// CHECK-NEXT:   %[[TMP7:[0-9]+]] = insertvalue { i64, i64, i64 } undef, i64 %[[TMP2]], 0
+// CHECK-NEXT:   %[[TMP8:[0-9]+]] = insertvalue { i64, i64, i64 } %[[TMP7]], i64 0, 1
+// CHECK-NEXT:   %[[TMP9:[0-9]+]] = insertvalue { i64, i64, i64 } %[[TMP8]], i64 %[[TMP6]], 2
+// CHECK-NEXT:   %[[TMP10:[0-9]+]] = extractvalue { i64, i64, i64 } %[[TMP9]], 0
+// CHECK-NEXT:   %[[TMP11:[0-9]+]] = extractvalue { i64, i64, i64 } %[[TMP9]], 1
+// CHECK-NEXT:   %[[TMP12:[0-9]+]] = extractvalue { i64, i64, i64 } %[[TMP9]], 2
+// CHECK-NEXT:   ret i64 %[[TMP10]]
 // CHECK-NEXT: }
 
 func Use() uintptr {
@@ -52,19 +61,28 @@ func Use() uintptr {
 // CHECK-LABEL: define i64 @"{{.*}}/cl/_testdata/llgosyscall.Use5F64"(
 // CHECK-SAME: i64 %[[TMP0:[0-9]+]], double %[[TMP1:[0-9]+]]){{.*}} {
 // CHECK-NEXT: _llgo_[[BB0:[0-9]+]]:
-// CHECK-NEXT:   %[[TMP2:[0-9]+]] = inttoptr i64 %[[TMP0]] to ptr
-// CHECK-NEXT:   %[[TMP3:[0-9]+]] = call i64 %[[TMP2]](i64 1, i64 2, i64 3, i64 4, i64 5, double %[[TMP1]])
-// CHECK-NEXT:   %[[TMP4:[0-9]+]] = icmp eq i64 %[[TMP3]], -1
-// CHECK-NEXT:   %[[TMP5:[0-9]+]] = call i32 @cliteErrno()
-// CHECK-NEXT:   %[[TMP6:[0-9]+]] = sext i32 %[[TMP5]] to i64
-// CHECK-NEXT:   %[[TMP7:[0-9]+]] = select i1 %[[TMP4]], i64 %[[TMP6]], i64 0
-// CHECK-NEXT:   %[[TMP8:[0-9]+]] = insertvalue { i64, i64, i64 } undef, i64 %[[TMP3]], 0
-// CHECK-NEXT:   %[[TMP9:[0-9]+]] = insertvalue { i64, i64, i64 } %[[TMP8]], i64 0, 1
-// CHECK-NEXT:   %[[TMP10:[0-9]+]] = insertvalue { i64, i64, i64 } %[[TMP9]], i64 %[[TMP7]], 2
-// CHECK-NEXT:   %[[TMP11:[0-9]+]] = extractvalue { i64, i64, i64 } %[[TMP10]], 0
-// CHECK-NEXT:   %[[TMP12:[0-9]+]] = extractvalue { i64, i64, i64 } %[[TMP10]], 1
-// CHECK-NEXT:   %[[TMP13:[0-9]+]] = extractvalue { i64, i64, i64 } %[[TMP10]], 2
-// CHECK-NEXT:   ret i64 %[[TMP11]]
+// CHECK-NEXT:   %[[TMP2:[0-9]+]] = load atomic i32, ptr @"{{.*}}/runtime/internal/runtime.PreemptRequested" monotonic, align 4
+// CHECK-NEXT:   %[[TMP3:[0-9]+]] = icmp ne i32 %[[TMP2]], 0
+// CHECK-NEXT:   br i1 %[[TMP3]], label %_llgo_[[BB1:[0-9]+]], label %_llgo_[[BB2:[0-9]+]]
+// CHECK-EMPTY:
+// CHECK-NEXT: _llgo_[[BB1]]:
+// CHECK-NEXT:   call void @"{{.*}}/runtime/internal/runtime.CooperativeSafepoint"()
+// CHECK-NEXT:   br label %_llgo_[[BB2]]
+// CHECK-EMPTY:
+// CHECK-NEXT: _llgo_[[BB2]]:
+// CHECK-NEXT:   %[[TMP4:[0-9]+]] = inttoptr i64 %[[TMP0]] to ptr
+// CHECK-NEXT:   %[[TMP5:[0-9]+]] = call i64 %[[TMP4]](i64 1, i64 2, i64 3, i64 4, i64 5, double %[[TMP1]])
+// CHECK-NEXT:   %[[TMP6:[0-9]+]] = icmp eq i64 %[[TMP5]], -1
+// CHECK-NEXT:   %[[TMP7:[0-9]+]] = call i32 @cliteErrno()
+// CHECK-NEXT:   %[[TMP8:[0-9]+]] = sext i32 %[[TMP7]] to i64
+// CHECK-NEXT:   %[[TMP9:[0-9]+]] = select i1 %[[TMP6]], i64 %[[TMP8]], i64 0
+// CHECK-NEXT:   %[[TMP10:[0-9]+]] = insertvalue { i64, i64, i64 } undef, i64 %[[TMP5]], 0
+// CHECK-NEXT:   %[[TMP11:[0-9]+]] = insertvalue { i64, i64, i64 } %[[TMP10]], i64 0, 1
+// CHECK-NEXT:   %[[TMP12:[0-9]+]] = insertvalue { i64, i64, i64 } %[[TMP11]], i64 %[[TMP9]], 2
+// CHECK-NEXT:   %[[TMP13:[0-9]+]] = extractvalue { i64, i64, i64 } %[[TMP12]], 0
+// CHECK-NEXT:   %[[TMP14:[0-9]+]] = extractvalue { i64, i64, i64 } %[[TMP12]], 1
+// CHECK-NEXT:   %[[TMP15:[0-9]+]] = extractvalue { i64, i64, i64 } %[[TMP12]], 2
+// CHECK-NEXT:   ret i64 %[[TMP13]]
 // CHECK-NEXT: }
 
 func Use5F64(fn uintptr, f float64) uintptr {
@@ -74,18 +92,27 @@ func Use5F64(fn uintptr, f float64) uintptr {
 
 // CHECK-LABEL: define i64 @"{{.*}}/cl/_testdata/llgosyscall.Use6"(){{.*}} {
 // CHECK-NEXT: _llgo_[[BB0:[0-9]+]]:
-// CHECK-NEXT:   %[[TMP0:[0-9]+]] = call i64 null(i64 1, i64 2, i64 3, i64 4, i64 5, i64 6)
-// CHECK-NEXT:   %[[TMP1:[0-9]+]] = icmp eq i64 %[[TMP0]], -1
-// CHECK-NEXT:   %[[TMP2:[0-9]+]] = call i32 @cliteErrno()
-// CHECK-NEXT:   %[[TMP3:[0-9]+]] = sext i32 %[[TMP2]] to i64
-// CHECK-NEXT:   %[[TMP4:[0-9]+]] = select i1 %[[TMP1]], i64 %[[TMP3]], i64 0
-// CHECK-NEXT:   %[[TMP5:[0-9]+]] = insertvalue { i64, i64, i64 } undef, i64 %[[TMP0]], 0
-// CHECK-NEXT:   %[[TMP6:[0-9]+]] = insertvalue { i64, i64, i64 } %[[TMP5]], i64 0, 1
-// CHECK-NEXT:   %[[TMP7:[0-9]+]] = insertvalue { i64, i64, i64 } %[[TMP6]], i64 %[[TMP4]], 2
-// CHECK-NEXT:   %[[TMP8:[0-9]+]] = extractvalue { i64, i64, i64 } %[[TMP7]], 0
-// CHECK-NEXT:   %[[TMP9:[0-9]+]] = extractvalue { i64, i64, i64 } %[[TMP7]], 1
-// CHECK-NEXT:   %[[TMP10:[0-9]+]] = extractvalue { i64, i64, i64 } %[[TMP7]], 2
-// CHECK-NEXT:   ret i64 %[[TMP8]]
+// CHECK-NEXT:   %[[TMP0:[0-9]+]] = load atomic i32, ptr @"{{.*}}/runtime/internal/runtime.PreemptRequested" monotonic, align 4
+// CHECK-NEXT:   %[[TMP1:[0-9]+]] = icmp ne i32 %[[TMP0]], 0
+// CHECK-NEXT:   br i1 %[[TMP1]], label %_llgo_[[BB1:[0-9]+]], label %_llgo_[[BB2:[0-9]+]]
+// CHECK-EMPTY:
+// CHECK-NEXT: _llgo_[[BB1]]:
+// CHECK-NEXT:   call void @"{{.*}}/runtime/internal/runtime.CooperativeSafepoint"()
+// CHECK-NEXT:   br label %_llgo_[[BB2]]
+// CHECK-EMPTY:
+// CHECK-NEXT: _llgo_[[BB2]]:
+// CHECK-NEXT:   %[[TMP2:[0-9]+]] = call i64 null(i64 1, i64 2, i64 3, i64 4, i64 5, i64 6)
+// CHECK-NEXT:   %[[TMP3:[0-9]+]] = icmp eq i64 %[[TMP2]], -1
+// CHECK-NEXT:   %[[TMP4:[0-9]+]] = call i32 @cliteErrno()
+// CHECK-NEXT:   %[[TMP5:[0-9]+]] = sext i32 %[[TMP4]] to i64
+// CHECK-NEXT:   %[[TMP6:[0-9]+]] = select i1 %[[TMP3]], i64 %[[TMP5]], i64 0
+// CHECK-NEXT:   %[[TMP7:[0-9]+]] = insertvalue { i64, i64, i64 } undef, i64 %[[TMP2]], 0
+// CHECK-NEXT:   %[[TMP8:[0-9]+]] = insertvalue { i64, i64, i64 } %[[TMP7]], i64 0, 1
+// CHECK-NEXT:   %[[TMP9:[0-9]+]] = insertvalue { i64, i64, i64 } %[[TMP8]], i64 %[[TMP6]], 2
+// CHECK-NEXT:   %[[TMP10:[0-9]+]] = extractvalue { i64, i64, i64 } %[[TMP9]], 0
+// CHECK-NEXT:   %[[TMP11:[0-9]+]] = extractvalue { i64, i64, i64 } %[[TMP9]], 1
+// CHECK-NEXT:   %[[TMP12:[0-9]+]] = extractvalue { i64, i64, i64 } %[[TMP9]], 2
+// CHECK-NEXT:   ret i64 %[[TMP10]]
 // CHECK-NEXT: }
 
 func Use6() uintptr {
@@ -95,18 +122,27 @@ func Use6() uintptr {
 
 // CHECK-LABEL: define i64 @"{{.*}}/cl/_testdata/llgosyscall.Use6X"(){{.*}} {
 // CHECK-NEXT: _llgo_[[BB0:[0-9]+]]:
-// CHECK-NEXT:   %[[TMP0:[0-9]+]] = call i64 null(i64 1, i64 2, i64 3, i64 4, i64 5, i64 6)
-// CHECK-NEXT:   %[[TMP1:[0-9]+]] = icmp eq i64 %[[TMP0]], -1
-// CHECK-NEXT:   %[[TMP2:[0-9]+]] = call i32 @cliteErrno()
-// CHECK-NEXT:   %[[TMP3:[0-9]+]] = sext i32 %[[TMP2]] to i64
-// CHECK-NEXT:   %[[TMP4:[0-9]+]] = select i1 %[[TMP1]], i64 %[[TMP3]], i64 0
-// CHECK-NEXT:   %[[TMP5:[0-9]+]] = insertvalue { i64, i64, i64 } undef, i64 %[[TMP0]], 0
-// CHECK-NEXT:   %[[TMP6:[0-9]+]] = insertvalue { i64, i64, i64 } %[[TMP5]], i64 0, 1
-// CHECK-NEXT:   %[[TMP7:[0-9]+]] = insertvalue { i64, i64, i64 } %[[TMP6]], i64 %[[TMP4]], 2
-// CHECK-NEXT:   %[[TMP8:[0-9]+]] = extractvalue { i64, i64, i64 } %[[TMP7]], 0
-// CHECK-NEXT:   %[[TMP9:[0-9]+]] = extractvalue { i64, i64, i64 } %[[TMP7]], 1
-// CHECK-NEXT:   %[[TMP10:[0-9]+]] = extractvalue { i64, i64, i64 } %[[TMP7]], 2
-// CHECK-NEXT:   ret i64 %[[TMP8]]
+// CHECK-NEXT:   %[[TMP0:[0-9]+]] = load atomic i32, ptr @"{{.*}}/runtime/internal/runtime.PreemptRequested" monotonic, align 4
+// CHECK-NEXT:   %[[TMP1:[0-9]+]] = icmp ne i32 %[[TMP0]], 0
+// CHECK-NEXT:   br i1 %[[TMP1]], label %_llgo_[[BB1:[0-9]+]], label %_llgo_[[BB2:[0-9]+]]
+// CHECK-EMPTY:
+// CHECK-NEXT: _llgo_[[BB1]]:
+// CHECK-NEXT:   call void @"{{.*}}/runtime/internal/runtime.CooperativeSafepoint"()
+// CHECK-NEXT:   br label %_llgo_[[BB2]]
+// CHECK-EMPTY:
+// CHECK-NEXT: _llgo_[[BB2]]:
+// CHECK-NEXT:   %[[TMP2:[0-9]+]] = call i64 null(i64 1, i64 2, i64 3, i64 4, i64 5, i64 6)
+// CHECK-NEXT:   %[[TMP3:[0-9]+]] = icmp eq i64 %[[TMP2]], -1
+// CHECK-NEXT:   %[[TMP4:[0-9]+]] = call i32 @cliteErrno()
+// CHECK-NEXT:   %[[TMP5:[0-9]+]] = sext i32 %[[TMP4]] to i64
+// CHECK-NEXT:   %[[TMP6:[0-9]+]] = select i1 %[[TMP3]], i64 %[[TMP5]], i64 0
+// CHECK-NEXT:   %[[TMP7:[0-9]+]] = insertvalue { i64, i64, i64 } undef, i64 %[[TMP2]], 0
+// CHECK-NEXT:   %[[TMP8:[0-9]+]] = insertvalue { i64, i64, i64 } %[[TMP7]], i64 0, 1
+// CHECK-NEXT:   %[[TMP9:[0-9]+]] = insertvalue { i64, i64, i64 } %[[TMP8]], i64 %[[TMP6]], 2
+// CHECK-NEXT:   %[[TMP10:[0-9]+]] = extractvalue { i64, i64, i64 } %[[TMP9]], 0
+// CHECK-NEXT:   %[[TMP11:[0-9]+]] = extractvalue { i64, i64, i64 } %[[TMP9]], 1
+// CHECK-NEXT:   %[[TMP12:[0-9]+]] = extractvalue { i64, i64, i64 } %[[TMP9]], 2
+// CHECK-NEXT:   ret i64 %[[TMP10]]
 // CHECK-NEXT: }
 
 func Use6X() uintptr {
@@ -116,18 +152,27 @@ func Use6X() uintptr {
 
 // CHECK-LABEL: define i64 @"{{.*}}/cl/_testdata/llgosyscall.UsePtr"(){{.*}} {
 // CHECK-NEXT: _llgo_[[BB0:[0-9]+]]:
-// CHECK-NEXT:   %[[TMP0:[0-9]+]] = call i64 null(i64 1, i64 2, i64 3)
-// CHECK-NEXT:   %[[TMP1:[0-9]+]] = icmp eq i64 %[[TMP0]], -1
-// CHECK-NEXT:   %[[TMP2:[0-9]+]] = call i32 @cliteErrno()
-// CHECK-NEXT:   %[[TMP3:[0-9]+]] = sext i32 %[[TMP2]] to i64
-// CHECK-NEXT:   %[[TMP4:[0-9]+]] = select i1 %[[TMP1]], i64 %[[TMP3]], i64 0
-// CHECK-NEXT:   %[[TMP5:[0-9]+]] = insertvalue { i64, i64, i64 } undef, i64 %[[TMP0]], 0
-// CHECK-NEXT:   %[[TMP6:[0-9]+]] = insertvalue { i64, i64, i64 } %[[TMP5]], i64 0, 1
-// CHECK-NEXT:   %[[TMP7:[0-9]+]] = insertvalue { i64, i64, i64 } %[[TMP6]], i64 %[[TMP4]], 2
-// CHECK-NEXT:   %[[TMP8:[0-9]+]] = extractvalue { i64, i64, i64 } %[[TMP7]], 0
-// CHECK-NEXT:   %[[TMP9:[0-9]+]] = extractvalue { i64, i64, i64 } %[[TMP7]], 1
-// CHECK-NEXT:   %[[TMP10:[0-9]+]] = extractvalue { i64, i64, i64 } %[[TMP7]], 2
-// CHECK-NEXT:   ret i64 %[[TMP8]]
+// CHECK-NEXT:   %[[TMP0:[0-9]+]] = load atomic i32, ptr @"{{.*}}/runtime/internal/runtime.PreemptRequested" monotonic, align 4
+// CHECK-NEXT:   %[[TMP1:[0-9]+]] = icmp ne i32 %[[TMP0]], 0
+// CHECK-NEXT:   br i1 %[[TMP1]], label %_llgo_[[BB1:[0-9]+]], label %_llgo_[[BB2:[0-9]+]]
+// CHECK-EMPTY:
+// CHECK-NEXT: _llgo_[[BB1]]:
+// CHECK-NEXT:   call void @"{{.*}}/runtime/internal/runtime.CooperativeSafepoint"()
+// CHECK-NEXT:   br label %_llgo_[[BB2]]
+// CHECK-EMPTY:
+// CHECK-NEXT: _llgo_[[BB2]]:
+// CHECK-NEXT:   %[[TMP2:[0-9]+]] = call i64 null(i64 1, i64 2, i64 3)
+// CHECK-NEXT:   %[[TMP3:[0-9]+]] = icmp eq i64 %[[TMP2]], -1
+// CHECK-NEXT:   %[[TMP4:[0-9]+]] = call i32 @cliteErrno()
+// CHECK-NEXT:   %[[TMP5:[0-9]+]] = sext i32 %[[TMP4]] to i64
+// CHECK-NEXT:   %[[TMP6:[0-9]+]] = select i1 %[[TMP3]], i64 %[[TMP5]], i64 0
+// CHECK-NEXT:   %[[TMP7:[0-9]+]] = insertvalue { i64, i64, i64 } undef, i64 %[[TMP2]], 0
+// CHECK-NEXT:   %[[TMP8:[0-9]+]] = insertvalue { i64, i64, i64 } %[[TMP7]], i64 0, 1
+// CHECK-NEXT:   %[[TMP9:[0-9]+]] = insertvalue { i64, i64, i64 } %[[TMP8]], i64 %[[TMP6]], 2
+// CHECK-NEXT:   %[[TMP10:[0-9]+]] = extractvalue { i64, i64, i64 } %[[TMP9]], 0
+// CHECK-NEXT:   %[[TMP11:[0-9]+]] = extractvalue { i64, i64, i64 } %[[TMP9]], 1
+// CHECK-NEXT:   %[[TMP12:[0-9]+]] = extractvalue { i64, i64, i64 } %[[TMP9]], 2
+// CHECK-NEXT:   ret i64 %[[TMP10]]
 // CHECK-NEXT: }
 
 func UsePtr() uintptr {
@@ -137,18 +182,27 @@ func UsePtr() uintptr {
 
 // CHECK-LABEL: define i64 @"{{.*}}/cl/_testdata/llgosyscall.UseRaw"(){{.*}} {
 // CHECK-NEXT: _llgo_[[BB0:[0-9]+]]:
-// CHECK-NEXT:   %[[TMP0:[0-9]+]] = call i64 null(i64 1, i64 2, i64 3)
-// CHECK-NEXT:   %[[TMP1:[0-9]+]] = icmp eq i64 %[[TMP0]], -1
-// CHECK-NEXT:   %[[TMP2:[0-9]+]] = call i32 @cliteErrno()
-// CHECK-NEXT:   %[[TMP3:[0-9]+]] = sext i32 %[[TMP2]] to i64
-// CHECK-NEXT:   %[[TMP4:[0-9]+]] = select i1 %[[TMP1]], i64 %[[TMP3]], i64 0
-// CHECK-NEXT:   %[[TMP5:[0-9]+]] = insertvalue { i64, i64, i64 } undef, i64 %[[TMP0]], 0
-// CHECK-NEXT:   %[[TMP6:[0-9]+]] = insertvalue { i64, i64, i64 } %[[TMP5]], i64 0, 1
-// CHECK-NEXT:   %[[TMP7:[0-9]+]] = insertvalue { i64, i64, i64 } %[[TMP6]], i64 %[[TMP4]], 2
-// CHECK-NEXT:   %[[TMP8:[0-9]+]] = extractvalue { i64, i64, i64 } %[[TMP7]], 0
-// CHECK-NEXT:   %[[TMP9:[0-9]+]] = extractvalue { i64, i64, i64 } %[[TMP7]], 1
-// CHECK-NEXT:   %[[TMP10:[0-9]+]] = extractvalue { i64, i64, i64 } %[[TMP7]], 2
-// CHECK-NEXT:   ret i64 %[[TMP8]]
+// CHECK-NEXT:   %[[TMP0:[0-9]+]] = load atomic i32, ptr @"{{.*}}/runtime/internal/runtime.PreemptRequested" monotonic, align 4
+// CHECK-NEXT:   %[[TMP1:[0-9]+]] = icmp ne i32 %[[TMP0]], 0
+// CHECK-NEXT:   br i1 %[[TMP1]], label %_llgo_[[BB1:[0-9]+]], label %_llgo_[[BB2:[0-9]+]]
+// CHECK-EMPTY:
+// CHECK-NEXT: _llgo_[[BB1]]:
+// CHECK-NEXT:   call void @"{{.*}}/runtime/internal/runtime.CooperativeSafepoint"()
+// CHECK-NEXT:   br label %_llgo_[[BB2]]
+// CHECK-EMPTY:
+// CHECK-NEXT: _llgo_[[BB2]]:
+// CHECK-NEXT:   %[[TMP2:[0-9]+]] = call i64 null(i64 1, i64 2, i64 3)
+// CHECK-NEXT:   %[[TMP3:[0-9]+]] = icmp eq i64 %[[TMP2]], -1
+// CHECK-NEXT:   %[[TMP4:[0-9]+]] = call i32 @cliteErrno()
+// CHECK-NEXT:   %[[TMP5:[0-9]+]] = sext i32 %[[TMP4]] to i64
+// CHECK-NEXT:   %[[TMP6:[0-9]+]] = select i1 %[[TMP3]], i64 %[[TMP5]], i64 0
+// CHECK-NEXT:   %[[TMP7:[0-9]+]] = insertvalue { i64, i64, i64 } undef, i64 %[[TMP2]], 0
+// CHECK-NEXT:   %[[TMP8:[0-9]+]] = insertvalue { i64, i64, i64 } %[[TMP7]], i64 0, 1
+// CHECK-NEXT:   %[[TMP9:[0-9]+]] = insertvalue { i64, i64, i64 } %[[TMP8]], i64 %[[TMP6]], 2
+// CHECK-NEXT:   %[[TMP10:[0-9]+]] = extractvalue { i64, i64, i64 } %[[TMP9]], 0
+// CHECK-NEXT:   %[[TMP11:[0-9]+]] = extractvalue { i64, i64, i64 } %[[TMP9]], 1
+// CHECK-NEXT:   %[[TMP12:[0-9]+]] = extractvalue { i64, i64, i64 } %[[TMP9]], 2
+// CHECK-NEXT:   ret i64 %[[TMP10]]
 // CHECK-NEXT: }
 
 func UseRaw() uintptr {
@@ -158,18 +212,27 @@ func UseRaw() uintptr {
 
 // CHECK-LABEL: define i64 @"{{.*}}/cl/_testdata/llgosyscall.UseRaw6"(){{.*}} {
 // CHECK-NEXT: _llgo_[[BB0:[0-9]+]]:
-// CHECK-NEXT:   %[[TMP0:[0-9]+]] = call i64 null(i64 1, i64 2, i64 3, i64 4, i64 5, i64 6)
-// CHECK-NEXT:   %[[TMP1:[0-9]+]] = icmp eq i64 %[[TMP0]], -1
-// CHECK-NEXT:   %[[TMP2:[0-9]+]] = call i32 @cliteErrno()
-// CHECK-NEXT:   %[[TMP3:[0-9]+]] = sext i32 %[[TMP2]] to i64
-// CHECK-NEXT:   %[[TMP4:[0-9]+]] = select i1 %[[TMP1]], i64 %[[TMP3]], i64 0
-// CHECK-NEXT:   %[[TMP5:[0-9]+]] = insertvalue { i64, i64, i64 } undef, i64 %[[TMP0]], 0
-// CHECK-NEXT:   %[[TMP6:[0-9]+]] = insertvalue { i64, i64, i64 } %[[TMP5]], i64 0, 1
-// CHECK-NEXT:   %[[TMP7:[0-9]+]] = insertvalue { i64, i64, i64 } %[[TMP6]], i64 %[[TMP4]], 2
-// CHECK-NEXT:   %[[TMP8:[0-9]+]] = extractvalue { i64, i64, i64 } %[[TMP7]], 0
-// CHECK-NEXT:   %[[TMP9:[0-9]+]] = extractvalue { i64, i64, i64 } %[[TMP7]], 1
-// CHECK-NEXT:   %[[TMP10:[0-9]+]] = extractvalue { i64, i64, i64 } %[[TMP7]], 2
-// CHECK-NEXT:   ret i64 %[[TMP8]]
+// CHECK-NEXT:   %[[TMP0:[0-9]+]] = load atomic i32, ptr @"{{.*}}/runtime/internal/runtime.PreemptRequested" monotonic, align 4
+// CHECK-NEXT:   %[[TMP1:[0-9]+]] = icmp ne i32 %[[TMP0]], 0
+// CHECK-NEXT:   br i1 %[[TMP1]], label %_llgo_[[BB1:[0-9]+]], label %_llgo_[[BB2:[0-9]+]]
+// CHECK-EMPTY:
+// CHECK-NEXT: _llgo_[[BB1]]:
+// CHECK-NEXT:   call void @"{{.*}}/runtime/internal/runtime.CooperativeSafepoint"()
+// CHECK-NEXT:   br label %_llgo_[[BB2]]
+// CHECK-EMPTY:
+// CHECK-NEXT: _llgo_[[BB2]]:
+// CHECK-NEXT:   %[[TMP2:[0-9]+]] = call i64 null(i64 1, i64 2, i64 3, i64 4, i64 5, i64 6)
+// CHECK-NEXT:   %[[TMP3:[0-9]+]] = icmp eq i64 %[[TMP2]], -1
+// CHECK-NEXT:   %[[TMP4:[0-9]+]] = call i32 @cliteErrno()
+// CHECK-NEXT:   %[[TMP5:[0-9]+]] = sext i32 %[[TMP4]] to i64
+// CHECK-NEXT:   %[[TMP6:[0-9]+]] = select i1 %[[TMP3]], i64 %[[TMP5]], i64 0
+// CHECK-NEXT:   %[[TMP7:[0-9]+]] = insertvalue { i64, i64, i64 } undef, i64 %[[TMP2]], 0
+// CHECK-NEXT:   %[[TMP8:[0-9]+]] = insertvalue { i64, i64, i64 } %[[TMP7]], i64 0, 1
+// CHECK-NEXT:   %[[TMP9:[0-9]+]] = insertvalue { i64, i64, i64 } %[[TMP8]], i64 %[[TMP6]], 2
+// CHECK-NEXT:   %[[TMP10:[0-9]+]] = extractvalue { i64, i64, i64 } %[[TMP9]], 0
+// CHECK-NEXT:   %[[TMP11:[0-9]+]] = extractvalue { i64, i64, i64 } %[[TMP9]], 1
+// CHECK-NEXT:   %[[TMP12:[0-9]+]] = extractvalue { i64, i64, i64 } %[[TMP9]], 2
+// CHECK-NEXT:   ret i64 %[[TMP10]]
 // CHECK-NEXT: }
 
 func UseRaw6() uintptr {

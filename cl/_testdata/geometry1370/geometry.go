@@ -16,7 +16,9 @@ type Rectangle struct {
 // CHECK-LABEL: define ptr @"{{.*}}/cl/_testdata/geometry1370.NewRectangle"(
 // CHECK-SAME: double %[[TMP0:[0-9]+]], double %[[TMP1:[0-9]+]]){{.*}} {
 // CHECK-NEXT: _llgo_[[BB0:[0-9]+]]:
-// CHECK-NEXT:   %[[TMP2:[0-9]+]] = call ptr @"{{.*}}/runtime/internal/runtime.AllocZ"(i64 24)
+// CHECK-NEXT:   %[[TMP2:[0-9]+]] = call ptr @"{{.*}}/runtime/internal/runtime.AllocCounted"(i64 24)
+// CHECK-NEXT:   store %"{{.*}}/cl/_testdata/geometry1370.Rectangle" zeroinitializer, ptr %[[TMP2]], align 8
+// CHECK-NEXT:   call void @"{{.*}}/runtime/internal/runtime.NoteAlloc"(i64 24, i32 1)
 // CHECK-NEXT:   %[[TMP3:[0-9]+]] = getelementptr inbounds nuw %"{{.*}}/cl/_testdata/geometry1370.Rectangle", ptr %[[TMP2]], i32 0, i32 0
 // CHECK-NEXT:   %[[TMP4:[0-9]+]] = getelementptr inbounds nuw %"{{.*}}/cl/_testdata/geometry1370.Rectangle", ptr %[[TMP2]], i32 0, i32 1
 // CHECK-NEXT:   store double %[[TMP0]], ptr %[[TMP3]], align 8
@@ -85,15 +87,24 @@ func (r *Rectangle) validate() bool { return r.Width > 0 && r.Height > 0 }
 // CHECK-LABEL: define void @"{{.*}}/cl/_testdata/geometry1370.RegisterShape"(
 // CHECK-SAME: %"{{.*}}/runtime/internal/runtime.iface" %[[TMP0:[0-9]+]], i64 %[[TMP1:[0-9]+]]){{.*}} {
 // CHECK-NEXT: _llgo_[[BB0:[0-9]+]]:
-// CHECK-NEXT:   %[[TMP2:[0-9]+]] = call ptr @"{{.*}}/runtime/internal/runtime.IfacePtrData"(%"{{.*}}/runtime/internal/runtime.iface" %[[TMP0]])
-// CHECK-NEXT:   %[[TMP3:[0-9]+]] = extractvalue %"{{.*}}/runtime/internal/runtime.iface" %[[TMP0]], 0
-// CHECK-NEXT:   %[[TMP4:[0-9]+]] = getelementptr ptr, ptr %[[TMP3]], i64 4
-// CHECK-NEXT:   %[[TMP5:[0-9]+]] = load ptr, ptr %[[TMP4]], align 8
-// CHECK-NEXT:   %[[TMP6:[0-9]+]] = insertvalue { ptr, ptr } undef, ptr %[[TMP5]], 0
-// CHECK-NEXT:   %[[TMP7:[0-9]+]] = insertvalue { ptr, ptr } %[[TMP6]], ptr %[[TMP2]], 1
-// CHECK-NEXT:   %[[TMP8:[0-9]+]] = extractvalue { ptr, ptr } %[[TMP7]], 1
-// CHECK-NEXT:   %[[TMP9:[0-9]+]] = extractvalue { ptr, ptr } %[[TMP7]], 0
-// CHECK-NEXT:   call void %[[TMP9]](ptr %[[TMP8]], i64 %[[TMP1]])
+// CHECK-NEXT:   %[[TMP2:[0-9]+]] = load atomic i32, ptr @"{{.*}}/runtime/internal/runtime.PreemptRequested" monotonic, align 4
+// CHECK-NEXT:   %[[TMP3:[0-9]+]] = icmp ne i32 %[[TMP2]], 0
+// CHECK-NEXT:   br i1 %[[TMP3]], label %_llgo_[[BB1:[0-9]+]], label %_llgo_[[BB2:[0-9]+]]
+// CHECK-EMPTY:
+// CHECK-NEXT: _llgo_[[BB1]]:
+// CHECK-NEXT:   call void @"{{.*}}/runtime/internal/runtime.CooperativeSafepoint"()
+// CHECK-NEXT:   br label %_llgo_[[BB2]]
+// CHECK-EMPTY:
+// CHECK-NEXT: _llgo_[[BB2]]:
+// CHECK-NEXT:   %[[TMP4:[0-9]+]] = call ptr @"{{.*}}/runtime/internal/runtime.IfacePtrData"(%"{{.*}}/runtime/internal/runtime.iface" %[[TMP0]])
+// CHECK-NEXT:   %[[TMP5:[0-9]+]] = extractvalue %"{{.*}}/runtime/internal/runtime.iface" %[[TMP0]], 0
+// CHECK-NEXT:   %[[TMP6:[0-9]+]] = getelementptr ptr, ptr %[[TMP5]], i64 4
+// CHECK-NEXT:   %[[TMP7:[0-9]+]] = load ptr, ptr %[[TMP6]], align 8
+// CHECK-NEXT:   %[[TMP8:[0-9]+]] = insertvalue { ptr, ptr } undef, ptr %[[TMP7]], 0
+// CHECK-NEXT:   %[[TMP9:[0-9]+]] = insertvalue { ptr, ptr } %[[TMP8]], ptr %[[TMP4]], 1
+// CHECK-NEXT:   %[[TMP10:[0-9]+]] = extractvalue { ptr, ptr } %[[TMP9]], 1
+// CHECK-NEXT:   %[[TMP11:[0-9]+]] = extractvalue { ptr, ptr } %[[TMP9]], 0
+// CHECK-NEXT:   call void %[[TMP11]](ptr %[[TMP10]], i64 %[[TMP1]])
 // CHECK-NEXT:   ret void
 // CHECK-NEXT: }
 

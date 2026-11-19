@@ -68,14 +68,14 @@ func main() {
 // CHECK-NEXT:   br label %_llgo_[[BB4:[0-9]+]]
 // CHECK-EMPTY:
 // CHECK-NEXT: _llgo_[[BB4]]:
-// CHECK-NEXT:   %[[TMP18:[0-9]+]] = phi i64 [ 0, %_llgo_[[BB3]] ], [ %[[TMP27:[0-9]+]], %_llgo_[[BB5:[0-9]+]] ]
+// CHECK-NEXT:   %[[TMP18:[0-9]+]] = phi i64 [ 0, %_llgo_[[BB3]] ], [ %[[TMP27:[0-9]+]], %_llgo_[[BB11:[0-9]+]] ]
 // CHECK-NEXT:   %[[TMP19:[0-9]+]] = call { i1, ptr, ptr } @"{{.*}}/runtime/internal/runtime.MapIterNext"(ptr %[[TMP17]])
 // CHECK-NEXT:   %[[TMP20:[0-9]+]] = extractvalue { i1, ptr, ptr } %[[TMP19]], 0
 // CHECK-NEXT:   br i1 %[[TMP20]], label %_llgo_[[BB7:[0-9]+]], label %_llgo_[[BB8:[0-9]+]]
 // CHECK-EMPTY:
-// CHECK-NEXT: _llgo_[[BB5]]:
-// CHECK-NEXT:   %[[TMP21:[0-9]+]] = extractvalue { i1, [256 x i8], i64 } %[[TMP35:[0-9]+]], 1
-// CHECK-NEXT:   %[[TMP22:[0-9]+]] = extractvalue { i1, [256 x i8], i64 } %[[TMP35]], 2
+// CHECK-NEXT: _llgo_[[BB5:[0-9]+]]:
+// CHECK-NEXT:   %[[TMP21:[0-9]+]] = extractvalue { i1, [256 x i8], i64 } %[[TMP37:[0-9]+]], 1
+// CHECK-NEXT:   %[[TMP22:[0-9]+]] = extractvalue { i1, [256 x i8], i64 } %[[TMP37]], 2
 // CHECK-NEXT:   call void @llvm.memset.p0.i64(ptr %[[TMP0]], i8 0, i64 256, i1 false)
 // CHECK-NEXT:   store [256 x i8] %[[TMP21]], ptr %[[TMP0]], align 1
 // CHECK-NEXT:   %[[TMP23:[0-9]+]] = getelementptr inbounds i8, ptr %[[TMP0]], i64 0
@@ -83,36 +83,45 @@ func main() {
 // CHECK-NEXT:   %[[TMP25:[0-9]+]] = zext i8 %[[TMP24]] to i64
 // CHECK-NEXT:   %[[TMP26:[0-9]+]] = add i64 %[[TMP25]], %[[TMP22]]
 // CHECK-NEXT:   %[[TMP27]] = add i64 %[[TMP18]], %[[TMP26]]
-// CHECK-NEXT:   br label %_llgo_[[BB4]]
+// CHECK-NEXT:   %[[TMP28:[0-9]+]] = load atomic i32, ptr @"{{.*}}/runtime/internal/runtime.PreemptRequested" monotonic, align 4
+// CHECK-NEXT:   %[[TMP29:[0-9]+]] = icmp ne i32 %[[TMP28]], 0
+// CHECK-NEXT:   br i1 %[[TMP29]], label %_llgo_[[BB10:[0-9]+]], label %_llgo_[[BB11]]
 // CHECK-EMPTY:
 // CHECK-NEXT: _llgo_[[BB6:[0-9]+]]:
-// CHECK-NEXT:   %[[TMP28:[0-9]+]] = call i64 @"{{.*}}/runtime/internal/runtime.MapLen"(ptr %[[TMP3]])
+// CHECK-NEXT:   %[[TMP30:[0-9]+]] = call i64 @"{{.*}}/runtime/internal/runtime.MapLen"(ptr %[[TMP3]])
 // CHECK-NEXT:   call void @"{{.*}}/runtime/internal/runtime.PrintInt"(i64 %[[TMP15]])
 // CHECK-NEXT:   call void @"{{.*}}/runtime/internal/runtime.PrintByte"(i8 32)
 // CHECK-NEXT:   call void @"{{.*}}/runtime/internal/runtime.PrintBool"(i1 %[[TMP16]])
 // CHECK-NEXT:   call void @"{{.*}}/runtime/internal/runtime.PrintByte"(i8 32)
-// CHECK-NEXT:   call void @"{{.*}}/runtime/internal/runtime.PrintInt"(i64 %[[TMP28]])
+// CHECK-NEXT:   call void @"{{.*}}/runtime/internal/runtime.PrintInt"(i64 %[[TMP30]])
 // CHECK-NEXT:   call void @"{{.*}}/runtime/internal/runtime.PrintByte"(i8 32)
 // CHECK-NEXT:   call void @"{{.*}}/runtime/internal/runtime.PrintInt"(i64 %[[TMP18]])
 // CHECK-NEXT:   call void @"{{.*}}/runtime/internal/runtime.PrintByte"(i8 10)
 // CHECK-NEXT:   ret void
 // CHECK-EMPTY:
 // CHECK-NEXT: _llgo_[[BB7]]:
-// CHECK-NEXT:   %[[TMP29:[0-9]+]] = extractvalue { i1, ptr, ptr } %[[TMP19]], 1
-// CHECK-NEXT:   %[[TMP30:[0-9]+]] = extractvalue { i1, ptr, ptr } %[[TMP19]], 2
-// CHECK-NEXT:   %[[TMP31:[0-9]+]] = load [256 x i8], ptr %[[TMP29]], align 1
-// CHECK-NEXT:   %[[TMP32:[0-9]+]] = load i64, ptr %[[TMP30]], align 8
-// CHECK-NEXT:   %[[TMP33:[0-9]+]] = insertvalue { i1, [256 x i8], i64 } { i1 true, [256 x i8] undef, i64 undef }, [256 x i8] %[[TMP31]], 1
-// CHECK-NEXT:   %[[TMP34:[0-9]+]] = insertvalue { i1, [256 x i8], i64 } %[[TMP33]], i64 %[[TMP32]], 2
+// CHECK-NEXT:   %[[TMP31:[0-9]+]] = extractvalue { i1, ptr, ptr } %[[TMP19]], 1
+// CHECK-NEXT:   %[[TMP32:[0-9]+]] = extractvalue { i1, ptr, ptr } %[[TMP19]], 2
+// CHECK-NEXT:   %[[TMP33:[0-9]+]] = load [256 x i8], ptr %[[TMP31]], align 1
+// CHECK-NEXT:   %[[TMP34:[0-9]+]] = load i64, ptr %[[TMP32]], align 8
+// CHECK-NEXT:   %[[TMP35:[0-9]+]] = insertvalue { i1, [256 x i8], i64 } { i1 true, [256 x i8] undef, i64 undef }, [256 x i8] %[[TMP33]], 1
+// CHECK-NEXT:   %[[TMP36:[0-9]+]] = insertvalue { i1, [256 x i8], i64 } %[[TMP35]], i64 %[[TMP34]], 2
 // CHECK-NEXT:   br label %_llgo_[[BB9:[0-9]+]]
 // CHECK-EMPTY:
 // CHECK-NEXT: _llgo_[[BB8]]:
 // CHECK-NEXT:   br label %_llgo_[[BB9]]
 // CHECK-EMPTY:
 // CHECK-NEXT: _llgo_[[BB9]]:
-// CHECK-NEXT:   %[[TMP35]] = phi { i1, [256 x i8], i64 } [ %[[TMP34]], %_llgo_[[BB7]] ], [ zeroinitializer, %_llgo_[[BB8]] ]
-// CHECK-NEXT:   %[[TMP36:[0-9]+]] = extractvalue { i1, [256 x i8], i64 } %[[TMP35]], 0
-// CHECK-NEXT:   br i1 %[[TMP36]], label %_llgo_[[BB5]], label %_llgo_[[BB6]]
+// CHECK-NEXT:   %[[TMP37]] = phi { i1, [256 x i8], i64 } [ %[[TMP36]], %_llgo_[[BB7]] ], [ zeroinitializer, %_llgo_[[BB8]] ]
+// CHECK-NEXT:   %[[TMP38:[0-9]+]] = extractvalue { i1, [256 x i8], i64 } %[[TMP37]], 0
+// CHECK-NEXT:   br i1 %[[TMP38]], label %_llgo_[[BB5]], label %_llgo_[[BB6]]
+// CHECK-EMPTY:
+// CHECK-NEXT: _llgo_[[BB10]]:
+// CHECK-NEXT:   call void @"{{.*}}/runtime/internal/runtime.CooperativeSafepoint"()
+// CHECK-NEXT:   br label %_llgo_[[BB11]]
+// CHECK-EMPTY:
+// CHECK-NEXT: _llgo_[[BB11]]:
+// CHECK-NEXT:   br label %_llgo_[[BB4]]
 // CHECK-NEXT: }
 
 // CHECK-LABEL: define linkonce { i64, i1 } @"main.lookup[main.LargeKey]"(

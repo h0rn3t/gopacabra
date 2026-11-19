@@ -18,6 +18,15 @@ func main() {
 
 // CHECK-LABEL: define void @main.main(){{.*}} {
 // CHECK-NEXT: _llgo_[[BB0:[0-9]+]]:
+// CHECK-NEXT:   %[[TMP0:[0-9]+]] = load atomic i32, ptr @"{{.*}}/runtime/internal/runtime.PreemptRequested" monotonic, align 4
+// CHECK-NEXT:   %[[TMP1:[0-9]+]] = icmp ne i32 %[[TMP0]], 0
+// CHECK-NEXT:   br i1 %[[TMP1]], label %_llgo_[[BB1:[0-9]+]], label %_llgo_[[BB2:[0-9]+]]
+// CHECK-EMPTY:
+// CHECK-NEXT: _llgo_[[BB1]]:
+// CHECK-NEXT:   call void @"{{.*}}/runtime/internal/runtime.CooperativeSafepoint"()
+// CHECK-NEXT:   br label %_llgo_[[BB2]]
+// CHECK-EMPTY:
+// CHECK-NEXT: _llgo_[[BB2]]:
 // CHECK-NEXT:   call void @"main.main$1"({ ptr, ptr } { ptr @"main.main$2", ptr null })
 // CHECK-NEXT:   ret void
 // CHECK-NEXT: }
@@ -25,55 +34,78 @@ func main() {
 // CHECK-LABEL: define void @"main.main$1"(
 // CHECK-SAME: { ptr, ptr } %[[TMP0:[0-9]+]]){{.*}} {
 // CHECK-NEXT: _llgo_[[BB0:[0-9]+]]:
-// CHECK-NEXT:   %[[TMP1:[0-9]+]] = call ptr @"{{.*}}/runtime/internal/runtime.AllocZ"(i64 16)
-// CHECK-NEXT:   store { ptr, ptr } %[[TMP0]], ptr %[[TMP1]], align 8
-// CHECK-NEXT:   %[[TMP2:[0-9]+]] = call ptr @"{{.*}}/runtime/internal/runtime.AllocU"(i64 8)
-// CHECK-NEXT:   %[[TMP3:[0-9]+]] = getelementptr inbounds nuw { ptr }, ptr %[[TMP2]], i32 0, i32 0
-// CHECK-NEXT:   store ptr %[[TMP1]], ptr %[[TMP3]], align 8
-// CHECK-NEXT:   %[[TMP4:[0-9]+]] = insertvalue { ptr, ptr } { ptr @"main.main$1$1", ptr undef }, ptr %[[TMP2]], 1
-// CHECK-NEXT:   %[[TMP5:[0-9]+]] = extractvalue { ptr, ptr } %[[TMP4]], 1
-// CHECK-NEXT:   %[[TMP6:[0-9]+]] = extractvalue { ptr, ptr } %[[TMP4]], 0
-// CHECK-NEXT:   %__llgo_funcval_code = call ptr asm "", "=r,0"(ptr %[[TMP6]])
-// ARM64-NEXT:   call void %__llgo_funcval_code(ptr swiftself %[[TMP5]], %"{{.*}}/runtime/internal/runtime.iface" zeroinitializer)
-// AMD64-NEXT:   call void %__llgo_funcval_code(ptr nest %[[TMP5]], %"{{.*}}/runtime/internal/runtime.iface" zeroinitializer)
+// CHECK-NEXT:   %[[TMP1:[0-9]+]] = load atomic i32, ptr @"{{.*}}/runtime/internal/runtime.PreemptRequested" monotonic, align 4
+// CHECK-NEXT:   %[[TMP2:[0-9]+]] = icmp ne i32 %[[TMP1]], 0
+// CHECK-NEXT:   br i1 %[[TMP2]], label %_llgo_[[BB1:[0-9]+]], label %_llgo_[[BB2:[0-9]+]]
+// CHECK-EMPTY:
+// CHECK-NEXT: _llgo_[[BB1]]:
+// CHECK-NEXT:   call void @"{{.*}}/runtime/internal/runtime.CooperativeSafepoint"()
+// CHECK-NEXT:   br label %_llgo_[[BB2]]
+// CHECK-EMPTY:
+// CHECK-NEXT: _llgo_[[BB2]]:
+// CHECK-NEXT:   %[[TMP3:[0-9]+]] = call ptr @"{{.*}}/runtime/internal/runtime.AllocCounted"(i64 16)
+// CHECK-NEXT:   store { ptr, ptr } zeroinitializer, ptr %[[TMP3]], align 8
+// CHECK-NEXT:   call void @"{{.*}}/runtime/internal/runtime.NoteAlloc"(i64 16, i32 1)
+// CHECK-NEXT:   store { ptr, ptr } %[[TMP0]], ptr %[[TMP3]], align 8
+// CHECK-NEXT:   %[[TMP4:[0-9]+]] = call ptr @"{{.*}}/runtime/internal/runtime.AllocU"(i64 8)
+// CHECK-NEXT:   %[[TMP5:[0-9]+]] = getelementptr inbounds nuw { ptr }, ptr %[[TMP4]], i32 0, i32 0
+// CHECK-NEXT:   store ptr %[[TMP3]], ptr %[[TMP5]], align 8
+// CHECK-NEXT:   %[[TMP6:[0-9]+]] = insertvalue { ptr, ptr } { ptr @"main.main$1$1", ptr undef }, ptr %[[TMP4]], 1
+// CHECK-NEXT:   %[[TMP7:[0-9]+]] = extractvalue { ptr, ptr } %[[TMP6]], 1
+// CHECK-NEXT:   %[[TMP8:[0-9]+]] = extractvalue { ptr, ptr } %[[TMP6]], 0
+// CHECK-NEXT:   %__llgo_funcval_code = call ptr asm "", "=r,0"(ptr %[[TMP8]])
+// DARWIN-ARM64-NEXT:   call void %__llgo_funcval_code(ptr swiftself %[[TMP7]], %"{{.*}}/runtime/internal/runtime.iface" zeroinitializer)
+// LINUX-AMD64-NEXT:   call void %__llgo_funcval_code(ptr nest %[[TMP7]], %"{{.*}}/runtime/internal/runtime.iface" zeroinitializer)
+// CHECK-NEXT:   %[[TMP9:[0-9]+]] = extractvalue { ptr, ptr } %[[TMP6]], 1
+// CHECK-NEXT:   call void @"{{.*}}/runtime/internal/runtime.FreeAccounted"(ptr %[[TMP9]], i64 0, i32 0)
+// CHECK-NEXT:   call void @"{{.*}}/runtime/internal/runtime.DecAccounted"(ptr %[[TMP3]], i64 16)
 // CHECK-NEXT:   ret void
 // CHECK-NEXT: }
 
 // CHECK-LABEL: define void @"main.main$1$1"(
-// ARM64-SAME: ptr swiftself %[[TMP0:[0-9]+]], %"{{.*}}/runtime/internal/runtime.iface" %[[TMP1:[0-9]+]]){{.*}} {
-// AMD64-SAME: ptr nest %[[TMP0:[0-9]+]], %"{{.*}}/runtime/internal/runtime.iface" %[[TMP1:[0-9]+]]){{.*}} {
+// DARWIN-ARM64-SAME: ptr swiftself %[[TMP0:[0-9]+]], %"{{.*}}/runtime/internal/runtime.iface" %[[TMP1:[0-9]+]]){{.*}} {
+// LINUX-AMD64-SAME: ptr nest %[[TMP0:[0-9]+]], %"{{.*}}/runtime/internal/runtime.iface" %[[TMP1:[0-9]+]]){{.*}} {
 // CHECK-NEXT: _llgo_[[BB0:[0-9]+]]:
 // CHECK-NEXT:   %[[TMP2:[0-9]+]] = load { ptr }, ptr %[[TMP0]], align 8
-// CHECK-NEXT:   %[[TMP3:[0-9]+]] = call ptr @"{{.*}}/runtime/internal/runtime.IfaceType"(%"{{.*}}/runtime/internal/runtime.iface" %[[TMP1]])
-// CHECK-NEXT:   %[[TMP4:[0-9]+]] = extractvalue %"{{.*}}/runtime/internal/runtime.iface" %[[TMP1]], 1
-// CHECK-NEXT:   %[[TMP5:[0-9]+]] = insertvalue %"{{.*}}/runtime/internal/runtime.eface" undef, ptr %[[TMP3]], 0
-// CHECK-NEXT:   %[[TMP6:[0-9]+]] = insertvalue %"{{.*}}/runtime/internal/runtime.eface" %[[TMP5]], ptr %[[TMP4]], 1
-// CHECK-NEXT:   %[[TMP7:[0-9]+]] = call ptr @"{{.*}}/runtime/internal/runtime.IfaceType"(%"{{.*}}/runtime/internal/runtime.iface" zeroinitializer)
-// CHECK-NEXT:   %[[TMP8:[0-9]+]] = insertvalue %"{{.*}}/runtime/internal/runtime.eface" undef, ptr %[[TMP7]], 0
-// CHECK-NEXT:   %[[TMP9:[0-9]+]] = insertvalue %"{{.*}}/runtime/internal/runtime.eface" %[[TMP8]], ptr null, 1
-// CHECK-NEXT:   %[[TMP10:[0-9]+]] = call i1 @"{{.*}}/runtime/internal/runtime.EfaceEqual"(%"{{.*}}/runtime/internal/runtime.eface" %[[TMP6]], %"{{.*}}/runtime/internal/runtime.eface" %[[TMP9]])
-// CHECK-NEXT:   %[[TMP11:[0-9]+]] = xor i1 %[[TMP10]], true
-// CHECK-NEXT:   br i1 %[[TMP11]], label %_llgo_[[BB1:[0-9]+]], label %_llgo_[[BB2:[0-9]+]]
+// CHECK-NEXT:   %[[TMP3:[0-9]+]] = load atomic i32, ptr @"{{.*}}/runtime/internal/runtime.PreemptRequested" monotonic, align 4
+// CHECK-NEXT:   %[[TMP4:[0-9]+]] = icmp ne i32 %[[TMP3]], 0
+// CHECK-NEXT:   br i1 %[[TMP4]], label %_llgo_[[BB3:[0-9]+]], label %_llgo_[[BB4:[0-9]+]]
 // CHECK-EMPTY:
-// CHECK-NEXT: _llgo_[[BB1]]:
-// CHECK-NEXT:   %[[TMP12:[0-9]+]] = extractvalue { ptr } %[[TMP2]], 0
-// CHECK-NEXT:   %[[TMP13:[0-9]+]] = load { ptr, ptr }, ptr %[[TMP12]], align 8
-// CHECK-NEXT:   %[[TMP14:[0-9]+]] = extractvalue { ptr, ptr } %[[TMP13]], 1
-// CHECK-NEXT:   %[[TMP15:[0-9]+]] = extractvalue { ptr, ptr } %[[TMP13]], 0
-// CHECK-NEXT:   %__llgo_funcval_code = call ptr asm "", "=r,0"(ptr %[[TMP15]])
-// ARM64-NEXT:   call void %__llgo_funcval_code(ptr swiftself %[[TMP14]], %"{{.*}}/runtime/internal/runtime.iface" %[[TMP1]])
-// AMD64-NEXT:   call void %__llgo_funcval_code(ptr nest %[[TMP14]], %"{{.*}}/runtime/internal/runtime.iface" %[[TMP1]])
+// CHECK-NEXT: _llgo_[[BB1:[0-9]+]]:
+// CHECK-NEXT:   %[[TMP5:[0-9]+]] = extractvalue { ptr } %[[TMP2]], 0
+// CHECK-NEXT:   %[[TMP6:[0-9]+]] = load { ptr, ptr }, ptr %[[TMP5]], align 8
+// CHECK-NEXT:   %[[TMP7:[0-9]+]] = extractvalue { ptr, ptr } %[[TMP6]], 1
+// CHECK-NEXT:   %[[TMP8:[0-9]+]] = extractvalue { ptr, ptr } %[[TMP6]], 0
+// CHECK-NEXT:   %__llgo_funcval_code = call ptr asm "", "=r,0"(ptr %[[TMP8]])
+// DARWIN-ARM64-NEXT:   call void %__llgo_funcval_code(ptr swiftself %[[TMP7]], %"{{.*}}/runtime/internal/runtime.iface" %[[TMP1]])
+// LINUX-AMD64-NEXT:   call void %__llgo_funcval_code(ptr nest %[[TMP7]], %"{{.*}}/runtime/internal/runtime.iface" %[[TMP1]])
 // CHECK-NEXT:   ret void
 // CHECK-EMPTY:
-// CHECK-NEXT: _llgo_[[BB2]]:
-// CHECK-NEXT:   %[[TMP16:[0-9]+]] = extractvalue { ptr } %[[TMP2]], 0
-// CHECK-NEXT:   %[[TMP17:[0-9]+]] = load { ptr, ptr }, ptr %[[TMP16]], align 8
-// CHECK-NEXT:   %[[TMP18:[0-9]+]] = extractvalue { ptr, ptr } %[[TMP17]], 1
-// CHECK-NEXT:   %[[TMP19:[0-9]+]] = extractvalue { ptr, ptr } %[[TMP17]], 0
-// CHECK-NEXT:   %__llgo_funcval_code1 = call ptr asm "", "=r,0"(ptr %[[TMP19]])
-// ARM64-NEXT:   call void %__llgo_funcval_code1(ptr swiftself %[[TMP18]], %"{{.*}}/runtime/internal/runtime.iface" zeroinitializer)
-// AMD64-NEXT:   call void %__llgo_funcval_code1(ptr nest %[[TMP18]], %"{{.*}}/runtime/internal/runtime.iface" zeroinitializer)
+// CHECK-NEXT: _llgo_[[BB2:[0-9]+]]:
+// CHECK-NEXT:   %[[TMP9:[0-9]+]] = extractvalue { ptr } %[[TMP2]], 0
+// CHECK-NEXT:   %[[TMP10:[0-9]+]] = load { ptr, ptr }, ptr %[[TMP9]], align 8
+// CHECK-NEXT:   %[[TMP11:[0-9]+]] = extractvalue { ptr, ptr } %[[TMP10]], 1
+// CHECK-NEXT:   %[[TMP12:[0-9]+]] = extractvalue { ptr, ptr } %[[TMP10]], 0
+// CHECK-NEXT:   %__llgo_funcval_code1 = call ptr asm "", "=r,0"(ptr %[[TMP12]])
+// DARWIN-ARM64-NEXT:   call void %__llgo_funcval_code1(ptr swiftself %[[TMP11]], %"{{.*}}/runtime/internal/runtime.iface" zeroinitializer)
+// LINUX-AMD64-NEXT:   call void %__llgo_funcval_code1(ptr nest %[[TMP11]], %"{{.*}}/runtime/internal/runtime.iface" zeroinitializer)
 // CHECK-NEXT:   ret void
+// CHECK-EMPTY:
+// CHECK-NEXT: _llgo_[[BB3]]:
+// CHECK-NEXT:   call void @"{{.*}}/runtime/internal/runtime.CooperativeSafepoint"()
+// CHECK-NEXT:   br label %_llgo_[[BB4]]
+// CHECK-EMPTY:
+// CHECK-NEXT: _llgo_[[BB4]]:
+// CHECK-NEXT:   %[[TMP13:[0-9]+]] = call ptr @"{{.*}}/runtime/internal/runtime.IfaceType"(%"{{.*}}/runtime/internal/runtime.iface" %[[TMP1]])
+// CHECK-NEXT:   %[[TMP14:[0-9]+]] = extractvalue %"{{.*}}/runtime/internal/runtime.iface" %[[TMP1]], 1
+// CHECK-NEXT:   %[[TMP15:[0-9]+]] = insertvalue %"{{.*}}/runtime/internal/runtime.eface" undef, ptr %[[TMP13]], 0
+// CHECK-NEXT:   %[[TMP16:[0-9]+]] = insertvalue %"{{.*}}/runtime/internal/runtime.eface" %[[TMP15]], ptr %[[TMP14]], 1
+// CHECK-NEXT:   %[[TMP17:[0-9]+]] = call ptr @"{{.*}}/runtime/internal/runtime.IfaceType"(%"{{.*}}/runtime/internal/runtime.iface" zeroinitializer)
+// CHECK-NEXT:   %[[TMP18:[0-9]+]] = insertvalue %"{{.*}}/runtime/internal/runtime.eface" undef, ptr %[[TMP17]], 0
+// CHECK-NEXT:   %[[TMP19:[0-9]+]] = insertvalue %"{{.*}}/runtime/internal/runtime.eface" %[[TMP18]], ptr null, 1
+// CHECK-NEXT:   %[[TMP20:[0-9]+]] = call i1 @"{{.*}}/runtime/internal/runtime.EfaceEqual"(%"{{.*}}/runtime/internal/runtime.eface" %[[TMP16]], %"{{.*}}/runtime/internal/runtime.eface" %[[TMP19]])
+// CHECK-NEXT:   %[[TMP21:[0-9]+]] = xor i1 %[[TMP20]], true
+// CHECK-NEXT:   br i1 %[[TMP21]], label %_llgo_[[BB1]], label %_llgo_[[BB2]]
 // CHECK-NEXT: }
 
 // CHECK-LABEL: define void @"main.main$2"(

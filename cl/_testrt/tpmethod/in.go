@@ -55,30 +55,48 @@ func main() {
 // CHECK-SAME: { ptr, ptr } %[[TMP0:[0-9]+]]){{.*}} {
 // CHECK-NEXT: _llgo_[[BB0:[0-9]+]]:
 // CHECK-NEXT:   %[[TMP1:[0-9]+]] = alloca %"main.Tuple[error]", align 8
+// CHECK-NEXT:   %[[TMP2:[0-9]+]] = load atomic i32, ptr @"{{.*}}/runtime/internal/runtime.PreemptRequested" monotonic, align 4
+// CHECK-NEXT:   %[[TMP3:[0-9]+]] = icmp ne i32 %[[TMP2]], 0
+// CHECK-NEXT:   br i1 %[[TMP3]], label %_llgo_[[BB1:[0-9]+]], label %_llgo_[[BB2:[0-9]+]]
+// CHECK-EMPTY:
+// CHECK-NEXT: _llgo_[[BB1]]:
+// CHECK-NEXT:   call void @"{{.*}}/runtime/internal/runtime.CooperativeSafepoint"()
+// CHECK-NEXT:   br label %_llgo_[[BB2]]
+// CHECK-EMPTY:
+// CHECK-NEXT: _llgo_[[BB2]]:
 // CHECK-NEXT:   call void @llvm.memset.p0.i64(ptr %[[TMP1]], i8 0, i64 16, i1 false)
-// CHECK-NEXT:   %[[TMP2:[0-9]+]] = getelementptr inbounds nuw %"main.Tuple[error]", ptr %[[TMP1]], i32 0, i32 0
-// CHECK-NEXT:   store %"{{.*}}/runtime/internal/runtime.iface" zeroinitializer, ptr %[[TMP2]], align 8
-// CHECK-NEXT:   %[[TMP3:[0-9]+]] = load %"main.Tuple[error]", ptr %[[TMP1]], align 8
-// CHECK-NEXT:   %[[TMP4:[0-9]+]] = extractvalue { ptr, ptr } %[[TMP0]], 1
-// CHECK-NEXT:   %[[TMP5:[0-9]+]] = extractvalue { ptr, ptr } %[[TMP0]], 0
-// CHECK-NEXT:   %__llgo_funcval_code = call ptr asm "", "=r,0"(ptr %[[TMP5]])
-// ARM64-NEXT:   call void %__llgo_funcval_code(ptr swiftself %[[TMP4]], %"main.Tuple[error]" %[[TMP3]])
-// AMD64-NEXT:   call void %__llgo_funcval_code(ptr nest %[[TMP4]], %"main.Tuple[error]" %[[TMP3]])
+// CHECK-NEXT:   %[[TMP4:[0-9]+]] = getelementptr inbounds nuw %"main.Tuple[error]", ptr %[[TMP1]], i32 0, i32 0
+// CHECK-NEXT:   store %"{{.*}}/runtime/internal/runtime.iface" zeroinitializer, ptr %[[TMP4]], align 8
+// CHECK-NEXT:   %[[TMP5:[0-9]+]] = load %"main.Tuple[error]", ptr %[[TMP1]], align 8
+// CHECK-NEXT:   %[[TMP6:[0-9]+]] = extractvalue { ptr, ptr } %[[TMP0]], 1
+// CHECK-NEXT:   %[[TMP7:[0-9]+]] = extractvalue { ptr, ptr } %[[TMP0]], 0
+// CHECK-NEXT:   %__llgo_funcval_code = call ptr asm "", "=r,0"(ptr %[[TMP7]])
+// DARWIN-ARM64-NEXT:   call void %__llgo_funcval_code(ptr swiftself %[[TMP6]], %"main.Tuple[error]" %[[TMP5]])
+// LINUX-AMD64-NEXT:   call void %__llgo_funcval_code(ptr nest %[[TMP6]], %"main.Tuple[error]" %[[TMP5]])
 // CHECK-NEXT:   ret void
 // CHECK-NEXT: }
 
 // CHECK-LABEL: define void @main.main(){{.*}} {
 // CHECK-NEXT: _llgo_[[BB0:[0-9]+]]:
-// CHECK-NEXT:   %[[TMP0:[0-9]+]] = call %"{{.*}}/runtime/internal/runtime.iface" @main.ReadFile(%"{{.*}}/runtime/internal/runtime.String" { ptr @[[GLOB0]], i64 7 })
-// CHECK-NEXT:   %[[TMP1:[0-9]+]] = call ptr @"{{.*}}/runtime/internal/runtime.IfacePtrData"(%"{{.*}}/runtime/internal/runtime.iface" %[[TMP0]])
-// CHECK-NEXT:   %[[TMP2:[0-9]+]] = extractvalue %"{{.*}}/runtime/internal/runtime.iface" %[[TMP0]], 0
-// CHECK-NEXT:   %[[TMP3:[0-9]+]] = getelementptr ptr, ptr %[[TMP2]], i64 3
-// CHECK-NEXT:   %[[TMP4:[0-9]+]] = load ptr, ptr %[[TMP3]], align 8
-// CHECK-NEXT:   %[[TMP5:[0-9]+]] = insertvalue { ptr, ptr } undef, ptr %[[TMP4]], 0
-// CHECK-NEXT:   %[[TMP6:[0-9]+]] = insertvalue { ptr, ptr } %[[TMP5]], ptr %[[TMP1]], 1
-// CHECK-NEXT:   %[[TMP7:[0-9]+]] = extractvalue { ptr, ptr } %[[TMP6]], 1
-// CHECK-NEXT:   %[[TMP8:[0-9]+]] = extractvalue { ptr, ptr } %[[TMP6]], 0
-// CHECK-NEXT:   call void %[[TMP8]](ptr %[[TMP7]], { ptr, ptr } { ptr @"main.main$1", ptr null })
+// CHECK-NEXT:   %[[TMP0:[0-9]+]] = load atomic i32, ptr @"{{.*}}/runtime/internal/runtime.PreemptRequested" monotonic, align 4
+// CHECK-NEXT:   %[[TMP1:[0-9]+]] = icmp ne i32 %[[TMP0]], 0
+// CHECK-NEXT:   br i1 %[[TMP1]], label %_llgo_[[BB1:[0-9]+]], label %_llgo_[[BB2:[0-9]+]]
+// CHECK-EMPTY:
+// CHECK-NEXT: _llgo_[[BB1]]:
+// CHECK-NEXT:   call void @"{{.*}}/runtime/internal/runtime.CooperativeSafepoint"()
+// CHECK-NEXT:   br label %_llgo_[[BB2]]
+// CHECK-EMPTY:
+// CHECK-NEXT: _llgo_[[BB2]]:
+// CHECK-NEXT:   %[[TMP2:[0-9]+]] = call %"{{.*}}/runtime/internal/runtime.iface" @main.ReadFile(%"{{.*}}/runtime/internal/runtime.String" { ptr @[[GLOB0]], i64 7 })
+// CHECK-NEXT:   %[[TMP3:[0-9]+]] = call ptr @"{{.*}}/runtime/internal/runtime.IfacePtrData"(%"{{.*}}/runtime/internal/runtime.iface" %[[TMP2]])
+// CHECK-NEXT:   %[[TMP4:[0-9]+]] = extractvalue %"{{.*}}/runtime/internal/runtime.iface" %[[TMP2]], 0
+// CHECK-NEXT:   %[[TMP5:[0-9]+]] = getelementptr ptr, ptr %[[TMP4]], i64 3
+// CHECK-NEXT:   %[[TMP6:[0-9]+]] = load ptr, ptr %[[TMP5]], align 8
+// CHECK-NEXT:   %[[TMP7:[0-9]+]] = insertvalue { ptr, ptr } undef, ptr %[[TMP6]], 0
+// CHECK-NEXT:   %[[TMP8:[0-9]+]] = insertvalue { ptr, ptr } %[[TMP7]], ptr %[[TMP3]], 1
+// CHECK-NEXT:   %[[TMP9:[0-9]+]] = extractvalue { ptr, ptr } %[[TMP8]], 1
+// CHECK-NEXT:   %[[TMP10:[0-9]+]] = extractvalue { ptr, ptr } %[[TMP8]], 0
+// CHECK-NEXT:   call void %[[TMP10]](ptr %[[TMP9]], { ptr, ptr } { ptr @"main.main$1", ptr null })
 // CHECK-NEXT:   ret void
 // CHECK-NEXT: }
 
@@ -117,13 +135,22 @@ func main() {
 // CHECK-LABEL: define linkonce void @"main.(*future[main.Tuple[error]]).Then"(
 // CHECK-SAME: ptr %[[TMP0:[0-9]+]], { ptr, ptr } %[[TMP1:[0-9]+]]){{.*}} {
 // CHECK-NEXT: _llgo_[[BB0:[0-9]+]]:
-// CHECK-NEXT:   %[[TMP2:[0-9]+]] = getelementptr inbounds nuw %"main.future[main.Tuple[error]]", ptr %[[TMP0]], i32 0, i32 0
-// CHECK-NEXT:   %[[TMP3:[0-9]+]] = load { ptr, ptr }, ptr %[[TMP2]], align 8
-// CHECK-NEXT:   %[[TMP4:[0-9]+]] = extractvalue { ptr, ptr } %[[TMP3]], 1
-// CHECK-NEXT:   %[[TMP5:[0-9]+]] = extractvalue { ptr, ptr } %[[TMP3]], 0
-// CHECK-NEXT:   %__llgo_funcval_code = call ptr asm "", "=r,0"(ptr %[[TMP5]])
-// ARM64-NEXT:   call void %__llgo_funcval_code(ptr swiftself %[[TMP4]], { ptr, ptr } %[[TMP1]])
-// AMD64-NEXT:   call void %__llgo_funcval_code(ptr nest %[[TMP4]], { ptr, ptr } %[[TMP1]])
+// CHECK-NEXT:   %[[TMP2:[0-9]+]] = load atomic i32, ptr @"{{.*}}/runtime/internal/runtime.PreemptRequested" monotonic, align 4
+// CHECK-NEXT:   %[[TMP3:[0-9]+]] = icmp ne i32 %[[TMP2]], 0
+// CHECK-NEXT:   br i1 %[[TMP3]], label %_llgo_[[BB1:[0-9]+]], label %_llgo_[[BB2:[0-9]+]]
+// CHECK-EMPTY:
+// CHECK-NEXT: _llgo_[[BB1]]:
+// CHECK-NEXT:   call void @"{{.*}}/runtime/internal/runtime.CooperativeSafepoint"()
+// CHECK-NEXT:   br label %_llgo_[[BB2]]
+// CHECK-EMPTY:
+// CHECK-NEXT: _llgo_[[BB2]]:
+// CHECK-NEXT:   %[[TMP4:[0-9]+]] = getelementptr inbounds nuw %"main.future[main.Tuple[error]]", ptr %[[TMP0]], i32 0, i32 0
+// CHECK-NEXT:   %[[TMP5:[0-9]+]] = load { ptr, ptr }, ptr %[[TMP4]], align 8
+// CHECK-NEXT:   %[[TMP6:[0-9]+]] = extractvalue { ptr, ptr } %[[TMP5]], 1
+// CHECK-NEXT:   %[[TMP7:[0-9]+]] = extractvalue { ptr, ptr } %[[TMP5]], 0
+// CHECK-NEXT:   %__llgo_funcval_code = call ptr asm "", "=r,0"(ptr %[[TMP7]])
+// DARWIN-ARM64-NEXT:   call void %__llgo_funcval_code(ptr swiftself %[[TMP6]], { ptr, ptr } %[[TMP1]])
+// LINUX-AMD64-NEXT:   call void %__llgo_funcval_code(ptr nest %[[TMP6]], { ptr, ptr } %[[TMP1]])
 // CHECK-NEXT:   ret void
 // CHECK-NEXT: }
 
