@@ -57,7 +57,7 @@ func compileBlockingCallMarkers(t *testing.T, enable bool) llvm.Module {
 	return pkg.Module()
 }
 
-// Під owngomn виклик функції C, що може блокуватися, і виклик cgo стоять між
+// Під gopacabramn виклик функції C, що може блокуватися, і виклик cgo стоять між
 // EnterSyscall і ExitSyscall, а memcpy і malloc — ні; вхід //export
 // обгорнуто в CallbackEnter/CallbackExit.
 func TestBlockingCallMarkers(t *testing.T) {
@@ -86,13 +86,13 @@ func TestBlockingCallMarkers(t *testing.T) {
 	}
 }
 
-// Без owngomn маркерів немає ніде.
+// Без gopacabramn маркерів немає ніде.
 func TestBlockingCallMarkersDisabled(t *testing.T) {
 	m := compileBlockingCallMarkers(t, false)
 	for _, fn := range []string{"foo.blocking", "foo._Cfunc_usleep", "foo.nonBlocking", "goCallback"} {
 		ir := mustNamedFunction(t, m, fn).String()
 		if strings.Contains(ir, "Syscall") || strings.Contains(ir, "runtime.Callback") {
-			t.Errorf("%s: markers without owngomn:\n%s", fn, ir)
+			t.Errorf("%s: markers without gopacabramn:\n%s", fn, ir)
 		}
 	}
 }

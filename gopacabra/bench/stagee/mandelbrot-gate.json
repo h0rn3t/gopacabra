@@ -1,0 +1,540 @@
+{
+  "program": "mandelbrot",
+  "n": 16000,
+  "runs": 10,
+  "profiles": false,
+  "variants": [
+    "thin"
+  ],
+  "env": {
+    "sha": "4abd1ef64505566a9fbb6a4e9fd435ac81bc4cd2",
+    "dirty": false,
+    "go": "go version go1.27.1 linux/amd64",
+    "llvm": "23.1.5",
+    "clang": "Debian clang version 23.1.5 (++20261028083851+a738f2737189-1~exp1~20261028203959.90)",
+    "rustc": "rustc 1.85.1 (4eb161250 2025-03-15) (built from a source tarball)",
+    "cpu": "Intel(R) Xeon(R) Gold 6240R CPU @ 2.40GHz",
+    "isa": [
+      "sse4_2",
+      "popcnt",
+      "avx",
+      "avx2",
+      "fma",
+      "bmi2",
+      "avx512f"
+    ],
+    "cores": 8,
+    "ulimit": "time(seconds)        unlimited\nfile(blocks)         unlimited\ndata(kbytes)         unlimited\nstack(kbytes)        8192\ncoredump(blocks)     unlimited\nmemory(kbytes)       unlimited\nlocked memory(kbytes) 8192\nprocess              unlimited\nnofiles              524288\nvmemory(kbytes)      unlimited\nlocks                unlimited\nrtprio               0",
+    "go_env": {
+      "GOAMD64": "v3"
+    },
+    "rust_env": {
+      "RUSTFLAGS": "-C target-cpu=x86-64-v3"
+    },
+    "c_flags": [
+      "-O3",
+      "-fomit-frame-pointer",
+      "-march=x86-64-v3"
+    ],
+    "libomp_root": "/home/coder/.cache/gopacabra-libomp/root/usr/lib/llvm-23",
+    "pcre2_root": "/home/coder/.cache/gopacabra-pcre2/root/usr"
+  },
+  "tables": [
+    {
+      "name": "main",
+      "pkg": "mandelbrot",
+      "variants": [
+        {
+          "key": "go",
+          "label": "mandelbrot, go, GOAMD64=v3",
+          "exe": "mandelbrot-go",
+          "flags": null,
+          "env": {
+            "GOAMD64": "v3"
+          },
+          "build_s": 4.7,
+          "size_kb": 2322,
+          "runs": [
+            {
+              "wall": 1.478,
+              "user": 11.436,
+              "sys": 0.058,
+              "rss_mb": 33.0,
+              "exit": 0,
+              "minflt": 8620,
+              "majflt": 0,
+              "output": "matches"
+            },
+            {
+              "wall": 1.478,
+              "user": 11.412,
+              "sys": 0.054,
+              "rss_mb": 32.8,
+              "exit": 0,
+              "minflt": 8582,
+              "majflt": 0,
+              "output": "matches"
+            },
+            {
+              "wall": 1.539,
+              "user": 11.525,
+              "sys": 0.058,
+              "rss_mb": 33.0,
+              "exit": 0,
+              "minflt": 8630,
+              "majflt": 0,
+              "output": "matches"
+            },
+            {
+              "wall": 1.494,
+              "user": 11.519,
+              "sys": 0.06,
+              "rss_mb": 32.8,
+              "exit": 0,
+              "minflt": 8597,
+              "majflt": 0,
+              "output": "matches"
+            },
+            {
+              "wall": 1.487,
+              "user": 11.47,
+              "sys": 0.054,
+              "rss_mb": 33.0,
+              "exit": 0,
+              "minflt": 8640,
+              "majflt": 0,
+              "output": "matches"
+            },
+            {
+              "wall": 1.494,
+              "user": 11.463,
+              "sys": 0.07,
+              "rss_mb": 32.8,
+              "exit": 0,
+              "minflt": 8639,
+              "majflt": 0,
+              "output": "matches"
+            },
+            {
+              "wall": 1.478,
+              "user": 11.527,
+              "sys": 0.054,
+              "rss_mb": 32.9,
+              "exit": 0,
+              "minflt": 8610,
+              "majflt": 0,
+              "output": "matches"
+            },
+            {
+              "wall": 1.471,
+              "user": 11.404,
+              "sys": 0.069,
+              "rss_mb": 32.8,
+              "exit": 0,
+              "minflt": 8592,
+              "majflt": 0,
+              "output": "matches"
+            },
+            {
+              "wall": 1.485,
+              "user": 11.443,
+              "sys": 0.063,
+              "rss_mb": 32.9,
+              "exit": 0,
+              "minflt": 8636,
+              "majflt": 0,
+              "output": "matches"
+            },
+            {
+              "wall": 1.502,
+              "user": 11.537,
+              "sys": 0.061,
+              "rss_mb": 32.8,
+              "exit": 0,
+              "minflt": 8598,
+              "majflt": 0,
+              "output": "matches"
+            }
+          ],
+          "output": "matches",
+          "median": 1.486,
+          "min": 1.471,
+          "max": 1.539,
+          "user_median": 11.466,
+          "sys_median": 0.059,
+          "peak_rss_mb": 33.0,
+          "minflt_median": 8615
+        },
+        {
+          "key": "thin",
+          "label": "mandelbrot, llgo -tags gopacabra -O2 -lto thin",
+          "exe": "mandelbrot-thin",
+          "flags": [
+            "-tags",
+            "gopacabra",
+            "-O2",
+            "-lto",
+            "thin"
+          ],
+          "env": {},
+          "build_s": 25.2,
+          "size_kb": 2323,
+          "runs": [
+            {
+              "wall": 0.552,
+              "user": 3.892,
+              "sys": 0.044,
+              "rss_mb": 36.0,
+              "exit": 0,
+              "minflt": 8286,
+              "majflt": 0,
+              "output": "matches"
+            },
+            {
+              "wall": 0.554,
+              "user": 3.912,
+              "sys": 0.053,
+              "rss_mb": 36.0,
+              "exit": 0,
+              "minflt": 8285,
+              "majflt": 0,
+              "output": "matches"
+            },
+            {
+              "wall": 0.531,
+              "user": 3.852,
+              "sys": 0.051,
+              "rss_mb": 36.0,
+              "exit": 0,
+              "minflt": 8287,
+              "majflt": 0,
+              "output": "matches"
+            },
+            {
+              "wall": 0.534,
+              "user": 3.87,
+              "sys": 0.045,
+              "rss_mb": 36.0,
+              "exit": 0,
+              "minflt": 8286,
+              "majflt": 0,
+              "output": "matches"
+            },
+            {
+              "wall": 0.542,
+              "user": 3.888,
+              "sys": 0.046,
+              "rss_mb": 36.0,
+              "exit": 0,
+              "minflt": 8286,
+              "majflt": 0,
+              "output": "matches"
+            },
+            {
+              "wall": 0.538,
+              "user": 3.879,
+              "sys": 0.057,
+              "rss_mb": 36.0,
+              "exit": 0,
+              "minflt": 8283,
+              "majflt": 0,
+              "output": "matches"
+            },
+            {
+              "wall": 0.552,
+              "user": 3.88,
+              "sys": 0.048,
+              "rss_mb": 36.0,
+              "exit": 0,
+              "minflt": 8285,
+              "majflt": 0,
+              "output": "matches"
+            },
+            {
+              "wall": 0.548,
+              "user": 3.871,
+              "sys": 0.047,
+              "rss_mb": 36.0,
+              "exit": 0,
+              "minflt": 8285,
+              "majflt": 0,
+              "output": "matches"
+            },
+            {
+              "wall": 0.539,
+              "user": 3.889,
+              "sys": 0.044,
+              "rss_mb": 36.0,
+              "exit": 0,
+              "minflt": 8286,
+              "majflt": 0,
+              "output": "matches"
+            },
+            {
+              "wall": 0.538,
+              "user": 3.884,
+              "sys": 0.045,
+              "rss_mb": 36.0,
+              "exit": 0,
+              "minflt": 8287,
+              "majflt": 0,
+              "output": "matches"
+            }
+          ],
+          "output": "matches",
+          "median": 0.54,
+          "min": 0.531,
+          "max": 0.554,
+          "user_median": 3.882,
+          "sys_median": 0.046,
+          "peak_rss_mb": 36.0,
+          "minflt_median": 8286
+        },
+        {
+          "key": "rust",
+          "label": "Rust #4, rayon",
+          "exe": "mandelbrotrust",
+          "runs": [
+            {
+              "wall": 0.526,
+              "user": 3.94,
+              "sys": 0.048,
+              "rss_mb": 32.5,
+              "exit": 0,
+              "minflt": 8015,
+              "majflt": 0,
+              "output": "matches"
+            },
+            {
+              "wall": 0.533,
+              "user": 3.984,
+              "sys": 0.037,
+              "rss_mb": 32.2,
+              "exit": 0,
+              "minflt": 8017,
+              "majflt": 0,
+              "output": "matches"
+            },
+            {
+              "wall": 0.543,
+              "user": 3.967,
+              "sys": 0.036,
+              "rss_mb": 32.5,
+              "exit": 0,
+              "minflt": 8019,
+              "majflt": 0,
+              "output": "matches"
+            },
+            {
+              "wall": 0.593,
+              "user": 3.985,
+              "sys": 0.051,
+              "rss_mb": 32.4,
+              "exit": 0,
+              "minflt": 8021,
+              "majflt": 0,
+              "output": "matches"
+            },
+            {
+              "wall": 0.54,
+              "user": 3.987,
+              "sys": 0.04,
+              "rss_mb": 32.2,
+              "exit": 0,
+              "minflt": 8036,
+              "majflt": 0,
+              "output": "matches"
+            },
+            {
+              "wall": 0.53,
+              "user": 3.948,
+              "sys": 0.045,
+              "rss_mb": 32.4,
+              "exit": 0,
+              "minflt": 8007,
+              "majflt": 0,
+              "output": "matches"
+            },
+            {
+              "wall": 0.557,
+              "user": 3.988,
+              "sys": 0.041,
+              "rss_mb": 32.4,
+              "exit": 0,
+              "minflt": 8016,
+              "majflt": 0,
+              "output": "matches"
+            },
+            {
+              "wall": 0.524,
+              "user": 3.923,
+              "sys": 0.04,
+              "rss_mb": 32.4,
+              "exit": 0,
+              "minflt": 8017,
+              "majflt": 0,
+              "output": "matches"
+            },
+            {
+              "wall": 0.548,
+              "user": 3.992,
+              "sys": 0.04,
+              "rss_mb": 32.4,
+              "exit": 0,
+              "minflt": 8020,
+              "majflt": 0,
+              "output": "matches"
+            },
+            {
+              "wall": 0.528,
+              "user": 3.944,
+              "sys": 0.044,
+              "rss_mb": 32.6,
+              "exit": 0,
+              "minflt": 8019,
+              "majflt": 0,
+              "output": "matches"
+            }
+          ],
+          "output": "matches",
+          "median": 0.536,
+          "min": 0.524,
+          "max": 0.593,
+          "user_median": 3.976,
+          "sys_median": 0.041,
+          "peak_rss_mb": 32.6,
+          "minflt_median": 8018
+        },
+        {
+          "key": "c",
+          "label": "C #6, OpenMP",
+          "exe": "mandelbrotc",
+          "args": [],
+          "cflags": [
+            "-O3",
+            "-fomit-frame-pointer",
+            "-march=x86-64-v3",
+            "-fopenmp",
+            "-idirafter",
+            "/home/coder/.cache/gopacabra-libomp/root/usr/lib/llvm-23/lib/clang/23/include",
+            "-L/home/coder/.cache/gopacabra-libomp/root/usr/lib/llvm-23/lib",
+            "-Wl,-rpath,/home/coder/.cache/gopacabra-libomp/root/usr/lib/llvm-23/lib",
+            "-mno-fma",
+            "-fno-finite-math-only",
+            "-fgnu89-inline"
+          ],
+          "runs": [
+            {
+              "wall": 0.657,
+              "user": 4.663,
+              "sys": 0.052,
+              "rss_mb": 33.1,
+              "exit": 0,
+              "minflt": 8078,
+              "majflt": 9,
+              "output": "matches"
+            },
+            {
+              "wall": 0.608,
+              "user": 4.677,
+              "sys": 0.05,
+              "rss_mb": 33.2,
+              "exit": 0,
+              "minflt": 8083,
+              "majflt": 0,
+              "output": "matches"
+            },
+            {
+              "wall": 0.611,
+              "user": 4.685,
+              "sys": 0.054,
+              "rss_mb": 33.4,
+              "exit": 0,
+              "minflt": 8081,
+              "majflt": 0,
+              "output": "matches"
+            },
+            {
+              "wall": 0.6,
+              "user": 4.63,
+              "sys": 0.043,
+              "rss_mb": 33.2,
+              "exit": 0,
+              "minflt": 8076,
+              "majflt": 0,
+              "output": "matches"
+            },
+            {
+              "wall": 0.618,
+              "user": 4.679,
+              "sys": 0.055,
+              "rss_mb": 33.1,
+              "exit": 0,
+              "minflt": 8080,
+              "majflt": 0,
+              "output": "matches"
+            },
+            {
+              "wall": 0.646,
+              "user": 4.678,
+              "sys": 0.05,
+              "rss_mb": 33.1,
+              "exit": 0,
+              "minflt": 8079,
+              "majflt": 0,
+              "output": "matches"
+            },
+            {
+              "wall": 0.609,
+              "user": 4.682,
+              "sys": 0.051,
+              "rss_mb": 33.1,
+              "exit": 0,
+              "minflt": 8083,
+              "majflt": 0,
+              "output": "matches"
+            },
+            {
+              "wall": 0.599,
+              "user": 4.624,
+              "sys": 0.053,
+              "rss_mb": 33.4,
+              "exit": 0,
+              "minflt": 8081,
+              "majflt": 0,
+              "output": "matches"
+            },
+            {
+              "wall": 0.607,
+              "user": 4.694,
+              "sys": 0.058,
+              "rss_mb": 33.2,
+              "exit": 0,
+              "minflt": 8080,
+              "majflt": 0,
+              "output": "matches"
+            },
+            {
+              "wall": 0.614,
+              "user": 4.648,
+              "sys": 0.055,
+              "rss_mb": 33.4,
+              "exit": 0,
+              "minflt": 8080,
+              "majflt": 0,
+              "output": "matches"
+            }
+          ],
+          "output": "matches",
+          "median": 0.61,
+          "min": 0.599,
+          "max": 0.657,
+          "user_median": 4.678,
+          "sys_median": 0.052,
+          "peak_rss_mb": 33.4,
+          "minflt_median": 8080
+        }
+      ]
+    }
+  ]
+}

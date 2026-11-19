@@ -58,7 +58,7 @@ const (
 	processEntrySymbol = "main"
 	runtimeMainSymbol  = "runtime.main"
 	runtimeGoexitName  = "runtime.goexit"
-	// mnGoroutineEntrySymbol — вхід кожної горутини M:N (owngomn).
+	// mnGoroutineEntrySymbol — вхід кожної горутини M:N (gopacabramn).
 	mnGoroutineEntrySymbol = "github.com/xgo-dev/llgo/runtime/internal/runtime.mnGEntry"
 )
 
@@ -74,9 +74,9 @@ func needsWasmRuntimeScheduler(ctx *context) bool {
 	if ctx.crossCompile.WasmPostLink.Asyncify {
 		return true
 	}
-	// Планувальник M:N owngo (тег owngomn) теж запускає ініціалізацію і main
+	// Планувальник M:N gopacabra (тег gopacabramn) теж запускає ініціалізацію і main
 	// на стеку горутини: головний потік стає звичайною M.
-	if slices.Contains(splitSourcePatchBuildTags(ctx.buildConf.Tags), "owngomn") {
+	if slices.Contains(splitSourcePatchBuildTags(ctx.buildConf.Tags), "gopacabramn") {
 		return !ctx.mnRuntimeFree
 	}
 	return ctx.crossCompile.WasmProfile == crosscompile.WasmProfileJ32 ||
@@ -107,7 +107,7 @@ func genMainModule(ctx *context, rtPkgPath string, pkg *packages.Package, cfg *g
 			{symbol: processEntrySymbol, name: runtimeGoexitName},
 		}
 		if needsWasmRuntimeScheduler(ctx) {
-			// M:N owngomn: main.main кличе задача __llgo_wasm_main на стеку
+			// M:N gopacabramn: main.main кличе задача __llgo_wasm_main на стеку
 			// горутини, а кожен такий стек починається входом mnGEntry. Для
 			// трасування це runtime.main і runtime.goexit, як у gc.
 			tailRecords = append(tailRecords, funcInfoRecord{symbol: "__llgo_wasm_main", name: runtimeMainSymbol})
@@ -224,26 +224,26 @@ func genMainModule(ctx *context, rtPkgPath string, pkg *packages.Package, cfg *g
 		defineWasmMainTask(mainPkg, packageInits, mainInit, mainMain, coverageExit)
 		wasmRunMain = declareNoArgFunc(mainPkg, rtPkgPath+".RunWasmMain")
 	}
-	var owngoExit llssa.Function
-	if slices.Contains(splitSourcePatchBuildTags(ctx.buildConf.Tags), "owngo") && !ctx.mnRuntimeFree {
-		// Як і hook покриття: os.Exit друкує звіт owngo через
+	var gopacabraExit llssa.Function
+	if slices.Contains(splitSourcePatchBuildTags(ctx.buildConf.Tags), "gopacabra") && !ctx.mnRuntimeFree {
+		// Як і hook покриття: os.Exit друкує звіт gopacabra через
 		// os.runtime_beforeExit, а звичайне повернення з main його оминає.
 		// Пакет runtime бібліотеки є не в кожній програмі, тож виклик іде
 		// прямо в ReportExit рантайму, який лінкується завжди.
-		owngoExit = declareNoArgFunc(mainPkg, rtPkgPath+".ReportExit")
+		gopacabraExit = declareNoArgFunc(mainPkg, rtPkgPath+".ReportExit")
 	}
 	entryFn := defineEntryFunction(ctx, mainPkg, argcVar, argvVar, argvValueType, entryFunctions{
-		godebugInit:  godebugInit,
-		runtimeStub:  runtimeStub,
-		mainInit:     mainInit,
-		mainMain:     mainMain,
-		wasmRunMain:  wasmRunMain,
-		rtInit:       rtInit,
-		callbackInit: callbackInit,
-		coverageExit: coverageExit,
-		owngoExit:    owngoExit,
-		abiInit:      abiInit,
-		packageInits: packageInits,
+		godebugInit:   godebugInit,
+		runtimeStub:   runtimeStub,
+		mainInit:      mainInit,
+		mainMain:      mainMain,
+		wasmRunMain:   wasmRunMain,
+		rtInit:        rtInit,
+		callbackInit:  callbackInit,
+		coverageExit:  coverageExit,
+		gopacabraExit: gopacabraExit,
+		abiInit:       abiInit,
+		packageInits:  packageInits,
 	})
 
 	if needStart(ctx) && !ctx.crossCompile.WasmRuntime.RunMainTask {
@@ -394,17 +394,17 @@ func filterAbiSymbol(abiInit int, sym *llssa.AbiSymbol) bool {
 }
 
 type entryFunctions struct {
-	godebugInit  llssa.Function
-	runtimeStub  llssa.Function
-	mainInit     llssa.Function
-	mainMain     llssa.Function
-	wasmRunMain  llssa.Function
-	rtInit       llssa.Function
-	callbackInit llssa.Function
-	coverageExit llssa.Function
-	owngoExit    llssa.Function
-	abiInit      llssa.Function
-	packageInits []llssa.Function
+	godebugInit   llssa.Function
+	runtimeStub   llssa.Function
+	mainInit      llssa.Function
+	mainMain      llssa.Function
+	wasmRunMain   llssa.Function
+	rtInit        llssa.Function
+	callbackInit  llssa.Function
+	coverageExit  llssa.Function
+	gopacabraExit llssa.Function
+	abiInit       llssa.Function
+	packageInits  []llssa.Function
 }
 
 // defineEntryFunction creates the program's entry function. The name is
@@ -497,8 +497,8 @@ func emitRuntimeMainBody(b llssa.Builder, fns entryFunctions) {
 			b.Call(fns.coverageExit.Expr, b.Prog.IntVal(0, b.Prog.Int()))
 		}
 	}
-	if fns.owngoExit != nil {
-		b.Call(fns.owngoExit.Expr)
+	if fns.gopacabraExit != nil {
+		b.Call(fns.gopacabraExit.Expr)
 	}
 }
 
@@ -529,7 +529,7 @@ func defineDefaultGODEBUGInit(pkg llssa.Package, defaults string) llssa.Function
 
 // defineWasmMainTask визначає __llgo_wasm_main: ініціалізація пакетів,
 // main.main і hook покриття на стеку горутини, як runtime.main у Go. Під
-// owngomn повернення з задачі завершує процес у рантаймі (mnGEntry), тож
+// gopacabramn повернення з задачі завершує процес у рантаймі (mnGEntry), тож
 // hook не може чекати хвоста точки входу.
 func defineWasmMainTask(pkg llssa.Package, packageInits []llssa.Function, mainInit, mainMain, coverageExit llssa.Function) {
 	prog := pkg.Prog
@@ -541,7 +541,7 @@ func defineWasmMainTask(pkg llssa.Package, packageInits []llssa.Function, mainIn
 	fnVal := pkg.Module().NamedFunction("__llgo_wasm_main")
 	fnVal.SetVisibility(llvm.HiddenVisibility)
 	if prog.NeedsFramePointer() {
-		// Під owngomn задача — кадр runtime.main: без запису кадру обхід
+		// Під gopacabramn задача — кадр runtime.main: без запису кадру обхід
 		// пропустив би її викликача runtime.goexit (mnGEntry).
 		fnVal.AddFunctionAttr(fnVal.GlobalParent().Context().CreateStringAttribute("frame-pointer", "non-leaf"))
 	}

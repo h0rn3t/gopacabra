@@ -1,0 +1,17 @@
+# Випадки GOROOT/test, які під тегом gopacabra не можуть пройти за задумом: gopacabra
+# не має трасувального збирача (INTENT.md). Workflow gopacabra.yml додає ці записи
+# до test/goroot/xfail.yaml; підстави — gopacabra/REPORT-PHASE11.md.
+xfails:
+  - directive: run
+    case: init1.go
+    reason: "gopacabra: no tracing collector, so runtime.NumGC never grows"
+  - directive: run
+    case: mallocfin.go
+    reason: "gopacabra: no tracing collector, so runtime.SetFinalizer finalizers never run"
+  - directive: run
+    case: tinyfin.go
+    reason: "gopacabra: no tracing collector, so runtime.SetFinalizer finalizers never run"
+host_skips:
+  - directive: run
+    case: heapsampling.go
+    reason: "gopacabra: storing a new object into a global does not free the old one (phase 5 rule), so the allocation loop exceeds the runner RSS limit before the heap-profile check, which base xfail already expects to fail"

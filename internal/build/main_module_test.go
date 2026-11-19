@@ -147,7 +147,7 @@ func TestGenMainModuleCoverageExit(t *testing.T) {
 	}
 }
 
-// Під owngomn main.main іде в задачі __llgo_wasm_main, а повернення з неї
+// Під gopacabramn main.main іде в задачі __llgo_wasm_main, а повернення з неї
 // завершує процес у рантаймі (mnGEntry): хвіст точки входу не виконується,
 // тож хук покриття має бути в задачі, як у runtime.main Go, і лише раз.
 func TestGenMainModuleCoverageExitMN(t *testing.T) {
@@ -157,7 +157,7 @@ func TestGenMainModuleCoverageExitMN(t *testing.T) {
 			BuildMode: BuildModeExe,
 			Goos:      "linux",
 			Goarch:    "amd64",
-			Tags:      "owngo,nogc,owngomn",
+			Tags:      "gopacabra,nogc,gopacabramn",
 			Coverage:  &CoverageConfig{},
 		},
 	}
@@ -167,22 +167,22 @@ func TestGenMainModuleCoverageExitMN(t *testing.T) {
 	ir := genMainModule(ctx, llssa.PkgRuntime, pkg, &genConfig{rtInit: true}).LPkg.String()
 	const hook = `call void @runtime.runCoverageExitHook(i64 0)`
 	if n := strings.Count(ir, hook); n != 1 {
-		t.Errorf("genMainModule(owngomn) has %d coverage hook calls, want 1:\n%s", n, ir)
+		t.Errorf("genMainModule(gopacabramn) has %d coverage hook calls, want 1:\n%s", n, ir)
 	}
 	taskStart := strings.Index(ir, "define hidden ptr @__llgo_wasm_main(")
 	if taskStart < 0 {
-		t.Fatalf("genMainModule(owngomn) has no __llgo_wasm_main:\n%s", ir)
+		t.Fatalf("genMainModule(gopacabramn) has no __llgo_wasm_main:\n%s", ir)
 	}
 	task := ir[taskStart:]
 	task = task[:strings.Index(task, "}\n")+2]
 	assertInOrder(t, task, `call void @"example.com/app.main"()`, hook)
 }
 
-// Звіт owngo друкується і тоді, коли main повертається без os.Exit.
+// Звіт gopacabra друкується і тоді, коли main повертається без os.Exit.
 // Виклик іде в runtime/internal/runtime: пакет runtime бібліотеки
 // лінкується лише тоді, коли програма його імпортує.
-func TestGenMainModuleOwnGoExit(t *testing.T) {
-	for _, tags := range []string{"", "owngo,nogc"} {
+func TestGenMainModuleGopacabraExit(t *testing.T) {
+	for _, tags := range []string{"", "gopacabra,nogc"} {
 		t.Run("tags="+tags, func(t *testing.T) {
 			ctx := &context{
 				prog: llssa.NewProgram(nil),

@@ -99,11 +99,11 @@ func TestGOROOTBuildArgsLLGOFlags(t *testing.T) {
 		want      []string
 	}{
 		{"none", "", true, []string{"-tags", "foo"}, []string{"build", "-tags", "foo", "-o", "out", "a.go"}},
-		{"tag", "-tags owngo", true, nil, []string{"build", "-tags", "owngo", "-o", "out", "a.go"}},
-		{"merge", "-tags owngo", true, []string{"-tags", "foo"}, []string{"build", "-tags", "owngo,foo", "-o", "out", "a.go"}},
-		{"mergeEq", "-tags=owngo", true, []string{"-tags=foo"}, []string{"build", "-tags", "owngo,foo", "-o", "out", "a.go"}},
-		{"asan", "-tags owngo -O0 -asan", true, nil, []string{"build", "-O0", "-asan", "-tags", "owngo", "-o", "out", "a.go"}},
-		{"gc", "-tags owngo -O0", false, []string{"-tags", "foo"}, []string{"build", "-tags", "foo", "-o", "out", "a.go"}},
+		{"tag", "-tags gopacabra", true, nil, []string{"build", "-tags", "gopacabra", "-o", "out", "a.go"}},
+		{"merge", "-tags gopacabra", true, []string{"-tags", "foo"}, []string{"build", "-tags", "gopacabra,foo", "-o", "out", "a.go"}},
+		{"mergeEq", "-tags=gopacabra", true, []string{"-tags=foo"}, []string{"build", "-tags", "gopacabra,foo", "-o", "out", "a.go"}},
+		{"asan", "-tags gopacabra -O0 -asan", true, nil, []string{"build", "-O0", "-asan", "-tags", "gopacabra", "-o", "out", "a.go"}},
+		{"gc", "-tags gopacabra -O0", false, []string{"-tags", "foo"}, []string{"build", "-tags", "foo", "-o", "out", "a.go"}},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {

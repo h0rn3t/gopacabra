@@ -33,12 +33,12 @@ import (
 
 	"github.com/xgo-dev/llgo/cl/blocks"
 	"github.com/xgo-dev/llgo/cl/ssawrap"
+	"github.com/xgo-dev/llgo/gopacabra/census"
 	"github.com/xgo-dev/llgo/internal/directive"
 	"github.com/xgo-dev/llgo/internal/genmethod"
 	"github.com/xgo-dev/llgo/internal/goembed"
 	"github.com/xgo-dev/llgo/internal/safepointplan"
 	"github.com/xgo-dev/llgo/internal/typepatch"
-	"github.com/xgo-dev/llgo/owngo/census"
 	"golang.org/x/tools/go/ssa"
 
 	llssa "github.com/xgo-dev/llgo/ssa"
@@ -89,21 +89,21 @@ type Options struct {
 	// type checking and before ssa.Package.Build so go/ssa does not emit
 	// one store per element. Keys use StaticByteArrayKey(pkg.Path(), name).
 	StaticByteArrays map[string][]byte
-	// OwnGoFree вставляє runtime.FreeAccounted після останнього використання
+	// GopacabraFree вставляє runtime.FreeAccounted після останнього використання
 	// місця, яке census v1 позначає static, і runtime.NoteAlloc для купового
 	// місця з відомим розміром. Без прапорця прохід не працює.
-	OwnGoFree bool
-	// OwnGoStat (тег owngostat) з OwnGoFree дає кожній операції рантайму
-	// місця свій лічильник і таблицю пакета для рядків owngo site.
-	OwnGoStat bool
-	// OwnGoStack з OwnGoFree кладе місце static сталого розміру до 64 КиБ,
+	GopacabraFree bool
+	// GopacabraStat (тег gopacabrastat) з GopacabraFree дає кожній операції рантайму
+	// місця свій лічильник і таблицю пакета для рядків gopacabra site.
+	GopacabraStat bool
+	// GopacabraStack з GopacabraFree кладе місце static сталого розміру до 64 КиБ,
 	// чий об'єкт не переживає ітерацію, на стек замість AllocZ і
 	// FreeAccounted (census.Placement.Stack), а сталу невказівникового типу
 	// в інтерфейсі місця static — у незмінну глобальну змінну (P-NEW-04.4).
-	OwnGoStack bool
-	// OwnGoWarn отримує рядок попередження на кожне місце pinned пакета.
+	GopacabraStack bool
+	// GopacabraWarn отримує рядок попередження на кожне місце pinned пакета.
 	// Збірка дає його лише пакетам головного модуля; nil — без попереджень.
-	OwnGoWarn io.Writer
+	GopacabraWarn io.Writer
 }
 
 // SetDebug sets debug flags.
@@ -190,7 +190,7 @@ type context struct {
 	pkg                  llssa.Package
 	fn                   llssa.Function
 	goFn                 *ssa.Function
-	callbackEntry        bool       // вхід //export під маркерами owngomn
+	callbackEntry        bool       // вхід //export під маркерами gopacabramn
 	callbackToken        llssa.Expr // результат CallbackEnter для CallbackExit
 	fset                 *token.FileSet
 	goProg               *ssa.Program
@@ -262,40 +262,40 @@ type context struct {
 	staticMapSliceValues map[*ssa.MapUpdate]llssa.Expr
 	staticByteArrays     map[string][]byte
 	locality             localityLowering
-	ownGoUses            map[ssa.Instruction][]ssa.Instruction
-	ownGoDecUses         map[ssa.Instruction][]ssa.Instruction
-	ownGoCat             map[ssa.Instruction]uint64
-	ownGoCounted         map[ssa.Instruction]struct{}
-	ownGoInc             map[ssa.Instruction][]ssa.Value
-	ownGoFreeAfter       map[ssa.Instruction][]ssa.Value
-	ownGoDecAfter        map[ssa.Instruction][]ssa.Value
-	ownGoFreeEntry       map[*ssa.BasicBlock][]ssa.Value
-	ownGoDecEntry        map[*ssa.BasicBlock][]ssa.Value
-	ownGoFreeEdge        map[census.BlockEdge][]ssa.Value
-	ownGoDecEdge         map[census.BlockEdge][]ssa.Value
-	ownGoEdgeBlocks      map[census.BlockEdge]llssa.BasicBlock
-	ownGoDescs           map[types.Type]llssa.Expr
-	ownGoShared          map[ssa.Instruction]census.Shared
-	ownGoGoShared        map[*ssa.Go][]ssa.Value
-	ownGoSharedDescs     map[ssa.Instruction]llssa.Expr
+	gopacabraUses        map[ssa.Instruction][]ssa.Instruction
+	gopacabraDecUses     map[ssa.Instruction][]ssa.Instruction
+	gopacabraCat         map[ssa.Instruction]uint64
+	gopacabraCounted     map[ssa.Instruction]struct{}
+	gopacabraInc         map[ssa.Instruction][]ssa.Value
+	gopacabraFreeAfter   map[ssa.Instruction][]ssa.Value
+	gopacabraDecAfter    map[ssa.Instruction][]ssa.Value
+	gopacabraFreeEntry   map[*ssa.BasicBlock][]ssa.Value
+	gopacabraDecEntry    map[*ssa.BasicBlock][]ssa.Value
+	gopacabraFreeEdge    map[census.BlockEdge][]ssa.Value
+	gopacabraDecEdge     map[census.BlockEdge][]ssa.Value
+	gopacabraEdgeBlocks  map[census.BlockEdge]llssa.BasicBlock
+	gopacabraDescs       map[types.Type]llssa.Expr
+	gopacabraShared      map[ssa.Instruction]census.Shared
+	gopacabraGoShared    map[*ssa.Go][]ssa.Value
+	gopacabraSharedDescs map[ssa.Instruction]llssa.Expr
 	// Регіони P-NEW-05.4: корені пакета, будівники з клонами, регіон
 	// кожного кореня поточної функції і параметр регіону тіла клону.
-	ownGoRegions     map[ssa.Instruction]struct{}
-	ownGoBuilders    map[*ssa.Function]bool
-	ownGoRegionOf    map[ssa.Value]llssa.Expr
-	ownGoRegionParam llssa.Expr
-	// ownGoGoSites — місця, яким рутина поточного go ставить DecShared.
-	ownGoGoSites []ssa.Value
-	// ownGoGoCtx — замикання поточного go, контекст якого звільняє рутина;
+	gopacabraRegions     map[ssa.Instruction]struct{}
+	gopacabraBuilders    map[*ssa.Function]bool
+	gopacabraRegionOf    map[ssa.Value]llssa.Expr
+	gopacabraRegionParam llssa.Expr
+	// gopacabraGoSites — місця, яким рутина поточного go ставить DecShared.
+	gopacabraGoSites []ssa.Value
+	// gopacabraGoCtx — замикання поточного go, контекст якого звільняє рутина;
 	// nil — рутина його не звільняє.
-	ownGoGoCtx ssa.Value
-	// ownGoLabel — позначки census місць пакета для таблиці owngo site.
-	ownGoLabel map[ssa.Instruction]string
-	// ownGoSites — таблиця owngo site пакета (OwnGoStat): лічильник на
+	gopacabraGoCtx ssa.Value
+	// gopacabraLabel — позначки census місць пакета для таблиці gopacabra site.
+	gopacabraLabel map[ssa.Instruction]string
+	// gopacabraSites — таблиця gopacabra site пакета (GopacabraStat): лічильник на
 	// рядок і реєстрація в init.
-	ownGoSites ownGoSiteTable
-	// ownGoErrs — порушення верифікатора володіння (census.Verify) пакета.
-	ownGoErrs []error
+	gopacabraSites gopacabraSiteTable
+	// gopacabraErrs — порушення верифікатора володіння (census.Verify) пакета.
+	gopacabraErrs []error
 }
 
 func (p *context) initStaticByteArrayGlobal(define bool, gbl *ssa.Global, g llssa.Global) bool {
@@ -895,11 +895,11 @@ func (p *context) compileFuncDecl(pkg llssa.Package, f *ssa.Function) (llssa.Fun
 			p.prepareExportedLocalContext(f)
 			p.prepareCallbackEntry(f)
 			p.bvals = make(map[ssa.Value]llssa.Expr)
-			p.ownGoFreeAfter, p.ownGoFreeEntry, p.ownGoFreeEdge = ownGoFreeAfter(f, p.ownGoUses, false)
-			p.ownGoDecAfter, p.ownGoDecEntry, p.ownGoDecEdge = ownGoFreeAfter(f, p.ownGoDecUses, true)
-			p.ownGoEdgeBlocks = nil
-			p.ownGoRegionOf = nil
-			p.verifyOwnGo(f)
+			p.gopacabraFreeAfter, p.gopacabraFreeEntry, p.gopacabraFreeEdge = gopacabraFreeAfter(f, p.gopacabraUses, false)
+			p.gopacabraDecAfter, p.gopacabraDecEntry, p.gopacabraDecEdge = gopacabraFreeAfter(f, p.gopacabraDecUses, true)
+			p.gopacabraEdgeBlocks = nil
+			p.gopacabraRegionOf = nil
+			p.verifyGopacabra(f)
 			p.methodNilDerefChecks, p.recvNilDerefChecks = collectMethodNilDerefChecks(f, p.options.ReceiverNilChecks)
 			p.prepareCooperativeSafepoints(f, isCgo)
 			p.prepareGCRoots(f, hasCtx)
@@ -933,7 +933,7 @@ func (p *context) compileFuncDecl(pkg llssa.Package, f *ssa.Function) (llssa.Fun
 				phi()
 			}
 			// Анонімні функції компілює лише оригінал, не клон.
-			if !p.ownGoInRegionClone() {
+			if !p.gopacabraInRegionClone() {
 				for _, childInit := range childInits {
 					childInit()
 				}
@@ -942,12 +942,12 @@ func (p *context) compileFuncDecl(pkg llssa.Package, f *ssa.Function) (llssa.Fun
 			b.EndBuild()
 		}
 		p.inits = append(p.inits, func() { body(fn) })
-		if p.ownGoBuilders[f] && f.Pkg == p.goPkg {
-			clone := p.ownGoRegionFunc(f)
+		if p.gopacabraBuilders[f] && f.Pkg == p.goPkg {
+			clone := p.gopacabraRegionFunc(f)
 			clone.MakeBlocks(nblk)
 			p.inits = append(p.inits, func() {
-				p.ownGoRegionParam = clone.Param(0)
-				defer func() { p.ownGoRegionParam = llssa.Nil }()
+				p.gopacabraRegionParam = clone.Param(0)
+				defer func() { p.gopacabraRegionParam = llssa.Nil }()
 				body(clone)
 			})
 		}
@@ -1277,7 +1277,7 @@ func (p *context) compileBlock(b llssa.Builder, block *ssa.BasicBlock, n int, do
 		p.emitCooperativeSafepoint(b)
 	}
 
-	p.emitOwnGoEntryFree(b, block)
+	p.emitGopacabraEntryFree(b, block)
 
 	if doModInit {
 		p.initializeLocalGuards(b)
@@ -1658,7 +1658,7 @@ func (p *context) compilePhi(b llssa.Builder, v *ssa.Phi) (ret llssa.Expr) {
 		bblks := make([]llssa.BasicBlock, len(preds))
 		for i, pred := range preds {
 			bblks[i] = p.fn.Block(pred.Index)
-			if blk, ok := p.ownGoEdgeBlocks[census.BlockEdge{Pred: pred, Succ: v.Block()}]; ok {
+			if blk, ok := p.gopacabraEdgeBlocks[census.BlockEdge{Pred: pred, Succ: v.Block()}]; ok {
 				bblks[i] = blk
 			}
 		}
@@ -1701,11 +1701,11 @@ func (p *context) compileInstrOrValue(b llssa.Builder, iv instrOrValue, asValue 
 	switch v := iv.(type) {
 	case *ssa.Call:
 		p.checkMethodCallReceiver(b, &v.Call)
-		p.emitOwnGoInc(b, v)
-		if allocName, ok := p.ownGoAppendAlloc(v); ok {
+		p.emitGopacabraInc(b, v)
+		if allocName, ok := p.gopacabraAppendAlloc(v); ok {
 			ret = p.emitOwnedAppend(b, v, allocName)
-		} else if region, ok := p.ownGoRegionCall(b, v); ok {
-			ret = p.callOwnGoRegion(b, v, region)
+		} else if region, ok := p.gopacabraRegionCall(b, v); ok {
+			ret = p.callGopacabraRegion(b, v, region)
 		} else {
 			ret = p.call(b, llssa.Call, &v.Call)
 		}
@@ -1764,7 +1764,7 @@ func (p *context) compileInstrOrValue(b llssa.Builder, iv instrOrValue, asValue 
 				y = p.compileValueAs(b, v.Y, v.X.Type())
 			}
 			ret = b.StructBinOp(v.Op, x, y, xaddr, yaddr)
-		} else if p.ownGoCountedString(v) {
+		} else if p.gopacabraCountedString(v) {
 			ret = p.emitCountedStringCat(b, v)
 		} else {
 			x := p.compileValueAs(b, v.X, v.Y.Type())
@@ -1872,7 +1872,7 @@ func (p *context) compileInstrOrValue(b llssa.Builder, iv instrOrValue, asValue 
 			ret = p.nilOf(t)
 			break
 		}
-		if p.ownGoCountedConvert(v) {
+		if p.gopacabraCountedConvert(v) {
 			ret = p.emitCountedConvert(b, v)
 			break
 		}
@@ -1907,9 +1907,9 @@ func (p *context) compileInstrOrValue(b llssa.Builder, iv instrOrValue, asValue 
 			}
 			hoistToEntry = inLoop
 		}
-		if p.ownGoInRegionClone() && v.Heap {
+		if p.gopacabraInRegionClone() && v.Heap {
 			ret = p.emitRegionAlloc(b, elem)
-		} else if _, counted := p.ownGoCounted[v]; counted && p.prog.SizeOf(elem) > 0 {
+		} else if _, counted := p.gopacabraCounted[v]; counted && p.prog.SizeOf(elem) > 0 {
 			ret = p.emitAllocCounted(b, elem)
 		} else {
 			ret = b.AllocEx(elem, v.Heap, hoistToEntry)
@@ -1994,7 +1994,7 @@ func (p *context) compileInstrOrValue(b llssa.Builder, iv instrOrValue, asValue 
 			ret = p.prog.Nil(t)
 			break
 		}
-		if p.ownGoLabel[v] == ownGoConstLabel {
+		if p.gopacabraLabel[v] == gopacabraConstLabel {
 			ret = b.MakeInterfaceConst(t, p.compileValue(b, v.X))
 			break
 		}
@@ -2452,9 +2452,9 @@ func (p *context) compileInstr(b llssa.Builder, instr ssa.Instruction) {
 		case *ssa.Jump, *ssa.If, *ssa.Return, *ssa.Panic:
 			return
 		}
-		p.countOwnGoAlloc(b, instr)
-		p.emitOwnGoNote(b, instr)
-		p.emitOwnGoFree(b, instr)
+		p.countGopacabraAlloc(b, instr)
+		p.emitGopacabraNote(b, instr)
+		p.emitGopacabraFree(b, instr)
 	}()
 	p.panicSitePos = token.NoPos
 	if _, ok := p.staticInitInstrs[instr]; ok {
@@ -2504,7 +2504,7 @@ func (p *context) compileInstr(b llssa.Builder, instr ssa.Instruction) {
 		}
 		ptr := p.compileValue(b, va)
 		val := p.compileValue(b, v.Val)
-		p.emitOwnGoStoreInc(b, v, val)
+		p.emitGopacabraStoreInc(b, v, val)
 		wasmNilGuard := p.needsWasmNilGuard(va)
 		if wasmNilGuard {
 			p.recordPanicSite(b, v.Pos())
@@ -2526,7 +2526,7 @@ func (p *context) compileInstr(b llssa.Builder, instr ssa.Instruction) {
 		}
 	case *ssa.Jump:
 		jmpb := p.jumpTo(v)
-		p.emitOwnGoFree(b, v)
+		p.emitGopacabraFree(b, v)
 		b.Jump(jmpb)
 	case *ssa.Return:
 		runDefers := p.returnNeedsImplicitRunDefers(v)
@@ -2563,16 +2563,16 @@ func (p *context) compileInstr(b llssa.Builder, instr ssa.Instruction) {
 			b.Call(p.pkg.RuntimeFunc("CallbackExit"), p.callbackToken)
 		}
 		p.leaveExportedLocalContext(b)
-		p.emitOwnGoFree(b, v)
+		p.emitGopacabraFree(b, v)
 		b.Return(results...)
 	case *ssa.If:
 		cond := p.compileValue(b, v.Cond)
 		succs := v.Block().Succs
-		thenb := p.ownGoEdgeBlock(v.Block(), succs[0])
-		elseb := p.ownGoEdgeBlock(v.Block(), succs[1])
-		p.emitOwnGoFree(b, v)
+		thenb := p.gopacabraEdgeBlock(v.Block(), succs[0])
+		elseb := p.gopacabraEdgeBlock(v.Block(), succs[1])
+		p.emitGopacabraFree(b, v)
 		b.If(cond, thenb, elseb)
-		p.emitOwnGoEdgeFree(b, v.Block())
+		p.emitGopacabraEdgeFree(b, v.Block())
 	case *ssa.MapUpdate:
 		m := p.compileValue(b, v.Map)
 		key := p.compileValue(b, v.Key)
@@ -2586,7 +2586,7 @@ func (p *context) compileInstr(b llssa.Builder, instr ssa.Instruction) {
 		b.MapUpdate(m, key, val)
 	case *ssa.Defer:
 		p.checkMethodCallReceiver(b, &v.Call)
-		p.emitOwnGoInc(b, v)
+		p.emitGopacabraInc(b, v)
 		if v.DeferStack != nil {
 			p.callDeferStack(b, p.blkInfos[v.Block().Index].Kind, &v.Call, v.DeferStack, v.Parent())
 			return
@@ -2594,12 +2594,12 @@ func (p *context) compileInstr(b llssa.Builder, instr ssa.Instruction) {
 		p.call(b, p.blkInfos[v.Block().Index].Kind, &v.Call)
 	case *ssa.Go:
 		p.checkMethodCallReceiver(b, &v.Call)
-		p.ownGoGoSites = p.emitOwnGoIncShared(b, v)
-		if p.options.OwnGoFree && census.GoOwnsClosure(v) {
-			p.ownGoGoCtx = v.Call.Value
+		p.gopacabraGoSites = p.emitGopacabraIncShared(b, v)
+		if p.options.GopacabraFree && census.GoOwnsClosure(v) {
+			p.gopacabraGoCtx = v.Call.Value
 		}
 		p.call(b, llssa.Go, &v.Call)
-		p.ownGoGoSites, p.ownGoGoCtx = nil, nil
+		p.gopacabraGoSites, p.gopacabraGoCtx = nil, nil
 	case *ssa.RunDefers:
 		p.recordPanicLocation(b, p.deferRunPos(v.Pos()))
 		p.emitPCLineLabel(b, p.deferRunPos(v.Pos()))
@@ -2612,7 +2612,7 @@ func (p *context) compileInstr(b llssa.Builder, instr ssa.Instruction) {
 		// frame to this pc (issue5856 wants the panic line, not the
 		// nearest call's).
 		p.emitPCLineLabel(b, v.Pos())
-		p.emitOwnGoFree(b, v)
+		p.emitGopacabraFree(b, v)
 		b.Panic(arg)
 	case *ssa.Send:
 		ch := p.compileValue(b, v.Chan)
@@ -2665,7 +2665,7 @@ func (p *context) compileValue(b llssa.Builder, v ssa.Value) llssa.Expr {
 		fn := v.Parent()
 		for idx, param := range fn.Params {
 			if param == v {
-				if p.ownGoInRegionClone() {
+				if p.gopacabraInRegionClone() {
 					idx++ // перший параметр клону — регіон
 				}
 				return b.Param(idx)
@@ -3110,7 +3110,7 @@ func newPackageEx(prog llssa.Program, ct *CallerTracking, patches Patches, rewri
 			panic(err)
 		}
 	}
-	ctx.prepareOwnGoFree(pkg)
+	ctx.prepareGopacabraFree(pkg)
 	ctx.initFiles(pkgPath, files, cPkg)
 	ctx.prog.SetPatch(ctx.patchType)
 	ctx.prog.SetCompileMethods(ctx.checkCompileMethods)
@@ -3138,8 +3138,8 @@ func newPackageEx(prog llssa.Program, ct *CallerTracking, patches Patches, rewri
 			ini()
 		}
 	}
-	ctx.finishOwnGoSites()
-	if err = errors.Join(ctx.ownGoErrs...); err != nil {
+	ctx.finishGopacabraSites()
+	if err = errors.Join(ctx.gopacabraErrs...); err != nil {
 		return nil, nil, err
 	}
 	if err = ctx.validateCVariadicWrapperUses(); err != nil {

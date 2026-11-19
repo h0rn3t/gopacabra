@@ -1,0 +1,536 @@
+{
+  "program": "fannkuchredux",
+  "n": 12,
+  "runs": 10,
+  "profiles": false,
+  "variants": [
+    "thin"
+  ],
+  "env": {
+    "sha": "4abd1ef64505566a9fbb6a4e9fd435ac81bc4cd2",
+    "dirty": false,
+    "go": "go version go1.27.1 linux/amd64",
+    "llvm": "23.1.5",
+    "clang": "Debian clang version 23.1.5 (++20261028083851+a738f2737189-1~exp1~20261028203959.90)",
+    "rustc": "rustc 1.85.1 (4eb161250 2025-03-15) (built from a source tarball)",
+    "cpu": "Intel(R) Xeon(R) Gold 6240R CPU @ 2.40GHz",
+    "isa": [
+      "sse4_2",
+      "popcnt",
+      "avx",
+      "avx2",
+      "fma",
+      "bmi2",
+      "avx512f"
+    ],
+    "cores": 8,
+    "ulimit": "time(seconds)        unlimited\nfile(blocks)         unlimited\ndata(kbytes)         unlimited\nstack(kbytes)        8192\ncoredump(blocks)     unlimited\nmemory(kbytes)       unlimited\nlocked memory(kbytes) 8192\nprocess              unlimited\nnofiles              524288\nvmemory(kbytes)      unlimited\nlocks                unlimited\nrtprio               0",
+    "go_env": {
+      "GOAMD64": "v3"
+    },
+    "rust_env": {
+      "RUSTFLAGS": "-C target-cpu=x86-64-v3"
+    },
+    "c_flags": [
+      "-O3",
+      "-fomit-frame-pointer",
+      "-march=x86-64-v3"
+    ],
+    "libomp_root": "/home/coder/.cache/gopacabra-libomp/root/usr/lib/llvm-23",
+    "pcre2_root": "/home/coder/.cache/gopacabra-pcre2/root/usr"
+  },
+  "tables": [
+    {
+      "name": "main",
+      "pkg": "fannkuchredux",
+      "variants": [
+        {
+          "key": "go",
+          "label": "fannkuchredux, go, GOAMD64=v3",
+          "exe": "fannkuchredux-go",
+          "flags": null,
+          "env": {
+            "GOAMD64": "v3"
+          },
+          "build_s": 4.9,
+          "size_kb": 2322,
+          "runs": [
+            {
+              "wall": 2.742,
+              "user": 20.963,
+              "sys": 0.03,
+              "rss_mb": 2.1,
+              "exit": 0,
+              "minflt": 350,
+              "majflt": 0,
+              "output": "matches"
+            },
+            {
+              "wall": 2.694,
+              "user": 20.698,
+              "sys": 0.029,
+              "rss_mb": 2.0,
+              "exit": 0,
+              "minflt": 354,
+              "majflt": 0,
+              "output": "matches"
+            },
+            {
+              "wall": 2.687,
+              "user": 20.849,
+              "sys": 0.021,
+              "rss_mb": 2.2,
+              "exit": 0,
+              "minflt": 367,
+              "majflt": 0,
+              "output": "matches"
+            },
+            {
+              "wall": 2.704,
+              "user": 20.725,
+              "sys": 0.022,
+              "rss_mb": 2.0,
+              "exit": 0,
+              "minflt": 359,
+              "majflt": 0,
+              "output": "matches"
+            },
+            {
+              "wall": 2.68,
+              "user": 20.648,
+              "sys": 0.021,
+              "rss_mb": 2.0,
+              "exit": 0,
+              "minflt": 361,
+              "majflt": 0,
+              "output": "matches"
+            },
+            {
+              "wall": 2.686,
+              "user": 20.684,
+              "sys": 0.022,
+              "rss_mb": 2.0,
+              "exit": 0,
+              "minflt": 353,
+              "majflt": 0,
+              "output": "matches"
+            },
+            {
+              "wall": 2.703,
+              "user": 20.758,
+              "sys": 0.029,
+              "rss_mb": 2.0,
+              "exit": 0,
+              "minflt": 358,
+              "majflt": 0,
+              "output": "matches"
+            },
+            {
+              "wall": 2.684,
+              "user": 20.664,
+              "sys": 0.035,
+              "rss_mb": 2.0,
+              "exit": 0,
+              "minflt": 338,
+              "majflt": 0,
+              "output": "matches"
+            },
+            {
+              "wall": 2.675,
+              "user": 20.599,
+              "sys": 0.016,
+              "rss_mb": 2.1,
+              "exit": 0,
+              "minflt": 358,
+              "majflt": 0,
+              "output": "matches"
+            },
+            {
+              "wall": 2.676,
+              "user": 20.642,
+              "sys": 0.027,
+              "rss_mb": 2.0,
+              "exit": 0,
+              "minflt": 336,
+              "majflt": 0,
+              "output": "matches"
+            }
+          ],
+          "output": "matches",
+          "median": 2.686,
+          "min": 2.675,
+          "max": 2.742,
+          "user_median": 20.691,
+          "sys_median": 0.025,
+          "peak_rss_mb": 2.2,
+          "minflt_median": 356
+        },
+        {
+          "key": "thin",
+          "label": "fannkuchredux, llgo -tags gopacabra -O2 -lto thin",
+          "exe": "fannkuchredux-thin",
+          "flags": [
+            "-tags",
+            "gopacabra",
+            "-O2",
+            "-lto",
+            "thin"
+          ],
+          "env": {},
+          "build_s": 26.7,
+          "size_kb": 2324,
+          "runs": [
+            {
+              "wall": 2.355,
+              "user": 18.089,
+              "sys": 0.014,
+              "rss_mb": 5.4,
+              "exit": 0,
+              "minflt": 432,
+              "majflt": 0,
+              "output": "matches"
+            },
+            {
+              "wall": 2.349,
+              "user": 18.088,
+              "sys": 0.023,
+              "rss_mb": 5.2,
+              "exit": 0,
+              "minflt": 428,
+              "majflt": 0,
+              "output": "matches"
+            },
+            {
+              "wall": 2.371,
+              "user": 18.095,
+              "sys": 0.023,
+              "rss_mb": 5.2,
+              "exit": 0,
+              "minflt": 428,
+              "majflt": 0,
+              "output": "matches"
+            },
+            {
+              "wall": 2.348,
+              "user": 18.017,
+              "sys": 0.017,
+              "rss_mb": 5.4,
+              "exit": 0,
+              "minflt": 432,
+              "majflt": 0,
+              "output": "matches"
+            },
+            {
+              "wall": 2.349,
+              "user": 18.074,
+              "sys": 0.014,
+              "rss_mb": 5.4,
+              "exit": 0,
+              "minflt": 433,
+              "majflt": 0,
+              "output": "matches"
+            },
+            {
+              "wall": 2.35,
+              "user": 18.016,
+              "sys": 0.018,
+              "rss_mb": 5.4,
+              "exit": 0,
+              "minflt": 442,
+              "majflt": 0,
+              "output": "matches"
+            },
+            {
+              "wall": 2.365,
+              "user": 18.162,
+              "sys": 0.014,
+              "rss_mb": 5.4,
+              "exit": 0,
+              "minflt": 430,
+              "majflt": 0,
+              "output": "matches"
+            },
+            {
+              "wall": 2.359,
+              "user": 18.115,
+              "sys": 0.016,
+              "rss_mb": 5.2,
+              "exit": 0,
+              "minflt": 426,
+              "majflt": 0,
+              "output": "matches"
+            },
+            {
+              "wall": 2.341,
+              "user": 18.004,
+              "sys": 0.019,
+              "rss_mb": 5.2,
+              "exit": 0,
+              "minflt": 426,
+              "majflt": 0,
+              "output": "matches"
+            },
+            {
+              "wall": 2.357,
+              "user": 18.129,
+              "sys": 0.014,
+              "rss_mb": 5.2,
+              "exit": 0,
+              "minflt": 425,
+              "majflt": 0,
+              "output": "matches"
+            }
+          ],
+          "output": "matches",
+          "median": 2.353,
+          "min": 2.341,
+          "max": 2.371,
+          "user_median": 18.088,
+          "sys_median": 0.017,
+          "peak_rss_mb": 5.4,
+          "minflt_median": 429
+        },
+        {
+          "key": "rust",
+          "label": "Rust #6, rayon",
+          "exe": "fannkuchreduxrust",
+          "runs": [
+            {
+              "wall": 2.224,
+              "user": 16.741,
+              "sys": 0.014,
+              "rss_mb": 2.1,
+              "exit": 0,
+              "minflt": 161,
+              "majflt": 0,
+              "output": "matches"
+            },
+            {
+              "wall": 2.193,
+              "user": 16.724,
+              "sys": 0.012,
+              "rss_mb": 2.1,
+              "exit": 0,
+              "minflt": 162,
+              "majflt": 0,
+              "output": "matches"
+            },
+            {
+              "wall": 2.189,
+              "user": 16.676,
+              "sys": 0.013,
+              "rss_mb": 2.1,
+              "exit": 0,
+              "minflt": 163,
+              "majflt": 0,
+              "output": "matches"
+            },
+            {
+              "wall": 2.178,
+              "user": 16.725,
+              "sys": 0.008,
+              "rss_mb": 2.1,
+              "exit": 0,
+              "minflt": 164,
+              "majflt": 0,
+              "output": "matches"
+            },
+            {
+              "wall": 2.17,
+              "user": 16.59,
+              "sys": 0.015,
+              "rss_mb": 2.1,
+              "exit": 0,
+              "minflt": 163,
+              "majflt": 0,
+              "output": "matches"
+            },
+            {
+              "wall": 2.181,
+              "user": 16.721,
+              "sys": 0.019,
+              "rss_mb": 2.1,
+              "exit": 0,
+              "minflt": 162,
+              "majflt": 0,
+              "output": "matches"
+            },
+            {
+              "wall": 2.215,
+              "user": 16.784,
+              "sys": 0.022,
+              "rss_mb": 2.1,
+              "exit": 0,
+              "minflt": 159,
+              "majflt": 0,
+              "output": "matches"
+            },
+            {
+              "wall": 2.17,
+              "user": 16.648,
+              "sys": 0.017,
+              "rss_mb": 2.1,
+              "exit": 0,
+              "minflt": 163,
+              "majflt": 0,
+              "output": "matches"
+            },
+            {
+              "wall": 2.171,
+              "user": 16.619,
+              "sys": 0.017,
+              "rss_mb": 2.1,
+              "exit": 0,
+              "minflt": 159,
+              "majflt": 0,
+              "output": "matches"
+            },
+            {
+              "wall": 2.185,
+              "user": 16.66,
+              "sys": 0.006,
+              "rss_mb": 2.1,
+              "exit": 0,
+              "minflt": 161,
+              "majflt": 0,
+              "output": "matches"
+            }
+          ],
+          "output": "matches",
+          "median": 2.183,
+          "min": 2.17,
+          "max": 2.224,
+          "user_median": 16.698,
+          "sys_median": 0.014,
+          "peak_rss_mb": 2.1,
+          "minflt_median": 162
+        },
+        {
+          "key": "c",
+          "label": "C #6, pthreads",
+          "exe": "fannkuchreduxc",
+          "args": [
+            "-t",
+            "8"
+          ],
+          "cflags": [
+            "-O3",
+            "-fomit-frame-pointer",
+            "-march=x86-64-v3",
+            "-pthread"
+          ],
+          "runs": [
+            {
+              "wall": 1.129,
+              "user": 8.641,
+              "sys": 0.006,
+              "rss_mb": 1.5,
+              "exit": 0,
+              "minflt": 104,
+              "majflt": 0,
+              "output": "matches"
+            },
+            {
+              "wall": 1.137,
+              "user": 8.708,
+              "sys": 0.006,
+              "rss_mb": 1.5,
+              "exit": 0,
+              "minflt": 103,
+              "majflt": 0,
+              "output": "matches"
+            },
+            {
+              "wall": 1.128,
+              "user": 8.663,
+              "sys": 0.01,
+              "rss_mb": 1.5,
+              "exit": 0,
+              "minflt": 104,
+              "majflt": 0,
+              "output": "matches"
+            },
+            {
+              "wall": 1.13,
+              "user": 8.647,
+              "sys": 0.004,
+              "rss_mb": 1.5,
+              "exit": 0,
+              "minflt": 103,
+              "majflt": 0,
+              "output": "matches"
+            },
+            {
+              "wall": 1.113,
+              "user": 8.603,
+              "sys": 0.01,
+              "rss_mb": 1.6,
+              "exit": 0,
+              "minflt": 104,
+              "majflt": 0,
+              "output": "matches"
+            },
+            {
+              "wall": 1.12,
+              "user": 8.644,
+              "sys": 0.004,
+              "rss_mb": 1.6,
+              "exit": 0,
+              "minflt": 103,
+              "majflt": 0,
+              "output": "matches"
+            },
+            {
+              "wall": 1.125,
+              "user": 8.702,
+              "sys": 0.005,
+              "rss_mb": 1.5,
+              "exit": 0,
+              "minflt": 106,
+              "majflt": 0,
+              "output": "matches"
+            },
+            {
+              "wall": 1.116,
+              "user": 8.629,
+              "sys": 0.007,
+              "rss_mb": 1.6,
+              "exit": 0,
+              "minflt": 105,
+              "majflt": 0,
+              "output": "matches"
+            },
+            {
+              "wall": 1.117,
+              "user": 8.6,
+              "sys": 0.007,
+              "rss_mb": 1.6,
+              "exit": 0,
+              "minflt": 102,
+              "majflt": 0,
+              "output": "matches"
+            },
+            {
+              "wall": 1.121,
+              "user": 8.65,
+              "sys": 0.004,
+              "rss_mb": 1.6,
+              "exit": 0,
+              "minflt": 105,
+              "majflt": 0,
+              "output": "matches"
+            }
+          ],
+          "output": "matches",
+          "median": 1.123,
+          "min": 1.113,
+          "max": 1.137,
+          "user_median": 8.646,
+          "sys_median": 0.006,
+          "peak_rss_mb": 1.6,
+          "minflt_median": 104
+        }
+      ]
+    }
+  ]
+}

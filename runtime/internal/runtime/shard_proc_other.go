@@ -1,4 +1,4 @@
-//go:build !owngo || !owngomn || !(linux || darwin)
+//go:build !gopacabra || !gopacabramn || !(linux || darwin)
 
 package runtime
 

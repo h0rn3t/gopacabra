@@ -9,7 +9,7 @@ import (
 )
 
 // TestModuleZeroSentinelDeclaredVar перевіряє модуль, який і оголошує
-// спільний символ нульового розміру змінною (linkname рантайму owngo), і
+// спільний символ нульового розміру змінною (linkname рантайму gopacabra), і
 // алокує нульовий розмір: в модулі один глобал з цим ім'ям, і він визначений,
 // за будь-якого порядку.
 func TestModuleZeroSentinelDeclaredVar(t *testing.T) {

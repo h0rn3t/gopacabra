@@ -1,4 +1,4 @@
-//go:build (llgo && wasm && !(wasip1 && llgo.wasi_threads)) || (owngo && owngomn && (linux || darwin))
+//go:build (llgo && wasm && !(wasip1 && llgo.wasi_threads)) || (gopacabra && gopacabramn && (linux || darwin))
 
 package runtime
 

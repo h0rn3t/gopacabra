@@ -149,7 +149,7 @@ func (c *context) collectCommonInputs(m *manifestBuilder) {
 	}
 	m.common.Target = c.buildConf.Target
 	m.common.WasmRuntimeFree = c.wasmRuntimeFree
-	m.common.OwnGoMNRuntimeFree = c.mnRuntimeFree
+	m.common.GopacabraMNRuntimeFree = c.mnRuntimeFree
 	m.common.TargetABI = c.crossCompile.TargetABI
 	m.common.WasmProfile = string(c.crossCompile.WasmProfile)
 	m.common.WasmProvider = string(c.crossCompile.WasmProvider)

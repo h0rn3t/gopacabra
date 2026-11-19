@@ -2360,8 +2360,8 @@ func (p *context) emitDo(b llssa.Builder, act llssa.DoAction, ds *explicitDeferS
 	}
 	switch act {
 	case llssa.Call, llssa.Go:
-		if act == llssa.Go && (len(p.ownGoGoSites) > 0 || p.ownGoGoCtx != nil) {
-			buildCall, args = p.ownGoRoutineDec(b, buildCall, args)
+		if act == llssa.Go && (len(p.gopacabraGoSites) > 0 || p.gopacabraGoCtx != nil) {
+			buildCall, args = p.gopacabraRoutineDec(b, buildCall, args)
 		}
 		if act == llssa.Call && isRecoverTransparentWrapper(p.goFn) {
 			return b.CallRecoverAlias(p.fn.Expr, mayRecover, fn, buildCall, args...)

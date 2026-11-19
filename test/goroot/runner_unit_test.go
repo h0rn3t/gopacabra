@@ -877,11 +877,11 @@ func TestNormalizeOutputStripsLogTimestamp(t *testing.T) {
 	}
 }
 
-func TestFilterNoiseStripsOwnGoExitReport(t *testing.T) {
+func TestFilterNoiseStripsGopacabraExitReport(t *testing.T) {
 	guardTestTimeout(t)
-	in := []byte("hello, world\nowngo freed 8\nowngo live rc-local 48\nowngo live 0\nowngo: user line\n")
+	in := []byte("hello, world\ngopacabra freed 8\ngopacabra live rc-local 48\ngopacabra live 0\ngopacabra: user line\n")
 	got := string(filterNoise(in))
-	want := "hello, world\nowngo: user line\n"
+	want := "hello, world\ngopacabra: user line\n"
 	if got != want {
 		t.Fatalf("filterNoise(%q) = %q, want %q", in, got, want)
 	}

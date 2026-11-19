@@ -418,7 +418,7 @@ func (p Program) EnableDeadcodeDrop(enable bool) {
 }
 
 // EnableStackDeferFrames кладе кадр runtime.Defer функції на її стек, а не в
-// купу (owngo: без GC кадр у купі ніхто не звільняє). Кадр живе, лише поки
+// купу (gopacabra: без GC кадр у купі ніхто не звільняє). Кадр живе, лише поки
 // функція в ланцюжку defer потоку, як і його буфер sigjmp.
 func (p Program) EnableStackDeferFrames(enable bool) {
 	p.stackDeferFrames = enable

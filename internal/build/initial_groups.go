@@ -118,12 +118,12 @@ func buildInitialGroups(children []Invocation) ([]Package, error) {
 	return result, errors.Join(failures...)
 }
 
-// groupOwnGoMNRuntimeFree ділить початкові пакети owngomn за provenRuntimeFree:
+// groupGopacabraMNRuntimeFree ділить початкові пакети gopacabramn за provenRuntimeFree:
 // доказ змінює код пакетів (опитування safepoint, позначки викликів C), тож
 // програма без рантайму не ділить бекенд і архіви з програмою, якій він
 // потрібен. nil — якщо поділ не потрібен.
-func groupOwnGoMNRuntimeFree(ctx *context, features *initialBuildFeatures) []initialBuildGroup {
-	if len(ctx.initial) < 2 || ctx.mode == ModeGen || !ownGoMNExe(ctx) {
+func groupGopacabraMNRuntimeFree(ctx *context, features *initialBuildFeatures) []initialBuildGroup {
+	if len(ctx.initial) < 2 || ctx.mode == ModeGen || !gopacabraMNExe(ctx) {
 		return nil
 	}
 	var base initialBuildFeatures

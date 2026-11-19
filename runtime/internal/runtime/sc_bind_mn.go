@@ -1,21 +1,21 @@
-//go:build owngo && owngomn && !owngoasan && (linux || darwin)
+//go:build gopacabra && gopacabramn && !gopacabraasan && (linux || darwin)
 
 package runtime
 
 import "unsafe"
 
-//go:linkname owngoSCAttach C.owngo_sc_attach
-func owngoSCAttach(held *unsafe.Pointer)
+//go:linkname gopacabraSCAttach C.gopacabra_sc_attach
+func gopacabraSCAttach(held *unsafe.Pointer)
 
-//go:linkname owngoSCDetach C.owngo_sc_detach
-func owngoSCDetach()
+//go:linkname gopacabraSCDetach C.gopacabra_sc_detach
+func gopacabraSCDetach()
 
-func bindAllocatorCache(held *unsafe.Pointer) { owngoSCAttach(held) }
+func bindAllocatorCache(held *unsafe.Pointer) { gopacabraSCAttach(held) }
 
-func unbindAllocatorCache() { owngoSCDetach() }
+func unbindAllocatorCache() { gopacabraSCDetach() }
 
-//go:linkname owngoSCHeapCount C.owngo_sc_heap_count
-func owngoSCHeapCount() uintptr
+//go:linkname gopacabraSCHeapCount C.gopacabra_sc_heap_count
+func gopacabraSCHeapCount() uintptr
 
 // MNAllocHeapsForTesting — скільки куп алокатора створено з початку процесу.
-func MNAllocHeapsForTesting() int { return int(owngoSCHeapCount()) }
+func MNAllocHeapsForTesting() int { return int(gopacabraSCHeapCount()) }

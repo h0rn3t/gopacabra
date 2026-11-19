@@ -210,67 +210,67 @@ LLGO_ROOT=/path/to/llgo llgo run .
 3. **Defer in Loops:** LLGo now supports `defer` within loops, matching Go's semantics of executing defers in LIFO order for every iteration. Be mindful of loop-heavy defer usage as it allocates per iteration.
 4. **C Ecosystem Integration:** LLGo uses `go:linkname` directive to link external symbols through ABI
 
-## OwnGo
+## Gopacabra
 
-This repository is the OwnGo fork of llgo: a Go compiler without a tracing GC.
+This repository is the Gopacabra fork of llgo: a Go compiler without a tracing GC.
 `INTENT.md` is the source of truth for goals and principles; `PLAN.md` lists the
 current phase's tasks with acceptance criteria; `PROGRESS.md` records what each
 session did.
 
 - Remotes: `origin` is the fork, `upstream` is `goplus/llgo`. Rebase on
   `upstream/main` regularly and keep the diff from upstream minimal.
-- New OwnGo code lives under `owngo/`; runtime changes go behind the `owngo`
-  build tag. The exit report (`owngo freed/live` lines on stderr) and the
-  P10.2 `owngo: pinned` build warnings appear only with `-tags owngoreport`;
-  statistics counters (`owngo ops/alloc/site`) only with `-tags owngostat`,
-  which implies `owngoreport`. A plain build prints nothing extra.
-- `owngo` is the only build: every `build.Do` build (the `llgo` command,
+- New Gopacabra code lives under `gopacabra/`; runtime changes go behind the `gopacabra`
+  build tag. The exit report (`gopacabra freed/live` lines on stderr) and the
+  P10.2 `gopacabra: pinned` build warnings appear only with `-tags gopacabrareport`;
+  statistics counters (`gopacabra ops/alloc/site`) only with `-tags gopacabrastat`,
+  which implies `gopacabrareport`. A plain build prints nothing extra.
+- `gopacabra` is the only build: every `build.Do` build (the `llgo` command,
   `cltest`, `_cmptest`, the `GOROOT/test` runner) gets the tag, and nothing
-  turns it off (`applyOwngoTag` in `resolveBuildConfig`, `internal/build`).
+  turns it off (`applyGopacabraTag` in `resolveBuildConfig`, `internal/build`).
   The tracing collectors (BDWGC, `tinygogc`) are being removed (`PLAN.md`,
-  P11.5.0.1–P11.5.0.2); `-tags owngo` in commands is redundant.
-- `owngo` adds `nogc` and, on a native linux/amd64, linux/arm64 or
-  darwin executable build, `owngomn` (M:N goroutines); `c-shared` and
-  `c-archive` keep the 1:1 model, since M:N starts from the executable entry. `-tags owngo,owngo1to1` keeps the
-  1:1 thread-per-goroutine model (`applyOwngoTag`, `internal/build`).
-- On amd64, `owngo` defaults `GOAMD64` to `v3` (AVX2); an explicit
+  P11.5.0.1–P11.5.0.2); `-tags gopacabra` in commands is redundant.
+- `gopacabra` adds `nogc` and, on a native linux/amd64, linux/arm64 or
+  darwin executable build, `gopacabramn` (M:N goroutines); `c-shared` and
+  `c-archive` keep the 1:1 model, since M:N starts from the executable entry. `-tags gopacabra,gopacabra1to1` keeps the
+  1:1 thread-per-goroutine model (`applyGopacabraTag`, `internal/build`).
+- On amd64, `gopacabra` defaults `GOAMD64` to `v3` (AVX2); an explicit
   `GOAMD64` wins (`resolveGOARCHConfig`, `internal/build`).
 - `PLAN.md` has two tracks: memory phases 0–11 and the performance track
   (stages A–F, tasks `P-NEW-*`). Each phase or stage ends with a gate; the
   gate decision belongs to the developer and is recorded in `INTENT.md`
-  ("Рішення гейта …"). Measurements go to `owngo/REPORT-*.md`.
+  ("Рішення гейта …"). Measurements go to `gopacabra/REPORT-*.md`.
 - One PLAN.md task per session. Write tests first, confirm they fail, and
   commit them separately; then commit the implementation, then docs. Commit
   subjects name the area and the task: `cl, census: <what> (P-NEW-03.3)`,
   `docs: <what> (P-NEW-08.2)`. At the end of a session, update `PROGRESS.md`
   and tick the task in `PLAN.md`.
 - The fork targets LLVM 23 (upstream: 22). `github.com/xgo-dev/llvm` is
-  replaced by the patched copy in `owngo/third_party/llvm`; its `OWNGO.md`
+  replaced by the patched copy in `gopacabra/third_party/llvm`; its `GOPACABRA.md`
   lists the patches. Run tests with LLVM 23 and LLD first in `PATH`, or
   `clang` resolves to the system one and rejects LLVM 23 IR:
   - Linux (Debian): `export PATH=/usr/lib/llvm-23/bin:$PATH`;
   - macOS: `export PATH=/opt/homebrew/opt/llvm/bin:/opt/homebrew/opt/lld/bin:$PATH`.
-- `owngo/BASELINE.md` lists the known `go test ./...` failures (recorded on
+- `gopacabra/BASELINE.md` lists the known `go test ./...` failures (recorded on
   macOS); a change must not add to that list.
 
-### OwnGo checks
+### Gopacabra checks
 
-- Acceptance fixtures: `owngo/fixtures.sh [LLGO]` runs every program under
-  `owngo/` with the right tags (ASan ones under `-O0 -asan`) and must report
+- Acceptance fixtures: `gopacabra/fixtures.sh [LLGO]` runs every program under
+  `gopacabra/` with the right tags (ASan ones under `-O0 -asan`) and must report
   no new failures; known ones are listed in the script.
 - ASan runs need `ASAN_OPTIONS=detect_leaks=0`: without a GC, LeakSanitizer
   reports every live object at exit.
-- Compiler tests: `go test -count=1 ./cl/ -run OwnGo`. The llgo build cache
-  (`~/.cache/llgo`) does not key on `cl/` or `owngo/census` changes; clear it
+- Compiler tests: `go test -count=1 ./cl/ -run Gopacabra`. The llgo build cache
+  (`~/.cache/llgo`) does not key on `cl/` or `gopacabra/census` changes; clear it
   before trusting results after editing them, and before each variant of a
   before/after timing comparison.
 - Slow packages: `go test ./cl/` and `./internal/build/` take ~10 min each and
   hit the default timeout; pass `-timeout 90m`.
 - `GOROOT/test`: the `test/goroot` runner with `-goroot <GOROOT>` and
-  `-llgo-flags="-tags owngo"` (add `-O0 -asan` for the ASan variant). Cases
-  that cannot pass without a tracing GC are in `owngo/goroot-xfail.yaml`; the
-  `owngo.yml` workflow appends them to `test/goroot/xfail.yaml`.
-- Benchmarks: `owngo/bench/compare.py PROGRAM [N] [RUNS]` (Linux only) builds
-  go, llgo, llgo `-tags owngo`, Rust and C variants and alternates runs.
+  `-llgo-flags="-tags gopacabra"` (add `-O0 -asan` for the ASan variant). Cases
+  that cannot pass without a tracing GC are in `gopacabra/goroot-xfail.yaml`; the
+  `gopacabra.yml` workflow appends them to `test/goroot/xfail.yaml`.
+- Benchmarks: `gopacabra/bench/compare.py PROGRAM [N] [RUNS]` (Linux only) builds
+  go, llgo, llgo `-tags gopacabra`, Rust and C variants and alternates runs.
   For a baseline build use `git worktree add` with its own `LLGO_ROOT` and
   `XDG_CACHE_HOME`, not `git stash`.

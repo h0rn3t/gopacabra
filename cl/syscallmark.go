@@ -20,7 +20,7 @@ import (
 	"golang.org/x/tools/go/ssa"
 )
 
-// Маркери блокувальних викликів C під owngomn (P-NEW-09.8): виклик стоїть між
+// Маркери блокувальних викликів C під gopacabramn (P-NEW-09.8): виклик стоїть між
 // EnterSyscall і ExitSyscall, щоб sysmon міг забрати P у M, що застрягла в
 // C, а вхід //export — між CallbackEnter і CallbackExit, щоб G, яка
 // блокується в callback, повернулася в C на тому самому потоці. Рантайм

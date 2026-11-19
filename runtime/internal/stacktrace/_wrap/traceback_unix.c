@@ -38,7 +38,7 @@ typedef struct thread_node {
     unsigned allcall_state;
     uintptr_t allcall_r1, allcall_r2, allcall_error;
 #endif
-    /* A goroutine without its own thread (owngomn): its saved context and
+    /* A goroutine without its own thread (gopacabramn): its saved context and
      * status. The scheduler unregisters the node before freeing the stack. */
     void *saved;
     uint32_t *status;
@@ -78,7 +78,7 @@ static void *map_buffer(void)
 uintptr_t *llgo_traceback_fault_buffer(void) { return fault_buffer; }
 
 /* Межі стека, на якому зараз виконується код потоку, коли це не рідний стек
- * потоку: горутина M:N під owngomn на стеку з резерву. 0, 0 — рідний стек,
+ * потоку: горутина M:N під gopacabramn на стеку з резерву. 0, 0 — рідний стек,
  * межі якого тримає вузол потоку. */
 static _Thread_local uintptr_t fiber_low, fiber_high;
 

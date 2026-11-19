@@ -1,6 +1,6 @@
-//go:build !owngo
+//go:build !gopacabra
 
 package runtime
 
-// ReportExit — порожній гачок виходу, коли тег owngo не заданий.
+// ReportExit — порожній гачок виходу, коли тег gopacabra не заданий.
 func ReportExit() {}

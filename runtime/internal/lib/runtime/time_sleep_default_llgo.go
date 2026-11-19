@@ -1,4 +1,4 @@
-//go:build !owngo && !baremetal
+//go:build !gopacabra && !baremetal
 
 package runtime
 

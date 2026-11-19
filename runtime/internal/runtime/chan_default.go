@@ -1,4 +1,4 @@
-//go:build !owngo
+//go:build !gopacabra
 
 package runtime
 

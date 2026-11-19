@@ -1,6 +1,6 @@
 package sync
 
-// blockEnter і blockExit ставить планувальник M:N (тег owngomn): потік, що
+// blockEnter і blockExit ставить планувальник M:N (тег gopacabramn): потік, що
 // блокується засобами ОС, віддає логічний процесор іншому потоку і бере
 // його знову після пробудження. Без планувальника обидва — nil.
 var blockEnter, blockExit func()

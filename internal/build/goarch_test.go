@@ -63,22 +63,22 @@ func TestResolveGOARCHConfig(t *testing.T) {
 			conf: Config{Goarch: "amd64"},
 			want: Config{Goarch: "amd64", GOAMD64: "v1"},
 		},
-		// Профіль owngo типово цілить у x86-64-v3 (рішення P-NEW-07.2).
+		// Профіль gopacabra типово цілить у x86-64-v3 (рішення P-NEW-07.2).
 		{
-			name: "owngo amd64 default",
-			conf: Config{Goarch: "amd64", Tags: "foo,owngo"},
-			want: Config{Goarch: "amd64", Tags: "foo,owngo", GOAMD64: "v3"},
+			name: "gopacabra amd64 default",
+			conf: Config{Goarch: "amd64", Tags: "foo,gopacabra"},
+			want: Config{Goarch: "amd64", Tags: "foo,gopacabra", GOAMD64: "v3"},
 		},
 		{
-			name: "owngo amd64 environment wins",
-			conf: Config{Goarch: "amd64", Tags: "owngo"},
+			name: "gopacabra amd64 environment wins",
+			conf: Config{Goarch: "amd64", Tags: "gopacabra"},
 			env:  map[string]string{"GOAMD64": "v1"},
-			want: Config{Goarch: "amd64", Tags: "owngo", GOAMD64: "v1"},
+			want: Config{Goarch: "amd64", Tags: "gopacabra", GOAMD64: "v1"},
 		},
 		{
-			name: "owngo amd64 explicit wins",
-			conf: Config{Goarch: "amd64", Tags: "owngo", GOAMD64: "v2"},
-			want: Config{Goarch: "amd64", Tags: "owngo", GOAMD64: "v2"},
+			name: "gopacabra amd64 explicit wins",
+			conf: Config{Goarch: "amd64", Tags: "gopacabra", GOAMD64: "v2"},
+			want: Config{Goarch: "amd64", Tags: "gopacabra", GOAMD64: "v2"},
 		},
 		{
 			name: "arm default",

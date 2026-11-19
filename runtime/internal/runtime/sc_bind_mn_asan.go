@@ -1,4 +1,4 @@
-//go:build owngo && owngomn && owngoasan && (linux || darwin)
+//go:build gopacabra && gopacabramn && gopacabraasan && (linux || darwin)
 
 package runtime
 
@@ -8,5 +8,5 @@ func bindAllocatorCache(*unsafe.Pointer) {}
 
 func unbindAllocatorCache() {}
 
-// MNAllocHeapsForTesting — під ASan купи алокатора owngo немає.
+// MNAllocHeapsForTesting — під ASan купи алокатора gopacabra немає.
 func MNAllocHeapsForTesting() int { return 0 }

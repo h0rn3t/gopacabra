@@ -107,9 +107,9 @@ func TestLTOTargetLinkerArgs(t *testing.T) {
 }
 
 func TestApplyMLLVMRejectsUnknownOption(t *testing.T) {
-	err := applyMLLVM([]string{"-owngo-no-such-option"})
-	if err == nil || !strings.Contains(err.Error(), "owngo-no-such-option") {
-		t.Errorf("applyMLLVM(-owngo-no-such-option) error = %v, want an LLVM error naming the option", err)
+	err := applyMLLVM([]string{"-gopacabra-no-such-option"})
+	if err == nil || !strings.Contains(err.Error(), "gopacabra-no-such-option") {
+		t.Errorf("applyMLLVM(-gopacabra-no-such-option) error = %v, want an LLVM error naming the option", err)
 	}
 }
 

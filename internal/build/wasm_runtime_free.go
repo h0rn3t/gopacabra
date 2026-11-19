@@ -147,13 +147,13 @@ func provenRuntimeFree(ctx *context, initials, pkgs []*packages.Package) bool {
 	return true
 }
 
-// configureOwnGoMNRuntimeFree: під owngomn кожна функція опитує
+// configureGopacabraMNRuntimeFree: під gopacabramn кожна функція опитує
 // CooperativeSafepoint, а виклики C позначені EnterSyscall/ExitSyscall, тож
 // навіть програма без рантайму тягнула б планувальник M:N. Програмі, якій
 // рантайм доведено не потрібен, другої горутини не завести: опитування,
 // позначки і запуск планувальника вимикаються.
-func configureOwnGoMNRuntimeFree(ctx *context) {
-	if !ownGoMNExe(ctx) || !provenRuntimeFree(ctx, ctx.initial, importClosure(ctx.initial)) {
+func configureGopacabraMNRuntimeFree(ctx *context) {
+	if !gopacabraMNExe(ctx) || !provenRuntimeFree(ctx, ctx.initial, importClosure(ctx.initial)) {
 		return
 	}
 	ctx.mnRuntimeFree = true
@@ -161,14 +161,14 @@ func configureOwnGoMNRuntimeFree(ctx *context) {
 	ctx.prog.EnablePreemptRequestPoll(false)
 	ctx.prog.EnableBlockingCallMarkers(false)
 	if conf := ctx.buildConf; conf.Verbose || conf.PrintCommands {
-		fmt.Fprintln(os.Stderr, "llgo: owngomn scheduler omitted: proven runtime-free program")
+		fmt.Fprintln(os.Stderr, "llgo: gopacabramn scheduler omitted: proven runtime-free program")
 	}
 }
 
-// ownGoMNExe reports whether ctx builds a native executable under owngomn.
-func ownGoMNExe(ctx *context) bool {
+// gopacabraMNExe reports whether ctx builds a native executable under gopacabramn.
+func gopacabraMNExe(ctx *context) bool {
 	return ctx.buildConf.BuildMode == BuildModeExe && ctx.buildConf.Goarch != "wasm" &&
-		slices.Contains(splitSourcePatchBuildTags(ctx.buildConf.Tags), "owngomn")
+		slices.Contains(splitSourcePatchBuildTags(ctx.buildConf.Tags), "gopacabramn")
 }
 
 // importClosure returns pkgs and every package they import.

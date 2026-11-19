@@ -31,7 +31,7 @@ func runCoverageExitHook(code int) {
 	}
 }
 
-func runOwnGoExitHook() {
+func runGopacabraExitHook() {
 	llruntime.ReportExit()
 }
 

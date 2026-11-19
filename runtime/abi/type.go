@@ -336,7 +336,7 @@ type UncommonType struct {
 }
 
 // Methods повертає вид на таблицю методів типу, без копії: твердження типу
-// до інтерфейсу кличе його щоразу (Implements), і копія під owngo не
+// до інтерфейсу кличе його щоразу (Implements), і копія під gopacabra не
 // звільнялась (P-NEW-09.3). unsafe.Slice, а не *[1 << 16]Method: такий тип
 // масиву ламав wasm (3110382d8).
 func (t *UncommonType) Methods() []Method {

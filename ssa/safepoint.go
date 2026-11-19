@@ -32,7 +32,7 @@ const PreemptRequestedVar = PkgRuntime + ".PreemptRequested"
 
 // EnablePreemptRequestPoll makes each cooperative safepoint load
 // PreemptRequestedVar and call the runtime only when it is non-zero
-// (owngomn).
+// (gopacabramn).
 func (p Program) EnablePreemptRequestPoll(enable bool) {
 	p.preemptRequestPoll = enable
 }
@@ -44,7 +44,7 @@ func (p Program) PreemptRequestPollEnabled() bool {
 
 // EnableBlockingCallMarkers controls the EnterSyscall/ExitSyscall markers
 // around C calls and CallbackEnter/CallbackExit around exported entries
-// (owngomn).
+// (gopacabramn).
 func (p Program) EnableBlockingCallMarkers(enable bool) {
 	p.blockingCallMarkers = enable
 }

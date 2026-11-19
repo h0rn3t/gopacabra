@@ -42,6 +42,7 @@ import (
 	"golang.org/x/tools/go/ssa/ssautil"
 
 	"github.com/xgo-dev/llgo/cl"
+	"github.com/xgo-dev/llgo/gopacabra/census"
 	llabi "github.com/xgo-dev/llgo/internal/abi"
 	"github.com/xgo-dev/llgo/internal/buildenv"
 	"github.com/xgo-dev/llgo/internal/cabi"
@@ -67,7 +68,6 @@ import (
 	"github.com/xgo-dev/llgo/internal/pclnpost"
 	"github.com/xgo-dev/llgo/internal/typepatch"
 	"github.com/xgo-dev/llgo/internal/wasmworkers"
-	"github.com/xgo-dev/llgo/owngo/census"
 	"github.com/xgo-dev/llgo/ssa/abi"
 	xenv "github.com/xgo-dev/llgo/xtool/env"
 	gllvm "github.com/xgo-dev/llvm"
@@ -337,8 +337,8 @@ func resolveBuildConfig(input *Config) (*Config, error) {
 	if conf.Goarch == "" {
 		conf.Goarch = runtime.GOARCH
 	}
-	// До resolveGOARCHConfig: типова ISA залежить від тегу owngo.
-	applyOwngoTag(conf)
+	// До resolveGOARCHConfig: типова ISA залежить від тегу gopacabra.
+	applyGopacabraTag(conf)
 	if err := resolveGOARCHConfig(conf, os.Getenv); err != nil {
 		return nil, err
 	}
@@ -397,8 +397,8 @@ func resolveGOARCHConfig(conf *Config, getenv func(string) string) error {
 		if goamd64 == "" {
 			goamd64 = getenv("GOAMD64")
 		}
-		// Профіль owngo не підтримує x86-64 без AVX2 (рішення P-NEW-07.2).
-		if goamd64 == "" && slices.Contains(splitSourcePatchBuildTags(conf.Tags), "owngo") {
+		// Профіль gopacabra не підтримує x86-64 без AVX2 (рішення P-NEW-07.2).
+		if goamd64 == "" && slices.Contains(splitSourcePatchBuildTags(conf.Tags), "gopacabra") {
 			goamd64 = "v3"
 		}
 		value, err := goarch.ResolveAMD64(goamd64)
@@ -725,9 +725,9 @@ func buildInvocation(inv Invocation, plan *initialBuildPlan) (result []Package, 
 		// Wasm has no inspectable native return addresses for runtime callers.
 		ShadowStack:    conf.Goarch == "wasm",
 		DebuggerFrames: conf.Goarch == "wasm" && slices.Contains(splitSourcePatchBuildTags(conf.Tags), "llgo.wasm.debugger"),
-		OwnGoFree:      slices.Contains(splitSourcePatchBuildTags(conf.Tags), "owngo"),
-		OwnGoStat:      slices.Contains(splitSourcePatchBuildTags(conf.Tags), "owngostat"),
-		OwnGoStack:     slices.Contains(splitSourcePatchBuildTags(conf.Tags), "owngo"),
+		GopacabraFree:  slices.Contains(splitSourcePatchBuildTags(conf.Tags), "gopacabra"),
+		GopacabraStat:  slices.Contains(splitSourcePatchBuildTags(conf.Tags), "gopacabrastat"),
+		GopacabraStack: slices.Contains(splitSourcePatchBuildTags(conf.Tags), "gopacabra"),
 	}
 	preloadOptions := frontendOptions
 	llssaInitOnce.Do(func() {
@@ -747,17 +747,17 @@ func buildInvocation(inv Invocation, plan *initialBuildPlan) (result []Package, 
 	}
 	prog.EnableGoGlobalDCE(conf.goGlobalDCEEnabled())
 	prog.EnableDeadcodeDrop(conf.deadcodeDropEnabled())
-	prog.EnableStackDeferFrames(frontendOptions.OwnGoFree)
+	prog.EnableStackDeferFrames(frontendOptions.GopacabraFree)
 	prog.EnableGCRoots(wasmGC)
-	// M:N owngo (тег owngomn) переносить горутини між потоками: GLS — на G,
+	// M:N gopacabra (тег gopacabramn) переносить горутини між потоками: GLS — на G,
 	// а виклики C позначено, щоб sysmon забирав P у M, що застрягла в C.
-	owngoMN := slices.Contains(splitSourcePatchBuildTags(conf.Tags), "owngomn")
-	prog.EnableLogicalGoroutineLocality(usesSingleWorkerWasmScheduler(conf) || owngoMN)
-	prog.EnableBlockingCallMarkers(owngoMN)
+	gopacabraMN := slices.Contains(splitSourcePatchBuildTags(conf.Tags), "gopacabramn")
+	prog.EnableLogicalGoroutineLocality(usesSingleWorkerWasmScheduler(conf) || gopacabraMN)
+	prog.EnableBlockingCallMarkers(gopacabraMN)
 	prog.EnableThreadLocalGCRoots(useThreadLocalGCRoots(conf, wasmGC, wasmWorkers))
-	// Під owngomn safepoints читають запит витіснення від sysmon (P-NEW-09.10).
-	prog.EnableCooperativeSafepoints(wasmGC || wasmWorkers.Enabled() || owngoMN)
-	prog.EnablePreemptRequestPoll(owngoMN)
+	// Під gopacabramn safepoints читають запит витіснення від sysmon (P-NEW-09.10).
+	prog.EnableCooperativeSafepoints(wasmGC || wasmWorkers.Enabled() || gopacabraMN)
+	prog.EnablePreemptRequestPoll(gopacabraMN)
 	if conf.PthreadStackSize > 0 {
 		prog.SetPthreadStackSize(uint64(conf.PthreadStackSize))
 	}
@@ -1045,7 +1045,7 @@ func buildInvocation(inv Invocation, plan *initialBuildPlan) (result []Package, 
 			features = &groups[0].features
 		}
 	}
-	if groups := groupOwnGoMNRuntimeFree(ctx, features); groups != nil {
+	if groups := groupGopacabraMNRuntimeFree(ctx, features); groups != nil {
 		fallback = nil
 		plan.invocations = initialGroupInvocations(inv, ctx, groups)
 		plan.finishTrace = finishTrace
@@ -1061,14 +1061,14 @@ func buildInvocation(inv Invocation, plan *initialBuildPlan) (result []Package, 
 		configureWasmFuncInfoEntries(ctx)
 	}
 	configureWasmRuntimeFree(ctx)
-	configureOwnGoMNRuntimeFree(ctx)
+	configureGopacabraMNRuntimeFree(ctx)
 
 	allPkgs := append([]*aPackage{}, pkgs...)
 	configureUnusedGlobalInits(ctx)
 	allPkgs = append(allPkgs, depPkgs...)
-	if ctx.frontendOptions.OwnGoFree {
+	if ctx.frontendOptions.GopacabraFree {
 		// Зведення тіл цієї програми до пулу бекендів. Порядок воркерів його не змінює.
-		span := ctx.buildTrace.startCoordinator("publish owngo summaries", nil)
+		span := ctx.buildTrace.startCoordinator("publish gopacabra summaries", nil)
 		census.PublishProgram(ctx.progSSA)
 		span.done()
 	}
@@ -1552,22 +1552,22 @@ func cSharedImportLibraryArgs(toolchain crosscompile.NativeToolchain, output str
 	return []string{"-Xlinker", "--out-implib", "-Xlinker", imports}
 }
 
-// applyOwngoTag додає тег owngo до кожної збірки: трасувального збирача в
-// OwnGo немає, owngo вибирає файли рантайму nogc.
-// На нативній збірці linux/amd64, linux/arm64 і darwin ще додає owngomn:
-// типова модель горутин owngo — M:N; тег owngo1to1 лишає модель 1:1.
+// applyGopacabraTag додає тег gopacabra до кожної збірки: трасувального збирача в
+// Gopacabra немає, gopacabra вибирає файли рантайму nogc.
+// На нативній збірці linux/amd64, linux/arm64 і darwin ще додає gopacabramn:
+// типова модель горутин gopacabra — M:N; тег gopacabra1to1 лишає модель 1:1.
 // Бібліотека (c-shared, c-archive) лишається 1:1: M:N стартує з точки
 // входу exe, а експорти бібліотеки йдуть на потоках хоста.
-// Під -asan ще додає owngoasan: купу тоді веде malloc ASan, а не алокатор owngo.
-// Тег owngostat тягне owngoreport: лічильники друкує той самий звіт на виході.
-func applyOwngoTag(conf *Config) {
+// Під -asan ще додає gopacabraasan: купу тоді веде malloc ASan, а не алокатор gopacabra.
+// Тег gopacabrastat тягне gopacabrareport: лічильники друкує той самий звіт на виході.
+func applyGopacabraTag(conf *Config) {
 	tags := splitSourcePatchBuildTags(conf.Tags)
 	exe := conf.BuildMode == "" || conf.BuildMode == BuildModeExe
-	mn := exe && conf.Target == "" && !slices.Contains(tags, "owngo1to1") &&
+	mn := exe && conf.Target == "" && !slices.Contains(tags, "gopacabra1to1") &&
 		(conf.Goos == "darwin" || conf.Goos == "linux" && (conf.Goarch == "amd64" || conf.Goarch == "arm64"))
-	stat := slices.Contains(tags, "owngostat")
-	for _, tag := range []string{"owngo", "nogc", "owngomn", "owngoasan", "owngoreport"} {
-		if slices.Contains(tags, tag) || tag == "owngomn" && !mn || tag == "owngoasan" && !conf.ASan || tag == "owngoreport" && !stat {
+	stat := slices.Contains(tags, "gopacabrastat")
+	for _, tag := range []string{"gopacabra", "nogc", "gopacabramn", "gopacabraasan", "gopacabrareport"} {
+		if slices.Contains(tags, tag) || tag == "gopacabramn" && !mn || tag == "gopacabraasan" && !conf.ASan || tag == "gopacabrareport" && !stat {
 			continue
 		}
 		if conf.Tags != "" {
@@ -1792,7 +1792,7 @@ type context struct {
 	frontendOptions   cl.Options
 	staticByteArrays  map[string][]byte
 	wasmRuntimeFree   bool
-	mnRuntimeFree     bool // owngomn: програма без рантайму, планувальник не стартує
+	mnRuntimeFree     bool // gopacabramn: програма без рантайму, планувальник не стартує
 	wasmClosedProgram bool // true when native inputs cannot introduce untracked Go references
 
 	cTransformer *cabi.Transformer
@@ -3428,11 +3428,11 @@ func preparePackageModule(ctx *context, aPkg *aPackage, verbose bool) ([]string,
 	options.StaticByteArrays = aPkg.staticByteArrays
 	// Рантайм llgo вантажиться як окремий головний модуль, тож Module.Main
 	// замало: попередження — лише для модуля пакетів, які збирає користувач.
-	if options.OwnGoFree && slices.Contains(splitSourcePatchBuildTags(ctx.buildConf.Tags), "owngoreport") &&
+	if options.GopacabraFree && slices.Contains(splitSourcePatchBuildTags(ctx.buildConf.Tags), "gopacabrareport") &&
 		pkg.Module != nil && slices.ContainsFunc(ctx.initial, func(root *packages.Package) bool {
 		return root.Module != nil && root.Module.Main && root.Module.Path == pkg.Module.Path
 	}) {
-		options.OwnGoWarn = os.Stderr
+		options.GopacabraWarn = os.Stderr
 	}
 	ret, externs, err := cl.NewPackageExWithEmbedMetaOptions(
 		ctx.prog, ctx.callerTracking, ctx.patches, aPkg.rewriteVars,

@@ -1,4 +1,4 @@
-//go:build (llgo && js && wasm && llgo.wasm.workers) || (owngo && owngomn && (linux || darwin))
+//go:build (llgo && js && wasm && llgo.wasm.workers) || (gopacabra && gopacabramn && (linux || darwin))
 
 package runtime
 

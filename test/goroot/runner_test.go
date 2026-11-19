@@ -1319,8 +1319,8 @@ func filterNoise(in []byte) []byte {
 			continue
 		case strings.HasPrefix(trimmed, "ld: warning:"):
 			continue
-		// Звіт рантайму з тегом owngo на виході процесу; gc його не друкує.
-		case strings.HasPrefix(trimmed, "owngo freed "), strings.HasPrefix(trimmed, "owngo live "):
+		// Звіт рантайму з тегом gopacabra на виході процесу; gc його не друкує.
+		case strings.HasPrefix(trimmed, "gopacabra freed "), strings.HasPrefix(trimmed, "gopacabra live "):
 			continue
 		case strings.Contains(trimmed, "could not import ") && strings.Contains(trimmed, "(no metadata for "):
 			continue

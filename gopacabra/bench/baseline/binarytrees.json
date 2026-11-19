@@ -1,0 +1,1126 @@
+{
+  "program": "binarytrees",
+  "n": 21,
+  "runs": 10,
+  "env": {
+    "sha": "1a278541ffa0dd4480929ea1b120b1b473ed11dd",
+    "dirty": false,
+    "go": "go version go1.27.1 linux/amd64",
+    "llvm": "23.1.5",
+    "clang": "Debian clang version 23.1.5 (++20261028083851+a738f2737189-1~exp1~20261028203959.90)",
+    "rustc": "rustc 1.85.1 (4eb161250 2025-03-15) (built from a source tarball)",
+    "cpu": "Intel(R) Xeon(R) Gold 6240R CPU @ 2.40GHz",
+    "isa": [
+      "sse4_2",
+      "popcnt",
+      "avx",
+      "avx2",
+      "fma",
+      "bmi2",
+      "avx512f"
+    ],
+    "cores": 8,
+    "ulimit": "time(seconds)        unlimited\nfile(blocks)         unlimited\ndata(kbytes)         unlimited\nstack(kbytes)        8192\ncoredump(blocks)     unlimited\nmemory(kbytes)       unlimited\nlocked memory(kbytes) 8192\nprocess              unlimited\nnofiles              524288\nvmemory(kbytes)      unlimited\nlocks                unlimited\nrtprio               0",
+    "go_env": {
+      "GOAMD64": "v2"
+    },
+    "rust_env": {
+      "RUSTFLAGS": "-C target-cpu=ivybridge"
+    },
+    "c_flags": [
+      "-O3",
+      "-fomit-frame-pointer",
+      "-march=ivybridge"
+    ],
+    "libomp_root": "/home/coder/.cache/gopacabra-libomp/root/usr/lib/llvm-23"
+  },
+  "tables": [
+    {
+      "name": "regular",
+      "pkg": "binarytrees",
+      "variants": [
+        {
+          "key": "go",
+          "label": "binarytrees, go, GOAMD64=v2",
+          "exe": "binarytrees-go",
+          "runs": [
+            {
+              "wall": 5.514,
+              "user": 38.667,
+              "sys": 0.835,
+              "rss_mb": 615.8,
+              "exit": 0,
+              "output": "matches"
+            },
+            {
+              "wall": 5.403,
+              "user": 38.036,
+              "sys": 0.744,
+              "rss_mb": 555.3,
+              "exit": 0,
+              "output": "matches"
+            },
+            {
+              "wall": 5.48,
+              "user": 38.835,
+              "sys": 0.788,
+              "rss_mb": 574.6,
+              "exit": 0,
+              "output": "matches"
+            },
+            {
+              "wall": 5.378,
+              "user": 37.92,
+              "sys": 0.841,
+              "rss_mb": 601.9,
+              "exit": 0,
+              "output": "matches"
+            },
+            {
+              "wall": 5.416,
+              "user": 38.409,
+              "sys": 0.848,
+              "rss_mb": 583.5,
+              "exit": 0,
+              "output": "matches"
+            },
+            {
+              "wall": 5.356,
+              "user": 37.531,
+              "sys": 0.771,
+              "rss_mb": 559.3,
+              "exit": 0,
+              "output": "matches"
+            },
+            {
+              "wall": 5.418,
+              "user": 37.789,
+              "sys": 0.847,
+              "rss_mb": 633.1,
+              "exit": 0,
+              "output": "matches"
+            },
+            {
+              "wall": 5.247,
+              "user": 37.773,
+              "sys": 0.796,
+              "rss_mb": 584.9,
+              "exit": 0,
+              "output": "matches"
+            },
+            {
+              "wall": 5.33,
+              "user": 37.946,
+              "sys": 0.721,
+              "rss_mb": 589.3,
+              "exit": 0,
+              "output": "matches"
+            },
+            {
+              "wall": 5.34,
+              "user": 37.735,
+              "sys": 0.754,
+              "rss_mb": 538.3,
+              "exit": 0,
+              "output": "matches"
+            }
+          ],
+          "output": "matches",
+          "median": 5.39,
+          "min": 5.247,
+          "max": 5.514,
+          "user_median": 37.933,
+          "sys_median": 0.792,
+          "peak_rss_mb": 633.1
+        },
+        {
+          "key": "llgo",
+          "label": "binarytrees, llgo",
+          "exe": "binarytrees-llgo",
+          "runs": [
+            {
+              "wall": 40.021,
+              "user": 258.569,
+              "sys": 2.059,
+              "rss_mb": 762.4,
+              "exit": 0,
+              "output": "matches"
+            },
+            {
+              "wall": 39.816,
+              "user": 259.636,
+              "sys": 1.788,
+              "rss_mb": 797.6,
+              "exit": 0,
+              "output": "matches"
+            },
+            {
+              "wall": 39.217,
+              "user": 253.902,
+              "sys": 1.859,
+              "rss_mb": 719.2,
+              "exit": 0,
+              "output": "matches"
+            },
+            {
+              "wall": 39.09,
+              "user": 252.618,
+              "sys": 1.957,
+              "rss_mb": 822.9,
+              "exit": 0,
+              "output": "matches"
+            },
+            {
+              "wall": 39.48,
+              "user": 255.052,
+              "sys": 1.8,
+              "rss_mb": 736.6,
+              "exit": 0,
+              "output": "matches"
+            },
+            {
+              "wall": 38.954,
+              "user": 251.242,
+              "sys": 1.729,
+              "rss_mb": 788.6,
+              "exit": 0,
+              "output": "matches"
+            },
+            {
+              "wall": 39.217,
+              "user": 247.804,
+              "sys": 2.193,
+              "rss_mb": 745.2,
+              "exit": 0,
+              "output": "matches"
+            },
+            {
+              "wall": 40.088,
+              "user": 261.752,
+              "sys": 1.872,
+              "rss_mb": 754.1,
+              "exit": 0,
+              "output": "matches"
+            },
+            {
+              "wall": 39.618,
+              "user": 255.023,
+              "sys": 1.848,
+              "rss_mb": 736.8,
+              "exit": 0,
+              "output": "matches"
+            },
+            {
+              "wall": 39.49,
+              "user": 255.351,
+              "sys": 1.894,
+              "rss_mb": 745.5,
+              "exit": 0,
+              "output": "matches"
+            }
+          ],
+          "output": "matches",
+          "median": 39.485,
+          "min": 38.954,
+          "max": 40.088,
+          "user_median": 255.037,
+          "sys_median": 1.865,
+          "peak_rss_mb": 822.9
+        },
+        {
+          "key": "gopacabra",
+          "label": "binarytrees, llgo -tags gopacabra (-Os)",
+          "exe": "binarytrees-gopacabra",
+          "runs": [
+            {
+              "wall": 49.589,
+              "user": 375.5,
+              "sys": 6.435,
+              "rss_mb": 466.6,
+              "exit": 0,
+              "output": "matches"
+            },
+            {
+              "wall": 49.147,
+              "user": 373.928,
+              "sys": 6.275,
+              "rss_mb": 445.1,
+              "exit": 0,
+              "output": "matches"
+            },
+            {
+              "wall": 49.299,
+              "user": 374.773,
+              "sys": 6.369,
+              "rss_mb": 446.9,
+              "exit": 0,
+              "output": "matches"
+            },
+            {
+              "wall": 49.132,
+              "user": 371.678,
+              "sys": 6.536,
+              "rss_mb": 449.7,
+              "exit": 0,
+              "output": "matches"
+            },
+            {
+              "wall": 49.566,
+              "user": 374.387,
+              "sys": 6.409,
+              "rss_mb": 449.9,
+              "exit": 0,
+              "output": "matches"
+            },
+            {
+              "wall": 49.276,
+              "user": 374.263,
+              "sys": 6.42,
+              "rss_mb": 475.3,
+              "exit": 0,
+              "output": "matches"
+            },
+            {
+              "wall": 49.789,
+              "user": 376.145,
+              "sys": 6.23,
+              "rss_mb": 465.0,
+              "exit": 0,
+              "output": "matches"
+            },
+            {
+              "wall": 49.011,
+              "user": 374.337,
+              "sys": 6.448,
+              "rss_mb": 470.9,
+              "exit": 0,
+              "output": "matches"
+            },
+            {
+              "wall": 49.022,
+              "user": 370.459,
+              "sys": 6.387,
+              "rss_mb": 458.3,
+              "exit": 0,
+              "output": "matches"
+            },
+            {
+              "wall": 48.298,
+              "user": 365.566,
+              "sys": 6.223,
+              "rss_mb": 460.7,
+              "exit": 0,
+              "output": "matches"
+            }
+          ],
+          "output": "matches",
+          "median": 49.212,
+          "min": 48.298,
+          "max": 49.789,
+          "user_median": 374.3,
+          "sys_median": 6.398,
+          "peak_rss_mb": 475.3
+        },
+        {
+          "key": "gopacabra-lto",
+          "label": "binarytrees, llgo -tags gopacabra -O2 -lto full",
+          "exe": "binarytrees-gopacabra-lto",
+          "runs": [
+            {
+              "wall": 48.123,
+              "user": 365.344,
+              "sys": 6.456,
+              "rss_mb": 468.2,
+              "exit": 0,
+              "output": "matches"
+            },
+            {
+              "wall": 48.661,
+              "user": 370.316,
+              "sys": 6.444,
+              "rss_mb": 468.5,
+              "exit": 0,
+              "output": "matches"
+            },
+            {
+              "wall": 48.235,
+              "user": 365.069,
+              "sys": 6.477,
+              "rss_mb": 455.0,
+              "exit": 0,
+              "output": "matches"
+            },
+            {
+              "wall": 48.574,
+              "user": 368.603,
+              "sys": 6.371,
+              "rss_mb": 473.9,
+              "exit": 0,
+              "output": "matches"
+            },
+            {
+              "wall": 48.567,
+              "user": 367.451,
+              "sys": 6.403,
+              "rss_mb": 462.0,
+              "exit": 0,
+              "output": "matches"
+            },
+            {
+              "wall": 48.944,
+              "user": 371.49,
+              "sys": 6.351,
+              "rss_mb": 468.7,
+              "exit": 0,
+              "output": "matches"
+            },
+            {
+              "wall": 49.138,
+              "user": 374.487,
+              "sys": 6.539,
+              "rss_mb": 457.3,
+              "exit": 0,
+              "output": "matches"
+            },
+            {
+              "wall": 48.537,
+              "user": 367.89,
+              "sys": 6.528,
+              "rss_mb": 464.9,
+              "exit": 0,
+              "output": "matches"
+            },
+            {
+              "wall": 48.555,
+              "user": 368.287,
+              "sys": 6.245,
+              "rss_mb": 455.0,
+              "exit": 0,
+              "output": "matches"
+            },
+            {
+              "wall": 47.745,
+              "user": 356.068,
+              "sys": 6.521,
+              "rss_mb": 456.5,
+              "exit": 0,
+              "output": "matches"
+            }
+          ],
+          "output": "matches",
+          "median": 48.561,
+          "min": 47.745,
+          "max": 49.138,
+          "user_median": 368.088,
+          "sys_median": 6.45,
+          "peak_rss_mb": 473.9
+        },
+        {
+          "key": "c",
+          "label": "C #5, malloc + pthreads",
+          "exe": "binarytreesc",
+          "args": [],
+          "cflags": [
+            "-O3",
+            "-fomit-frame-pointer",
+            "-march=ivybridge",
+            "-pthread"
+          ],
+          "runs": [
+            {
+              "wall": 5.308,
+              "user": 27.176,
+              "sys": 0.225,
+              "rss_mb": 342.9,
+              "exit": 0,
+              "output": "matches"
+            },
+            {
+              "wall": 5.448,
+              "user": 27.527,
+              "sys": 0.218,
+              "rss_mb": 343.0,
+              "exit": 0,
+              "output": "matches"
+            },
+            {
+              "wall": 5.248,
+              "user": 26.861,
+              "sys": 0.196,
+              "rss_mb": 342.9,
+              "exit": 0,
+              "output": "matches"
+            },
+            {
+              "wall": 5.601,
+              "user": 26.808,
+              "sys": 0.223,
+              "rss_mb": 342.8,
+              "exit": 0,
+              "output": "matches"
+            },
+            {
+              "wall": 5.529,
+              "user": 27.01,
+              "sys": 0.197,
+              "rss_mb": 343.0,
+              "exit": 0,
+              "output": "matches"
+            },
+            {
+              "wall": 5.398,
+              "user": 28.104,
+              "sys": 0.22,
+              "rss_mb": 342.8,
+              "exit": 0,
+              "output": "matches"
+            },
+            {
+              "wall": 5.508,
+              "user": 26.414,
+              "sys": 0.189,
+              "rss_mb": 342.9,
+              "exit": 0,
+              "output": "matches"
+            },
+            {
+              "wall": 5.614,
+              "user": 27.732,
+              "sys": 0.228,
+              "rss_mb": 342.9,
+              "exit": 0,
+              "output": "matches"
+            },
+            {
+              "wall": 5.654,
+              "user": 27.066,
+              "sys": 0.22,
+              "rss_mb": 342.9,
+              "exit": 0,
+              "output": "matches"
+            },
+            {
+              "wall": 5.452,
+              "user": 27.295,
+              "sys": 0.219,
+              "rss_mb": 343.0,
+              "exit": 0,
+              "output": "matches"
+            }
+          ],
+          "output": "matches",
+          "median": 5.48,
+          "min": 5.248,
+          "max": 5.654,
+          "user_median": 27.121,
+          "sys_median": 0.22,
+          "peak_rss_mb": 343.0
+        }
+      ]
+    },
+    {
+      "name": "arena",
+      "pkg": "binarytreesarena",
+      "variants": [
+        {
+          "key": "go",
+          "label": "binarytreesarena, go, GOAMD64=v2",
+          "exe": "binarytreesarena-go",
+          "runs": [
+            {
+              "wall": 0.414,
+              "user": 2.845,
+              "sys": 0.15,
+              "rss_mb": 227.0,
+              "exit": 0,
+              "output": "matches"
+            },
+            {
+              "wall": 0.416,
+              "user": 2.79,
+              "sys": 0.175,
+              "rss_mb": 227.1,
+              "exit": 0,
+              "output": "matches"
+            },
+            {
+              "wall": 0.425,
+              "user": 2.816,
+              "sys": 0.164,
+              "rss_mb": 227.1,
+              "exit": 0,
+              "output": "matches"
+            },
+            {
+              "wall": 0.416,
+              "user": 2.847,
+              "sys": 0.176,
+              "rss_mb": 227.0,
+              "exit": 0,
+              "output": "matches"
+            },
+            {
+              "wall": 0.448,
+              "user": 2.806,
+              "sys": 0.141,
+              "rss_mb": 227.2,
+              "exit": 0,
+              "output": "matches"
+            },
+            {
+              "wall": 0.447,
+              "user": 2.813,
+              "sys": 0.146,
+              "rss_mb": 227.1,
+              "exit": 0,
+              "output": "matches"
+            },
+            {
+              "wall": 0.403,
+              "user": 2.779,
+              "sys": 0.154,
+              "rss_mb": 227.0,
+              "exit": 0,
+              "output": "matches"
+            },
+            {
+              "wall": 0.408,
+              "user": 2.806,
+              "sys": 0.14,
+              "rss_mb": 227.0,
+              "exit": 0,
+              "output": "matches"
+            },
+            {
+              "wall": 0.414,
+              "user": 2.854,
+              "sys": 0.154,
+              "rss_mb": 227.2,
+              "exit": 0,
+              "output": "matches"
+            },
+            {
+              "wall": 0.413,
+              "user": 2.805,
+              "sys": 0.164,
+              "rss_mb": 227.0,
+              "exit": 0,
+              "output": "matches"
+            }
+          ],
+          "output": "matches",
+          "median": 0.415,
+          "min": 0.403,
+          "max": 0.448,
+          "user_median": 2.809,
+          "sys_median": 0.154,
+          "peak_rss_mb": 227.2
+        },
+        {
+          "key": "llgo",
+          "label": "binarytreesarena, llgo",
+          "exe": "binarytreesarena-llgo",
+          "runs": [
+            {
+              "wall": 0.524,
+              "user": 3.025,
+              "sys": 0.442,
+              "rss_mb": 359.5,
+              "exit": 0,
+              "output": "matches"
+            },
+            {
+              "wall": 0.568,
+              "user": 3.205,
+              "sys": 0.456,
+              "rss_mb": 359.5,
+              "exit": 0,
+              "output": "matches"
+            },
+            {
+              "wall": 0.55,
+              "user": 3.131,
+              "sys": 0.488,
+              "rss_mb": 359.5,
+              "exit": 0,
+              "output": "matches"
+            },
+            {
+              "wall": 0.541,
+              "user": 3.083,
+              "sys": 0.466,
+              "rss_mb": 359.6,
+              "exit": 0,
+              "output": "matches"
+            },
+            {
+              "wall": 0.525,
+              "user": 3.038,
+              "sys": 0.456,
+              "rss_mb": 359.5,
+              "exit": 0,
+              "output": "matches"
+            },
+            {
+              "wall": 0.524,
+              "user": 3.02,
+              "sys": 0.457,
+              "rss_mb": 359.5,
+              "exit": 0,
+              "output": "matches"
+            },
+            {
+              "wall": 0.53,
+              "user": 3.022,
+              "sys": 0.467,
+              "rss_mb": 359.8,
+              "exit": 0,
+              "output": "matches"
+            },
+            {
+              "wall": 0.534,
+              "user": 3.028,
+              "sys": 0.456,
+              "rss_mb": 359.5,
+              "exit": 0,
+              "output": "matches"
+            },
+            {
+              "wall": 0.535,
+              "user": 3.031,
+              "sys": 0.458,
+              "rss_mb": 359.4,
+              "exit": 0,
+              "output": "matches"
+            },
+            {
+              "wall": 0.551,
+              "user": 3.104,
+              "sys": 0.464,
+              "rss_mb": 359.4,
+              "exit": 0,
+              "output": "matches"
+            }
+          ],
+          "output": "matches",
+          "median": 0.534,
+          "min": 0.524,
+          "max": 0.568,
+          "user_median": 3.034,
+          "sys_median": 0.458,
+          "peak_rss_mb": 359.8
+        },
+        {
+          "key": "gopacabra",
+          "label": "binarytreesarena, llgo -tags gopacabra (-Os)",
+          "exe": "binarytreesarena-gopacabra",
+          "runs": [
+            {
+              "wall": 0.539,
+              "user": 3.324,
+              "sys": 0.267,
+              "rss_mb": 358.5,
+              "exit": 0,
+              "output": "matches"
+            },
+            {
+              "wall": 0.496,
+              "user": 3.199,
+              "sys": 0.257,
+              "rss_mb": 358.6,
+              "exit": 0,
+              "output": "matches"
+            },
+            {
+              "wall": 0.483,
+              "user": 3.182,
+              "sys": 0.229,
+              "rss_mb": 358.6,
+              "exit": 0,
+              "output": "matches"
+            },
+            {
+              "wall": 0.539,
+              "user": 3.513,
+              "sys": 0.256,
+              "rss_mb": 358.4,
+              "exit": 0,
+              "output": "matches"
+            },
+            {
+              "wall": 0.49,
+              "user": 3.179,
+              "sys": 0.229,
+              "rss_mb": 358.6,
+              "exit": 0,
+              "output": "matches"
+            },
+            {
+              "wall": 0.491,
+              "user": 3.178,
+              "sys": 0.244,
+              "rss_mb": 358.4,
+              "exit": 0,
+              "output": "matches"
+            },
+            {
+              "wall": 0.495,
+              "user": 3.178,
+              "sys": 0.24,
+              "rss_mb": 358.5,
+              "exit": 0,
+              "output": "matches"
+            },
+            {
+              "wall": 0.49,
+              "user": 3.173,
+              "sys": 0.233,
+              "rss_mb": 358.6,
+              "exit": 0,
+              "output": "matches"
+            },
+            {
+              "wall": 0.541,
+              "user": 3.492,
+              "sys": 0.247,
+              "rss_mb": 358.5,
+              "exit": 0,
+              "output": "matches"
+            },
+            {
+              "wall": 0.504,
+              "user": 3.177,
+              "sys": 0.253,
+              "rss_mb": 358.4,
+              "exit": 0,
+              "output": "matches"
+            }
+          ],
+          "output": "matches",
+          "median": 0.495,
+          "min": 0.483,
+          "max": 0.541,
+          "user_median": 3.18,
+          "sys_median": 0.245,
+          "peak_rss_mb": 358.6
+        },
+        {
+          "key": "gopacabra-lto",
+          "label": "binarytreesarena, llgo -tags gopacabra -O2 -lto full",
+          "exe": "binarytreesarena-gopacabra-lto",
+          "runs": [
+            {
+              "wall": 0.45,
+              "user": 2.79,
+              "sys": 0.251,
+              "rss_mb": 358.6,
+              "exit": 0,
+              "output": "matches"
+            },
+            {
+              "wall": 0.43,
+              "user": 2.79,
+              "sys": 0.221,
+              "rss_mb": 358.5,
+              "exit": 0,
+              "output": "matches"
+            },
+            {
+              "wall": 0.45,
+              "user": 2.764,
+              "sys": 0.25,
+              "rss_mb": 358.4,
+              "exit": 0,
+              "output": "matches"
+            },
+            {
+              "wall": 0.456,
+              "user": 2.854,
+              "sys": 0.228,
+              "rss_mb": 358.6,
+              "exit": 0,
+              "output": "matches"
+            },
+            {
+              "wall": 0.44,
+              "user": 2.777,
+              "sys": 0.244,
+              "rss_mb": 358.5,
+              "exit": 0,
+              "output": "matches"
+            },
+            {
+              "wall": 0.456,
+              "user": 2.838,
+              "sys": 0.251,
+              "rss_mb": 358.5,
+              "exit": 0,
+              "output": "matches"
+            },
+            {
+              "wall": 0.441,
+              "user": 2.785,
+              "sys": 0.233,
+              "rss_mb": 358.5,
+              "exit": 0,
+              "output": "matches"
+            },
+            {
+              "wall": 0.451,
+              "user": 2.823,
+              "sys": 0.267,
+              "rss_mb": 358.6,
+              "exit": 0,
+              "output": "matches"
+            },
+            {
+              "wall": 0.448,
+              "user": 2.826,
+              "sys": 0.252,
+              "rss_mb": 358.5,
+              "exit": 0,
+              "output": "matches"
+            },
+            {
+              "wall": 0.507,
+              "user": 2.773,
+              "sys": 0.23,
+              "rss_mb": 358.4,
+              "exit": 0,
+              "output": "matches"
+            }
+          ],
+          "output": "matches",
+          "median": 0.45,
+          "min": 0.43,
+          "max": 0.507,
+          "user_median": 2.79,
+          "sys_median": 0.247,
+          "peak_rss_mb": 358.6
+        },
+        {
+          "key": "rust",
+          "label": "Rust #5, bumpalo + rayon",
+          "exe": "binarytreesrust",
+          "runs": [
+            {
+              "wall": 0.709,
+              "user": 3.823,
+              "sys": 0.238,
+              "rss_mb": 322.0,
+              "exit": 0,
+              "output": "matches"
+            },
+            {
+              "wall": 0.717,
+              "user": 3.813,
+              "sys": 0.227,
+              "rss_mb": 298.0,
+              "exit": 0,
+              "output": "matches"
+            },
+            {
+              "wall": 0.692,
+              "user": 3.622,
+              "sys": 0.234,
+              "rss_mb": 322.1,
+              "exit": 0,
+              "output": "matches"
+            },
+            {
+              "wall": 0.669,
+              "user": 3.762,
+              "sys": 0.184,
+              "rss_mb": 290.0,
+              "exit": 0,
+              "output": "matches"
+            },
+            {
+              "wall": 0.695,
+              "user": 3.649,
+              "sys": 0.225,
+              "rss_mb": 290.5,
+              "exit": 0,
+              "output": "matches"
+            },
+            {
+              "wall": 0.682,
+              "user": 3.708,
+              "sys": 0.222,
+              "rss_mb": 322.0,
+              "exit": 0,
+              "output": "matches"
+            },
+            {
+              "wall": 0.667,
+              "user": 3.681,
+              "sys": 0.198,
+              "rss_mb": 289.9,
+              "exit": 0,
+              "output": "matches"
+            },
+            {
+              "wall": 0.701,
+              "user": 3.693,
+              "sys": 0.241,
+              "rss_mb": 322.1,
+              "exit": 0,
+              "output": "matches"
+            },
+            {
+              "wall": 0.668,
+              "user": 3.694,
+              "sys": 0.197,
+              "rss_mb": 290.5,
+              "exit": 0,
+              "output": "matches"
+            },
+            {
+              "wall": 0.869,
+              "user": 3.733,
+              "sys": 0.22,
+              "rss_mb": 298.0,
+              "exit": 0,
+              "output": "matches"
+            }
+          ],
+          "output": "matches",
+          "median": 0.694,
+          "min": 0.667,
+          "max": 0.869,
+          "user_median": 3.701,
+          "sys_median": 0.224,
+          "peak_rss_mb": 322.1
+        },
+        {
+          "key": "c",
+          "label": "C #2, APR pools + OpenMP",
+          "exe": "binarytreescpool",
+          "args": [],
+          "cflags": [
+            "-O3",
+            "-fomit-frame-pointer",
+            "-march=ivybridge",
+            "-fopenmp",
+            "-idirafter",
+            "/home/coder/.cache/gopacabra-libomp/root/usr/lib/llvm-23/lib/clang/23/include",
+            "-L/home/coder/.cache/gopacabra-libomp/root/usr/lib/llvm-23/lib",
+            "-Wl,-rpath,/home/coder/.cache/gopacabra-libomp/root/usr/lib/llvm-23/lib",
+            "-DLINUX",
+            "-D_REENTRANT",
+            "-D_GNU_SOURCE",
+            "-I/usr/include/apr-1.0",
+            "-lapr-1"
+          ],
+          "runs": [
+            {
+              "wall": 1.035,
+              "user": 5.537,
+              "sys": 0.394,
+              "rss_mb": 174.6,
+              "exit": 0,
+              "output": "matches"
+            },
+            {
+              "wall": 1.032,
+              "user": 5.573,
+              "sys": 0.404,
+              "rss_mb": 174.4,
+              "exit": 0,
+              "output": "matches"
+            },
+            {
+              "wall": 1.038,
+              "user": 5.489,
+              "sys": 0.397,
+              "rss_mb": 174.6,
+              "exit": 0,
+              "output": "matches"
+            },
+            {
+              "wall": 1.086,
+              "user": 5.646,
+              "sys": 0.4,
+              "rss_mb": 174.6,
+              "exit": 0,
+              "output": "matches"
+            },
+            {
+              "wall": 1.027,
+              "user": 5.482,
+              "sys": 0.381,
+              "rss_mb": 174.6,
+              "exit": 0,
+              "output": "matches"
+            },
+            {
+              "wall": 1.03,
+              "user": 5.541,
+              "sys": 0.337,
+              "rss_mb": 174.8,
+              "exit": 0,
+              "output": "matches"
+            },
+            {
+              "wall": 1.027,
+              "user": 5.515,
+              "sys": 0.371,
+              "rss_mb": 174.6,
+              "exit": 0,
+              "output": "matches"
+            },
+            {
+              "wall": 1.02,
+              "user": 5.518,
+              "sys": 0.362,
+              "rss_mb": 174.8,
+              "exit": 0,
+              "output": "matches"
+            },
+            {
+              "wall": 1.027,
+              "user": 5.511,
+              "sys": 0.363,
+              "rss_mb": 174.6,
+              "exit": 0,
+              "output": "matches"
+            },
+            {
+              "wall": 1.199,
+              "user": 5.346,
+              "sys": 0.383,
+              "rss_mb": 174.6,
+              "exit": 0,
+              "output": "matches"
+            }
+          ],
+          "output": "matches",
+          "median": 1.031,
+          "min": 1.02,
+          "max": 1.199,
+          "user_median": 5.516,
+          "sys_median": 0.382,
+          "peak_rss_mb": 174.8
+        }
+      ]
+    }
+  ],
+  "cpu_probe": {
+    "label": "binarytrees, llgo -tags gopacabra (-Os)",
+    "n": 18,
+    "all": {
+      "wall": 5.512,
+      "user": 41.043,
+      "sys": 0.63,
+      "rss_mb": 73.8,
+      "exit": 0
+    },
+    "one": {
+      "wall": 4.002,
+      "user": 3.526,
+      "sys": 0.464,
+      "rss_mb": 75.4,
+      "exit": 0
+    }
+  }
+}
