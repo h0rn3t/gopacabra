@@ -29,18 +29,21 @@ func countState(c *counter) stateFn {
 	return countState
 }
 
+// Під M:N вхідне опитування переносить створення counter у блок злиття після
+// тіла циклу, тож виклик через stateFn перевіряється першим.
 // CHECK-LABEL: define void @main.main(){{.*}} {
-// CHECK: %[[COUNTER_OBJ:[0-9]+]] = call ptr @"{{.*}}/runtime/internal/runtime.AllocZ"(i64 32)
-// CHECK: %[[MAX_SLOT:[0-9]+]] = getelementptr inbounds nuw %main.counter, ptr %[[COUNTER_OBJ]], i32 0, i32 1
-// CHECK-NEXT: %[[STATE_SLOT:[0-9]+]] = getelementptr inbounds nuw %main.counter, ptr %[[COUNTER_OBJ]], i32 0, i32 2
-// CHECK-NEXT: store i64 5, ptr %[[MAX_SLOT]]
-// CHECK-NEXT: store %main.stateFn { ptr @main.countState, ptr null }, ptr %[[STATE_SLOT]]
-// CHECK: %[[STATE:[0-9]+]] = load %main.stateFn, ptr %{{[0-9]+}}
+// CHECK: %[[STATE_PTR:[0-9]+]] = getelementptr inbounds nuw %main.counter, ptr %[[COUNTER_OBJ:[0-9]+]], i32 0, i32 2
+// CHECK-NEXT: %[[STATE:[0-9]+]] = load %main.stateFn, ptr %[[STATE_PTR]]
 // CHECK-NEXT: %[[STATE_ENV:[0-9]+]] = extractvalue %main.stateFn %[[STATE]], 1
 // CHECK-NEXT: %[[STATE_CODE:[0-9]+]] = extractvalue %main.stateFn %[[STATE]], 0
 // ARM64: %[[NEXT_STATE:[0-9]+]] = call %main.stateFn %__llgo_funcval_code(ptr swiftself %[[STATE_ENV]], ptr %[[COUNTER_OBJ]])
 // AMD64: %[[NEXT_STATE:[0-9]+]] = call %main.stateFn %__llgo_funcval_code(ptr nest %[[STATE_ENV]], ptr %[[COUNTER_OBJ]])
 // CHECK: store %main.stateFn %[[NEXT_STATE]], ptr %{{[0-9]+}}
+// CHECK: %[[COUNTER_OBJ]] = call ptr @"{{.*}}/runtime/internal/runtime.AllocZ"(i64 32)
+// CHECK: %[[MAX_SLOT:[0-9]+]] = getelementptr inbounds nuw %main.counter, ptr %[[COUNTER_OBJ]], i32 0, i32 1
+// CHECK-NEXT: %[[STATE_SLOT:[0-9]+]] = getelementptr inbounds nuw %main.counter, ptr %[[COUNTER_OBJ]], i32 0, i32 2
+// CHECK-NEXT: store i64 5, ptr %[[MAX_SLOT]]
+// CHECK-NEXT: store %main.stateFn { ptr @main.countState, ptr null }, ptr %[[STATE_SLOT]]
 func main() {
 	c := &counter{max: 5, state: countState}
 

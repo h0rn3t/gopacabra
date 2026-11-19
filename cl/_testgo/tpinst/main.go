@@ -39,11 +39,28 @@ func (pt *M[T]) value() T {
 	return pt.v
 }
 
+// Під M:N вхідне опитування переносить код входу (гілку M[int]) у блок
+// злиття в кінці функції, тож перевірки йдуть у текстовому порядку: M[float64],
+// приведення до інтерфейсу з приватним методом, M[int]. Об'єкти M[T] — на стеку.
 // CHECK-LABEL: define void @main.demo(){{.*}} {
-// CHECK: %[[INT_OBJ:[0-9]+]] = call ptr @"{{.*}}/runtime/internal/runtime.AllocZ"(i64 8)
+// CHECK: %[[FLOAT_OBJ:[0-9]+]] = alloca %"main.M[float64]"
+// CHECK: %[[INT_OBJ:[0-9]+]] = alloca %"main.M[int]"
+// CHECK: %[[FLOAT_ITAB:[0-9]+]] = call ptr @"{{.*}}/runtime/internal/runtime.NewItab"(ptr @"_llgo_iface${{[-A-Za-z0-9_]+}}", ptr @"*_llgo_main.M[float64]")
+// CHECK: %[[FLOAT_IFACE0:[0-9]+]] = insertvalue %"{{.*}}/runtime/internal/runtime.iface" undef, ptr %[[FLOAT_ITAB]], 0
+// CHECK: %[[FLOAT_IFACE:[0-9]+]] = insertvalue %"{{.*}}/runtime/internal/runtime.iface" %[[FLOAT_IFACE0]], ptr %[[FLOAT_OBJ]], 1
+// CHECK: %[[FLOAT_DATA:[0-9]+]] = call ptr @"{{.*}}/runtime/internal/runtime.IfacePtrData"(%"{{.*}}/runtime/internal/runtime.iface" %[[FLOAT_IFACE]])
+// CHECK: %[[FLOAT_IFACE_TYPE:[0-9]+]] = extractvalue %"{{.*}}/runtime/internal/runtime.iface" %[[FLOAT_IFACE]], 0
+// CHECK: getelementptr ptr, ptr %[[FLOAT_IFACE_TYPE]], i64 3
+// CHECK: insertvalue { ptr, ptr } %{{[0-9]+}}, ptr %[[FLOAT_DATA]], 1
+// CHECK: %[[FLOAT_RESULT:[0-9]+]] = call double %{{[0-9]+}}(ptr %{{[0-9]+}})
+// CHECK: %[[FLOAT_BAD:[0-9]+]] = fcmp une double %[[FLOAT_RESULT]], 1.001000e+02
+// CHECK: br i1 %[[FLOAT_BAD]]
+// CHECK: %[[INT_TYPE:[0-9]+]] = call ptr @"{{.*}}/runtime/internal/runtime.IfaceType"(%"{{.*}}/runtime/internal/runtime.iface" %[[INT_IFACE:[0-9]+]])
+// CHECK: %[[IMPLEMENTS:[0-9]+]] = call i1 @"{{.*}}/runtime/internal/runtime.Implements"(ptr @"{{.*}}/cl/_testgo/tpinst.iface${{[-A-Za-z0-9_]+}}", ptr %[[INT_TYPE]])
+// CHECK: br i1 %[[IMPLEMENTS]]
 // CHECK: %[[INT_ITAB:[0-9]+]] = call ptr @"{{.*}}/runtime/internal/runtime.NewItab"(ptr @"_llgo_iface${{[-A-Za-z0-9_]+}}", ptr @"*_llgo_main.M[int]")
 // CHECK: %[[INT_IFACE0:[0-9]+]] = insertvalue %"{{.*}}/runtime/internal/runtime.iface" undef, ptr %[[INT_ITAB]], 0
-// CHECK: %[[INT_IFACE:[0-9]+]] = insertvalue %"{{.*}}/runtime/internal/runtime.iface" %[[INT_IFACE0]], ptr %[[INT_OBJ]], 1
+// CHECK: %[[INT_IFACE]] = insertvalue %"{{.*}}/runtime/internal/runtime.iface" %[[INT_IFACE0]], ptr %[[INT_OBJ]], 1
 // CHECK: %[[INT_DATA:[0-9]+]] = call ptr @"{{.*}}/runtime/internal/runtime.IfacePtrData"(%"{{.*}}/runtime/internal/runtime.iface" %[[INT_IFACE]])
 // CHECK: %[[INT_IFACE_TYPE:[0-9]+]] = extractvalue %"{{.*}}/runtime/internal/runtime.iface" %[[INT_IFACE]], 0
 // CHECK: %[[INT_METHOD_SLOT:[0-9]+]] = getelementptr ptr, ptr %[[INT_IFACE_TYPE]], i64 3
@@ -55,21 +72,9 @@ func (pt *M[T]) value() T {
 // CHECK: %[[INT_RESULT:[0-9]+]] = call i64 %[[INT_CALL_CODE]](ptr %[[INT_CALL_DATA]])
 // CHECK: %[[INT_BAD:[0-9]+]] = icmp ne i64 %[[INT_RESULT]], 100
 // CHECK: br i1 %[[INT_BAD]]
-// CHECK: %[[FLOAT_OBJ:[0-9]+]] = call ptr @"{{.*}}/runtime/internal/runtime.AllocZ"(i64 8)
-// CHECK: %[[FLOAT_ITAB:[0-9]+]] = call ptr @"{{.*}}/runtime/internal/runtime.NewItab"(ptr @"_llgo_iface${{[-A-Za-z0-9_]+}}", ptr @"*_llgo_main.M[float64]")
-// CHECK: %[[FLOAT_IFACE0:[0-9]+]] = insertvalue %"{{.*}}/runtime/internal/runtime.iface" undef, ptr %[[FLOAT_ITAB]], 0
-// CHECK: %[[FLOAT_IFACE:[0-9]+]] = insertvalue %"{{.*}}/runtime/internal/runtime.iface" %[[FLOAT_IFACE0]], ptr %[[FLOAT_OBJ]], 1
-// CHECK: %[[FLOAT_DATA:[0-9]+]] = call ptr @"{{.*}}/runtime/internal/runtime.IfacePtrData"(%"{{.*}}/runtime/internal/runtime.iface" %[[FLOAT_IFACE]])
-// CHECK: %[[FLOAT_IFACE_TYPE:[0-9]+]] = extractvalue %"{{.*}}/runtime/internal/runtime.iface" %[[FLOAT_IFACE]], 0
-// CHECK: getelementptr ptr, ptr %[[FLOAT_IFACE_TYPE]], i64 3
-// CHECK: insertvalue { ptr, ptr } %{{[0-9]+}}, ptr %[[FLOAT_DATA]], 1
-// CHECK: %[[FLOAT_RESULT:[0-9]+]] = call double %{{[0-9]+}}(ptr %{{[0-9]+}})
-// CHECK: %[[FLOAT_BAD:[0-9]+]] = fcmp une double %[[FLOAT_RESULT]], 1.001000e+02
-// CHECK: br i1 %[[FLOAT_BAD]]
-// CHECK: %[[INT_TYPE:[0-9]+]] = call ptr @"{{.*}}/runtime/internal/runtime.IfaceType"(%"{{.*}}/runtime/internal/runtime.iface" %[[INT_IFACE]])
-// CHECK: %[[IMPLEMENTS:[0-9]+]] = call i1 @"{{.*}}/runtime/internal/runtime.Implements"(ptr @"{{.*}}/cl/_testgo/tpinst.iface${{[-A-Za-z0-9_]+}}", ptr %[[INT_TYPE]])
-// CHECK: br i1 %[[IMPLEMENTS]]
+// CHECK: %[[PRIVATE_DATA:[0-9]+]] = extractvalue %"{{.*}}/runtime/internal/runtime.iface" %[[INT_IFACE]], 1
 // CHECK: %[[PRIVATE_ITAB:[0-9]+]] = call ptr @"{{.*}}/runtime/internal/runtime.NewItab"(ptr @"{{.*}}/cl/_testgo/tpinst.iface${{[-A-Za-z0-9_]+}}", ptr %[[INT_TYPE]])
+// CHECK: insertvalue %"{{.*}}/runtime/internal/runtime.iface" %{{[0-9]+}}, ptr %[[PRIVATE_DATA]], 1
 
 // CHECK-LABEL: define linkonce i64 @"main.(*M[int]).Value"(ptr %0){{.*}} {
 // CHECK: [[INT_VALUE_FIELD:%[0-9]+]] = getelementptr inbounds nuw %"main.M[int]", ptr %0, i32 0, i32 0
