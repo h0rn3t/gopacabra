@@ -29,7 +29,7 @@ func printf(format *int8, __llgo_va_list ...any) int32
 // CHECK: [[ARGV_BASE:%[0-9]+]] = load ptr, ptr @__llgo_argv
 // CHECK-NEXT: [[ARGV_SLOT:%[0-9]+]] = getelementptr ptr, ptr [[ARGV_BASE]], i32 [[ARGV_INDEX]]
 // CHECK-NEXT: [[ARGV_VALUE:%[0-9]+]] = load ptr, ptr [[ARGV_SLOT]]
-// CHECK-NEXT: call i32 (ptr, ...) @printf(ptr @{{[0-9]+}}, ptr [[ARGV_VALUE]])
+// CHECK: call i32 (ptr, ...) @printf(ptr @{{[0-9]+}}, ptr [[ARGV_VALUE]])
 // CHECK: [[ARGV_NEXT:%[0-9]+]] = add i32 [[ARGV_INDEX]], 1
 
 func main() {

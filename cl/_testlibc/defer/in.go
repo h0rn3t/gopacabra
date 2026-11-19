@@ -28,21 +28,16 @@ func printf(format *int8, __llgo_va_list ...any) int32
 // CHECK-NEXT: ret i1 [[F_RESULT]]
 
 // CHECK-LABEL: define void @main.main(){{.*}} {
-// CHECK: [[GO_DEFER_DATA:%.*]] = call ptr @"{{.*}}GetThreadDefer"()
-// CHECK: [[COND:%.*]] = call i1 @main.f(%"{{.*}}String" { ptr [[HELLO]], i64 5 })
-// CHECK: [[PREV_DEFER:%.*]] = call ptr @"{{.*}}GetThreadDefer"()
-// CHECK: [[FRAME:%.*]] = call ptr @"{{.*}}AllocU"(i64 48)
-// CHECK: store ptr [[PREV_DEFER]], ptr {{%.*}}
-// CHECK: call void @"{{.*}}SetThreadDefer"(ptr [[FRAME]])
-// CHECK: [[FLAGS:%.*]] = getelementptr inbounds nuw %"{{.*}}Defer", ptr [[FRAME]], i32 0, i32 1
-// CHECK: [[HEAD:%.*]] = getelementptr inbounds nuw %"{{.*}}Defer", ptr [[FRAME]], i32 0, i32 5
+// Вхідний блок з кадром defer стоїть після блоків M:N-опитування та гілок,
+// тож FLAGS і HEAD захоплюються при першому використанні, а їхнє походження
+// з кадру перевіряється нижче.
 // True branch: copy the Go string to stable C storage and keep format+argument.
 // CHECK: [[CSTR_BUF:%.*]] = alloca i8, i64 6
 // CHECK-NEXT: [[CSTR:%.*]] = call ptr @"{{.*}}CStrCopy"(ptr [[CSTR_BUF]], %"{{.*}}String" { ptr [[HELLO]], i64 5 })
-// CHECK: [[FORMAT_FLAGS0:%.*]] = load i64, ptr [[FLAGS]]
+// CHECK: [[FORMAT_FLAGS0:%.*]] = load i64, ptr [[FLAGS:%[0-9]+]]
 // CHECK-NEXT: [[FORMAT_FLAGS:%.*]] = or i64 [[FORMAT_FLAGS0]], 1
 // CHECK-NEXT: store i64 [[FORMAT_FLAGS]], ptr [[FLAGS]]
-// CHECK: [[FORMAT_PREV:%.*]] = load ptr, ptr [[HEAD]]
+// CHECK: [[FORMAT_PREV:%.*]] = load ptr, ptr [[HEAD:%[0-9]+]]
 // CHECK: [[FORMAT_NODE:%.*]] = call ptr @"{{.*}}AllocU"(i64 32)
 // CHECK: store ptr [[FORMAT_PREV]], ptr {{%.*}}
 // CHECK: store ptr [[FORMAT]], ptr {{%.*}}
@@ -64,6 +59,15 @@ func printf(format *int8, __llgo_va_list ...any) int32
 // CHECK: store ptr [[WORLD_PREV]], ptr {{%.*}}
 // CHECK: store ptr [[WORLD]], ptr {{%.*}}
 // CHECK: store ptr [[WORLD_NODE]], ptr [[HEAD]]
+// The frame lives on the stack and becomes the thread's defer head.
+// CHECK: call ptr @"{{.*}}GetThreadDefer"()
+// CHECK: [[COND:%.*]] = call i1 @main.f(%"{{.*}}String" { ptr [[HELLO]], i64 5 })
+// CHECK: [[PREV_DEFER:%.*]] = call ptr @"{{.*}}GetThreadDefer"()
+// CHECK: [[FRAME:%.*]] = alloca %"{{.*}}Defer"
+// CHECK: store ptr [[PREV_DEFER]], ptr {{%.*}}
+// CHECK: call void @"{{.*}}SetThreadDefer"(ptr [[FRAME]])
+// CHECK: [[FLAGS]] = getelementptr inbounds nuw %"{{.*}}Defer", ptr [[FRAME]], i32 0, i32 1
+// CHECK: [[HEAD]] = getelementptr inbounds nuw %"{{.*}}Defer", ptr [[FRAME]], i32 0, i32 5
 // CHECK: br i1 [[COND]], label %{{.*}}, label %{{.*}}
 // Cleanup order in the IR is bye, conditional world, then conditional %s.
 // CHECK: [[FORMAT_MASK:%.*]] = and i64 {{%.*}}, 1

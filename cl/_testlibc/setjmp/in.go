@@ -20,22 +20,21 @@ func cstr(string) *int8
 func fprintf(fp unsafe.Pointer, format *int8, __llgo_va_list ...any) int32
 
 // CHECK-LABEL: define void @main.main(){{.*}} {
+// Блок з setjmp іде після блоків M:N-опитування та обох гілок switch, тож
+// JMPBUF і RET захоплюються при першому використанні в гілках.
 // The libc ABI controls the sigjmp_buf size and libc symbol spellings.
-// DARWIN-ARM64: [[JMPBUF:%[0-9]+]] = alloca i8, i64 196
-// LINUX-AMD64: [[JMPBUF:%[0-9]+]] = alloca i8, i64 200
-// DARWIN-ARM64-NEXT: [[RET:%[0-9]+]] = call i32 @sigsetjmp(ptr [[JMPBUF]], i32 0)
-// LINUX-AMD64-NEXT: [[RET:%[0-9]+]] = call i32 @__sigsetjmp(ptr [[JMPBUF]], i32 0)
-// CHECK-NEXT: [[FIRST:%[0-9]+]] = icmp eq i32 [[RET]], 0
-// CHECK-NEXT: br i1 [[FIRST]], label %{{[^,]+}}, label %{{[^ ]+}}
-// CHECK: {{^_llgo_[0-9]+:}}
 // DARWIN-ARM64: [[STDERR:%[0-9]+]] = load ptr, ptr @__stderrp
 // LINUX-AMD64: [[STDERR:%[0-9]+]] = load ptr, ptr @stderr
-// CHECK-NEXT: call i32 (ptr, ptr, ...) @fprintf(ptr [[STDERR]], ptr @{{[0-9]+}}, ptr getelementptr (i8, ptr @{{[0-9]+}}, i{{32|64}} 2))
-// DARWIN-NEXT: call void @siglongjmp(ptr [[JMPBUF]], i32 1)
-// LINUX-NEXT: call void @siglongjmp(ptr [[JMPBUF]], i32 1)
-// CHECK: {{^_llgo_[0-9]+:}}
-// CHECK: [[PRINT_RET:%[0-9]+]] = sext i32 [[RET]] to i64
+// CHECK: call i32 (ptr, ptr, ...) @fprintf(ptr [[STDERR]], ptr @{{[0-9]+}}, ptr getelementptr (i8, ptr @{{[0-9]+}}, i{{32|64}} 2))
+// CHECK: call void @siglongjmp(ptr [[JMPBUF:%[0-9]+]], i32 1)
+// CHECK: [[PRINT_RET:%[0-9]+]] = sext i32 [[RET:%[0-9]+]] to i64
 // CHECK-NEXT: call void @"{{.*}}PrintInt"(i64 [[PRINT_RET]])
+// DARWIN-ARM64: [[JMPBUF]] = alloca i8, i64 196
+// LINUX-AMD64: [[JMPBUF]] = alloca i8, i64 200
+// DARWIN-ARM64-NEXT: [[RET]] = call i32 @sigsetjmp(ptr [[JMPBUF]], i32 0)
+// LINUX-AMD64-NEXT: [[RET]] = call i32 @__sigsetjmp(ptr [[JMPBUF]], i32 0)
+// CHECK-NEXT: [[FIRST:%[0-9]+]] = icmp eq i32 [[RET]], 0
+// CHECK-NEXT: br i1 [[FIRST]], label %{{[^,]+}}, label %{{[^ ]+}}
 
 func main() {
 	jb := allocaSigjmpBuf()

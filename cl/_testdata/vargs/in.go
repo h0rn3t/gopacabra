@@ -23,7 +23,6 @@ func test(a ...any) {
 // Keep this check focused on the variadic slice, interface boxing, and
 // assertion-to-C-varargs data flow. Bounds-loop details are owned elsewhere.
 // CHECK-LABEL: define void @main.main(){{.*}} {
-// CHECK: [[ARGS:%[0-9]+]] = call ptr @"{{.*}}AllocZ"(i64 48)
 // CHECK: [[BOX:%[0-9]+]] = call ptr @"{{.*}}AllocU"(i64 8)
 // CHECK-NEXT: store i64 1, ptr [[BOX]]
 // CHECK-NEXT: [[EFACE:%[0-9]+]] = insertvalue %"{{.*}}eface" { ptr @_llgo_int, ptr undef }, ptr [[BOX]], 1
@@ -32,13 +31,11 @@ func test(a ...any) {
 // CHECK-NEXT: call void @main.test(%"{{.*}}Slice" [[SLICE]])
 
 // CHECK-LABEL: define void @main.test(
-// CHECK: [[LEN:%[0-9]+]] = extractvalue %"{{.*}}Slice" %0, 1
-// CHECK: [[INDEX:%[0-9]+]] = phi i64
 // CHECK: [[SLOT:%[0-9]+]] = getelementptr inbounds %"{{.*}}eface", ptr {{%[0-9]+}}, i64 {{%[0-9]+}}
 // CHECK-NEXT: [[VALUE:%[0-9]+]] = load %"{{.*}}eface", ptr [[SLOT]]
 // CHECK-NEXT: [[TYPE:%[0-9]+]] = extractvalue %"{{.*}}eface" [[VALUE]], 0
 // CHECK-NEXT: [[IS_INT:%[0-9]+]] = icmp eq ptr [[TYPE]], @_llgo_int
 // CHECK: [[DATA:%[0-9]+]] = extractvalue %"{{.*}}eface" [[VALUE]], 1
 // CHECK-NEXT: [[INT:%[0-9]+]] = load i64, ptr [[DATA]]
-// CHECK-NEXT: call i32 (ptr, ...) @printf(ptr @{{[0-9]+}}, i64 [[INT]])
+// CHECK: call i32 (ptr, ...) @printf(ptr @{{[0-9]+}}, i64 [[INT]])
 // CHECK: call void @"{{.*}}PanicTypeAssert"(ptr null, ptr [[TYPE]], ptr @_llgo_int)

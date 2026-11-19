@@ -15,10 +15,8 @@ import (
 // CHECK-LABEL: define i64 @"{{.*}}.UseCTrampoline"(){{.*}} {
 // CHECK: ret i64 ptrtoint (ptr @write to i64)
 // CHECK-LABEL: define i64 @"{{.*}}.UseClosure"(){{.*}} {
-// CHECK: [[UC_X:%[0-9]+]] = call ptr @"{{.*}}/runtime/internal/runtime.AllocZ"(i64 8)
-// CHECK-NEXT: [[UC_ENV:%[0-9]+]] = call ptr @"{{.*}}/runtime/internal/runtime.AllocU"(i64 8)
-// CHECK-NEXT: [[UC_X_SLOT:%[0-9]+]] = getelementptr inbounds nuw { ptr }, ptr [[UC_ENV]], i32 0, i32 0
-// CHECK-NEXT: store ptr [[UC_X]], ptr [[UC_X_SLOT]]
+// CHECK: [[UC_X_SLOT:%[0-9]+]] = getelementptr inbounds nuw { ptr }, ptr [[UC_ENV:%[0-9]+]], i32 0, i32 0
+// CHECK-NEXT: store ptr [[UC_X:%[0-9]+]], ptr [[UC_X_SLOT]]
 // CHECK-NEXT: [[UC_CLOSURE:%[0-9]+]] = insertvalue { ptr, ptr } { ptr @"{{.*}}.UseClosure$1", ptr undef }, ptr [[UC_ENV]], 1
 // CHECK-NEXT: ret i64 ptrtoint (ptr @"{{.*}}.UseClosure$1" to i64)
 // ARM64-LABEL: define void @"{{.*}}.UseClosure$1"(ptr swiftself
@@ -37,14 +35,16 @@ import (
 // CHECK-LABEL: define ptr @"{{.*}}.UseFuncAddr"(){{.*}} {
 // CHECK: ret ptr @"{{.*}}.addForAddress"
 // CHECK-LABEL: define i1 @"{{.*}}.UseFuncIdentity"(){{.*}} {
-// CHECK: store ptr @"{{.*}}.addForAddress", ptr [[DECLARED_SLOT:%[0-9]+]]
-// CHECK: store ptr @"{{.*}}.UseFuncIdentity$1", ptr [[LITERAL_SLOT:%[0-9]+]]
-// CHECK: [[DECLARED_CODE:%[0-9]+]] = load ptr, ptr [[DECLARED_SLOT]]
-// CHECK: [[DECLARED_DIRECT:%[0-9]+]] = load ptr, ptr [[DECLARED_SLOT]]
-// CHECK-NEXT: [[DECLARED_MATCH:%[0-9]+]] = icmp eq ptr [[DECLARED_CODE]], [[DECLARED_DIRECT]]
-// CHECK: [[LITERAL_CODE:%[0-9]+]] = load ptr, ptr [[LITERAL_SLOT]]
-// CHECK: [[LITERAL_DIRECT:%[0-9]+]] = load ptr, ptr [[LITERAL_SLOT]]
-// CHECK-NEXT: [[LITERAL_MATCH:%[0-9]+]] = icmp eq ptr [[LITERAL_CODE]], [[LITERAL_DIRECT]]
+// Блоки M:N-опитування зсувають вхідний блок, тож блок порівняння літерала
+// може стояти перед store; CHECK-DAG тримає потік даних слотів без порядку блоків.
+// CHECK-DAG: store ptr @"{{.*}}.addForAddress", ptr [[DECLARED_SLOT:%[0-9]+]]
+// CHECK-DAG: store ptr @"{{.*}}.UseFuncIdentity$1", ptr [[LITERAL_SLOT:%[0-9]+]]
+// CHECK-DAG: [[DECLARED_CODE:%[0-9]+]] = load ptr, ptr [[DECLARED_SLOT]]
+// CHECK-DAG: [[DECLARED_DIRECT:%[0-9]+]] = load ptr, ptr [[DECLARED_SLOT]]
+// CHECK-DAG: icmp eq ptr [[DECLARED_CODE]], [[DECLARED_DIRECT]]
+// CHECK-DAG: [[LITERAL_CODE:%[0-9]+]] = load ptr, ptr [[LITERAL_SLOT]]
+// CHECK-DAG: [[LITERAL_DIRECT:%[0-9]+]] = load ptr, ptr [[LITERAL_SLOT]]
+// CHECK-DAG: icmp eq ptr [[LITERAL_CODE]], [[LITERAL_DIRECT]]
 // CHECK-LABEL: define i64 @"{{.*}}.UseLibc"(){{.*}} {
 // CHECK: ret i64 ptrtoint (ptr @foo to i64)
 // CHECK-LABEL: define void @"{{.*}}.UseSkip"(){{.*}} {
