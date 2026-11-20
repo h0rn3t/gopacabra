@@ -1208,16 +1208,18 @@ func TestBaremetalRuntimeKeepsSchedulerFreeLifecycleStubs(t *testing.T) {
 	ctx := gobuild.Default
 	ctx.GOOS = "linux"
 	ctx.GOARCH = "arm"
-	ctx.BuildTags = []string{"llgo", "baremetal"}
+	ctx.BuildTags = []string{"llgo", "baremetal", "gopacabra", "nogc"}
 	pkg, err := ctx.ImportDir(runtimeDir, 0)
 	if err != nil {
 		t.Fatal(err)
 	}
-	if !slices.Contains(pkg.GoFiles, "cleanup_baremetal.go") {
+	// Після P11.5.0.2 no-op AddCleanupPtr для baremetal дає z_nogc.go, а не
+	// cleanup_baremetal.go; нативний алокатор gopacabra потребує pthread.
+	if !slices.Contains(pkg.GoFiles, "z_nogc.go") {
 		t.Fatalf("bare-metal runtime did not select lifecycle stubs; GoFiles=%v", pkg.GoFiles)
 	}
-	if slices.Contains(pkg.GoFiles, "cleanup_wasm.go") {
-		t.Fatalf("bare-metal runtime selected WebAssembly lifecycle implementation; GoFiles=%v", pkg.GoFiles)
+	if slices.Contains(pkg.GoFiles, "alloc_gopacabra.go") {
+		t.Fatalf("bare-metal runtime selected the pthread allocator; GoFiles=%v", pkg.GoFiles)
 	}
 }
 
