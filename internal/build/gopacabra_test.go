@@ -1,10 +1,17 @@
 package build
 
 import (
+	"go/ast"
+	"go/parser"
+	"go/token"
+	"io/fs"
 	"os"
 	"os/exec"
 	"path/filepath"
 	"runtime"
+	"slices"
+	"strconv"
+	"strings"
 	"testing"
 )
 
@@ -183,5 +190,51 @@ func TestGopacabraMNRuntimeFreeProgram(t *testing.T) {
 				t.Errorf("linked LLGo runtime = %v, want %v", got, tt.wantRuntime)
 			}
 		})
+	}
+}
+
+// TestRuntimeLinksNoTracingGC стереже P11.5.0.1: рантайм не імпортує
+// обгортку BDWGC і не просить лінкувати libgc, тож збірка не залежить від
+// встановленого bdw-gc.
+func TestRuntimeLinksNoTracingGC(t *testing.T) {
+	const bdwgcPkg = "github.com/xgo-dev/llgo/runtime/internal/clite/bdwgc"
+	root := filepath.Join("..", "..", "runtime")
+	err := filepath.WalkDir(root, func(path string, d fs.DirEntry, err error) error {
+		if err != nil || d.IsDir() || !strings.HasSuffix(path, ".go") {
+			return err
+		}
+		file, err := parser.ParseFile(token.NewFileSet(), path, nil, parser.SkipObjectResolution)
+		if err != nil {
+			return err
+		}
+		for _, spec := range file.Imports {
+			if p, _ := strconv.Unquote(spec.Path.Value); p == bdwgcPkg {
+				t.Errorf("%s imports %s", path, bdwgcPkg)
+			}
+		}
+		ast.Inspect(file, func(n ast.Node) bool {
+			spec, ok := n.(*ast.ValueSpec)
+			if !ok {
+				return true
+			}
+			for i, name := range spec.Names {
+				if name.Name != "LLGoPackage" || i >= len(spec.Values) {
+					continue
+				}
+				lit, ok := spec.Values[i].(*ast.BasicLit)
+				if !ok {
+					continue
+				}
+				v, _ := strconv.Unquote(lit.Value)
+				if strings.Contains(v, "bdw-gc") || slices.Contains(strings.FieldsFunc(v, func(r rune) bool { return r == ' ' || r == ';' }), "-lgc") {
+					t.Errorf("%s: LLGoPackage = %q links libgc", path, v)
+				}
+			}
+			return false
+		})
+		return nil
+	})
+	if err != nil {
+		t.Fatalf("walk %s: %v", root, err)
 	}
 }
