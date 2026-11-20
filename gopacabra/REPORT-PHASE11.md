@@ -305,7 +305,7 @@ func main() {
 
 | Ціль | Причина | Задача |
 | --- | --- | --- |
-| `esp32c3` (RISC-V без розширення A) | облік gopacabra кличе `__atomic_fetch_add_4/8`, `__atomic_fetch_or_4`, `__atomic_fetch_sub_8`; `compiler-rt/atomic.c` для ESP не збирається (`rtlib/compiler_rt.go`) | P11.5.0.5 |
+| `esp32c3` (RISC-V без розширення A) | облік gopacabra кличе `__atomic_fetch_add_4/8`, `__atomic_fetch_or_4`, `__atomic_fetch_sub_8`; `compiler-rt/atomic.c` для ESP не збирається (`rtlib/compiler_rt.go`) | P11.5.0.5: ціль видалено разом з ESP |
 
 **Компіляторні GC roots лишились.** `cl/gcroot.go`, `ssa/gcroot.go` і `prog.EnableGCRoots` тепер ніколи не вмикаються. Код не видалено, щоб diff `cl`/`ssa` від upstream лишився малим.
 
@@ -334,3 +334,55 @@ func main() {
   - запуск esp32 в емуляторі: немає qemu;
   - wasi-threads під Wasmer;
   - darwin.
+
+## P11.5.0.5 Видалення підтримки ESP (2026-11-20)
+
+Рішення розробника: ESP не потрібен. Тому задачу P11.5.0.5 змінено: було «рантайм на esp32c3 без `__atomic_*`», стало «видалити ESP повністю».
+
+**Що видалено** (`4b40b5aa4`, 142 файли, −37 тис. рядків):
+
+- цілі esp32, esp32c3, esp8266, інші Xtensa і `riscv32-esp`, а також похідні плати (40 файлів `targets/*.json`), ESP linker-скрипти, `targets/device/esp`;
+- `internal/firmware/esp.go` (образ ESP); тепер `esp` → `bin` у `firmware.go` і `env.go`;
+- newlib-esp32 (`compile/libc/newlibesp.go`); прапорці libc переїхали в `compile/libc/flags.go`;
+- Xtensa:
+  - cabi (`TypeInfoEsp32`);
+  - `jmpbuf_xtensa_baremetal.go`;
+  - збірка compiler-rt; riscv32 тепер завжди з `atomic.c` і `-march=rv32imac`;
+- тестові дані cabi `esp32`/`esp32c3`, демо `_demo/embed/esp32*`, `testdata/esp32-serial`, скрипти запуску;
+- `capture_esp.go` у `cl/_testlibc/callbackmethod`;
+- набір емулятора: `TestRunEmbedEmulator`, `FilterEmulatorOutput`, вибір `embedded` у `run_go_tests.py`, крок `LLGO_EMBED_TESTS` у `go.yml`;
+- кроки ESP qemu в CI: `install-esp-qemu.sh`, `setup-embed-deps`.
+
+**Що змінено.** Тести, де ESP був просто прикладом вбудованої цілі, тепер беруть `rp2040`, `riscv-qemu`, `cortex-m-qemu` або `arduino`. Їх зміст не змінився. Є три винятки:
+
+- `verify_export.sh` збирає `c-archive` для `riscv-qemu` замість образу esp32: жодна не-ESP baremetal-ціль не компонується (див. нижче);
+- набори ESP32-C3 у `test/buildcache/test.sh` і `test/sizebuild` видалено без заміни, з тієї ж причини; sizebuild лишився для wasi;
+- `TestNoTinyGoGC` перевіряє baremetal на `riscv-qemu` у `ModeGen` (`7ebebaee6`). У P11.5.0.2 там була компоновка esp32.
+
+**Що лишилось і чому.**
+
+| Залишок | Причина |
+| --- | --- |
+| ESP Clang (`getESPClangRoot`, `-force-espclang`, `download_esp_clang.sh`, `TestESPClang*`, розділ у `THIRD_PARTY_NOTICES.md`) | вбудований clang для всіх вбудованих цілей, не лише ESP |
+| тег compiler-rt `xtensa_release_22.1.4_*` | назва релізу `goplus/compiler-rt`, з якого збираються всі вбудовані цілі |
+| `internal/crosscompile/libc_test.go` | рядки виводу ESP Clang як дані тесту версії компілятора |
+| `ssa/decl.go` | коментар про випадок, знайдений на ESP32-C3 |
+| `internal/build/gopacabra_test.go` | `TestNoESPTargets`, сам тест-сторож |
+
+**Не-ESP baremetal-цілі не компонуються.** Це було і до видалення, ESP-цілі лишались єдиними, що компонувалися:
+
+- `cortex-m-qemu`: немає `Reset_Handler`;
+- `riscv-qemu`: немає `srandom`, `stdout`, `vfprintf`;
+- `rp2040`: немає `__flash_size`.
+
+Якщо baremetal знову знадобиться, задача — полагодити одну з цих цілей.
+
+**`-oimg`.** Опцію з upstream лишено, але тепер вона завжди дає помилку. `ConvertFormats` просить формат `<binary-format>-img`, а `makeFirmwareImage` знав лише `esp-img`; лишились `uf2` і `nrf-dfu`. Можлива наступна чистка.
+
+### Прийняття
+
+- `TestNoESPTargets` — ok; до реалізації — червоний.
+- `go build ./...`, `gofmt`, `go vet ./internal/... ./cl/... ./ssa/... ./cmd/...` — чисто.
+- `go test ./internal/... ./cl/ ./cmd/...` — 93 пакети ok. Падіння лише відомі: `TestBuildDo_DepFingerprintAndVersion`, `TestSIMDFMVLLVM`, `TestSIMDFMVAggregatesLLVM`, `TestSIMDMidwayFMVLLVM`, `TestRunCmdPassesGoBuildFlags` (`GOFLAGS` оточення).
+- Python-тести `.github/scripts` — ok.
+- Не перевірено: повний CI (кроки вбудованих цілей змінено); запуск будь-якої baremetal-цілі; darwin.

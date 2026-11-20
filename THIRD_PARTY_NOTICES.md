@@ -9,7 +9,7 @@ module carries its own copy of LLGo's Apache-2.0 license in `runtime/LICENSE`.
 
 LLGo contains source derived from the [TinyGo project](https://github.com/tinygo-org/tinygo):
 
-- firmware image support in `internal/firmware/esp.go`, `nrfutil.go`, `objcopy.go`, and `uf2.go`;
+- firmware image support in `internal/firmware/nrfutil.go`, `objcopy.go`, and `uf2.go`;
 - the marked flashing-support portions of `internal/flash/flash.go`;
 - serial monitoring and panic-location support in `internal/monitor/monitor.go`;
 - the deprecated archive builder in `chore/_deprecated/ar/ar.go`;
@@ -99,7 +99,7 @@ The Go packages under `internal/crosscompile/compile/libc` and
 `internal/crosscompile/compile/rtlib` are LLGo build manifests, not copies of
 the C library sources. The manifest code itself is compiled into `llgo` and is
 covered by LLGo's Apache-2.0 license. At cross-compilation time, those manifests
-select files from the downloaded picolibc, ESP newlib, or compiler-rt tree and
+select files from the downloaded picolibc or compiler-rt tree and
 build static archives in that same cached tree. The archives are then linked
 into the target program, so they are not part of the `llgo` executable or LLGo
 release archive, but their code can be incorporated into the resulting
@@ -109,14 +109,13 @@ firmware.
 | --- | --- | --- |
 | WASI SDK 25 | [`WebAssembly/wasi-sdk`](https://github.com/WebAssembly/wasi-sdk/releases/tag/wasi-sdk-25) | upstream `LICENSE` and license files in the SDK |
 | picolibc/newlib sources | [`goplus/picolibc`](https://github.com/goplus/picolibc) | upstream `COPYING.picolibc` and `COPYING.NEWLIB` |
-| ESP newlib sources | [`goplus/newlib`](https://github.com/goplus/newlib/tree/esp-4.3.0_20250211-patch7) | upstream `COPYING.NEWLIB` and applicable file notices |
 | compiler-rt sources | [`goplus/compiler-rt@xtensa_release_22.1.4_20260903`](https://github.com/goplus/compiler-rt/tree/xtensa_release_22.1.4_20260903) | upstream `LICENSE.TXT` (Apache-2.0 WITH LLVM-exception) |
 
 Firmware or other binaries built from downloaded C library sources may carry
 their own redistribution requirements. Distributors of those outputs should
 retain the applicable license and copyright notices from the cached source;
-in particular, picolibc and ESP newlib use per-file notices collected by their
-upstream `COPYING` files.
+in particular, picolibc uses per-file notices collected by its upstream
+`COPYING` files.
 
 ## External tools and system libraries
 

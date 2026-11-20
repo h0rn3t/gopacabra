@@ -37,7 +37,7 @@ session-by-session investigation log lives in the PR discussion.
   says where the chain is emitted (linux/darwin, non-embedded, non-wasm);
   the compiler records the decision in the per-binary `__llgo_fp_chain`
   byte, and the runtime's `fpUnwindAvailable` trusts that flag plus table
-  presence. On ESP32-C3 the attribute interacted badly with the
+  presence. On an embedded RISC-V target the attribute interacted badly with the
   conservative GC ("clearing nested struct did not free all objects"), so
   keep embedded targets off unless that is understood.
 

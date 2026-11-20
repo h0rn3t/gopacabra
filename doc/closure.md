@@ -43,7 +43,7 @@ no machine instruction.
 
 The backend selects this ABI from the resolved LLVM target triple, not from
 `GOARCH`. `GOOS/GOARCH` select Go source files and type sizes, but named embedded
-targets such as Xtensa, AVR, and some RISC-V targets may intentionally reuse a
+targets such as AVR and some RISC-V targets may intentionally reuse a
 compatible Go architecture while emitting a different physical architecture.
 The triple is what LLVM uses to assign `nest`/`swiftself` registers.
 

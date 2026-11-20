@@ -136,7 +136,7 @@ Cortex-M3 `lm3s6965evb` QEMU target:
 macOS arm64 **remote** GDB coverage does not imply native Darwin arm64 process
 support. Likewise, these Cortex-M tests do not establish LLDB support for every
 embedded LLVM target. Other RISC-V boards and probes require their own
-acceptance; AVR and Xtensa must use a debugger that implements those targets.
+acceptance; AVR must use a debugger that implements that target.
 No physical probe is exercised in ordinary CI. Browser sessions use the
 separate DevTools frontend contribution; the current threaded WASI runtime
 does not gain a source-debugger frontend from this remote-debugging matrix.

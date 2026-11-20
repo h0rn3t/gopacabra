@@ -60,19 +60,19 @@ llgo run hello.go                                # run locally
 llgo install hello.go                            # install to bin
 
 # Cross-compilation
-llgo build -target esp32 .                       # -> hello.elf
-llgo build -target esp32 -obin .                 # -> hello.elf + hello.bin
-llgo build -target esp32 -ohex .                 # -> hello.elf + hello.bin + hello.hex
-llgo build -target esp32 -obin -ohex -oimg .     # -> hello.elf + hello.bin + hello.hex + hello.img
-llgo run -target esp32 .                         # run on ESP32 (guess a port)
-llgo run -target esp32 -emulator .               # run in emulator
-llgo test -target esp32 -port /dev/ttyUSB0 .     # run tests on device
-llgo test -target esp32 -emulator .              # run tests in emulator
-llgo install -target esp32 -port /dev/ttyUSB0 .  # flash to specific port
+llgo build -target pico .                        # -> hello.elf
+llgo build -target pico -obin .                  # -> hello.elf + hello.bin
+llgo build -target pico -ohex .                  # -> hello.elf + hello.bin + hello.hex
+llgo build -target pico -ouf2 .                  # -> hello.elf + hello.uf2
+llgo run -target pico .                          # run on Raspberry Pi Pico (guess a port)
+llgo run -target riscv-qemu -emulator .          # run in emulator
+llgo test -target pico -port /dev/ttyACM0 .      # run tests on device
+llgo test -target riscv-qemu -emulator .         # run tests in emulator
+llgo install -target pico -port /dev/ttyACM0 .   # flash to specific port
 
 # Monitor device output
-llgo monitor -port /dev/ttyUSB0                  # monitor with specific port
-llgo monitor -target esp32                       # monitor with auto-detected port
-llgo monitor -target esp32 -baudrate 9600        # custom baudrate
-llgo monitor -port /dev/ttyUSB0 ./firmware.elf   # with debug info for panic resolution
+llgo monitor -port /dev/ttyACM0                  # monitor with specific port
+llgo monitor -target pico                        # monitor with auto-detected port
+llgo monitor -target pico -baudrate 9600         # custom baudrate
+llgo monitor -port /dev/ttyACM0 ./firmware.elf   # with debug info for panic resolution
 ```

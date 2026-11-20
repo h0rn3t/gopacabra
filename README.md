@@ -93,7 +93,7 @@ llgo run -O0 -asan .   # debug-збірка під ASan
 
 Тег `gopacabra` додається до кожної збірки сам, вимкнути його не можна. На amd64 типовий `GOAMD64` — `v3` (AVX2); явне значення `GOAMD64` має пріоритет. Звичайна збірка нічого зайвого не друкує. Тег `gopacabrareport` додає на виході рядки `gopacabra freed` і `gopacabra live` та попередження `gopacabra: pinned` під час збірки; `gopacabrastat` (вмикає й `gopacabrareport`) — лічильники `gopacabra ops`, `alloc` і `site`. Під ASan потрібен `ASAN_OPTIONS=detect_leaks=0`: без GC LeakSanitizer вважає витоком кожен живий об'єкт на виході.
 
-Вбудовані цілі (`-target esp32c3`, `rp2040` тощо) збирає ESP clang 23, який llgo завантажує сам.
+Вбудовані цілі (`-target riscv-qemu`, `rp2040` тощо) збирає ESP clang 23, який llgo завантажує сам.
 
 ## Перевірки
 

@@ -46,7 +46,6 @@ Apache License 2.0 material
 Copyright (c) 2016 Atmel Corporation, a wholly owned subsidiary of
 Microchip Technology Inc.
 Copyright (c) 2018 Microchip Technology Inc.
-Copyright 2021-2024 Espressif Systems (Shanghai) CO LTD.
 
 These marked files are licensed under the Apache License, Version 2.0. A copy
 of that license is included as the repository's LICENSE file.

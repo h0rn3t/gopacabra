@@ -1951,3 +1951,14 @@
 - Не перевірено: вивід wasip1 (немає wasmtime, node 20 без exnref), js/emscripten, esp32 в емуляторі, Wasmer, darwin.
 - Нова задача P11.5.0.5: esp32c3 не компонується (немає `__atomic_*`).
 - Наступне: P11.5.0.5 або P11.5.1.
+
+## 2026-11-20 — P11.5.0.5 Видалити підтримку ESP
+
+- Рішення розробника: ESP не потрібен. P11.5.0.5 («рантайм на esp32c3 без `__atomic_*`») замінено видаленням ESP.
+- Тест спершу (`7ebebaee6`): `TestNoESPTargets` перевіряє, що в `internal/targets` немає цілей з `esp`/`xtensa`. `TestNoTinyGoGC` для baremetal тепер бере `riscv-qemu` (`ModeGen`).
+- Реалізація (`4b40b5aa4`, 142 файли, −37 тис. рядків): видалено ESP-цілі, плати, linker-скрипти, newlib-esp32, образ ESP, Xtensa cabi/setjmp/compiler-rt, тестові дані, демо, набір емулятора, кроки ESP qemu в CI. Тести, де ESP був прикладом вбудованої цілі, перейшли на rp2040, riscv-qemu, cortex-m-qemu, arduino.
+- Лишилось: тулчейн ESP Clang (спільний для вбудованих цілей), тег compiler-rt `xtensa_release_*`. Причина кожного залишку — у `gopacabra/REPORT-PHASE11.md`, «P11.5.0.5».
+- Не-ESP baremetal-цілі не компонуються (так було й раніше): `verify_export.sh` перейшов на `c-archive`, набори ESP32-C3 у buildcache/sizebuild видалено. `-oimg` тепер завжди дає помилку.
+- Перевірки: `go build ./...`, `gofmt`, `go vet` — чисто; `go test ./internal/... ./cl/ ./cmd/...` — 93 пакети ok, падіння лише відомі: `TestBuildDo_DepFingerprintAndVersion`, три `TestSIMDFMV*`, `TestRunCmdPassesGoBuildFlags` (`GOFLAGS` оточення); `cl` — ok; Python-тести CI — ok.
+- Не перевірено: повний CI; запуск будь-якої baremetal-цілі; darwin.
+- Наступне: P11.5.1.
