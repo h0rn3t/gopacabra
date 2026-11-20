@@ -121,7 +121,7 @@ upstream `COPYING` files.
 
 ## External tools and system libraries
 
-BDWGC, OpenSSL, libffi, cJSON, SQLite, zlib, Python, Emscripten, QEMU,
+OpenSSL, libffi, cJSON, SQLite, zlib, Python, Emscripten, QEMU,
 OpenOCD, flashing utilities, and platform SDK/system libraries are installed or
 provided separately. LLGo may link to or invoke them, but does not copy them
 into its source tree or release archives, except for LLVM-project components

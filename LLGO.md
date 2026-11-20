@@ -38,7 +38,7 @@ Compiler compatibility is checked against applicable upstream [`GOROOT/test`](te
 
 LLGo uses a different runtime from the standard Go toolchain. Native goroutines map 1:1 to OS threads with fixed native stacks, so direct C calls require no Go-to-C stack or scheduler transition, avoiding the cgo overhead that makes frequent C calls costly in standard Go.
 
-The default garbage collector is conservative [BDWGC](https://www.hboehm.info/gc/) (also known as libgc). Bare-metal embedded targets instead use a TinyGo-derived conservative mark-and-sweep collector.
+This fork (Gopacabra) has no tracing garbage collector: every build gets the `gopacabra` and `nogc` tags, and memory is released by compile-time ownership analysis (see `INTENT.md`).
 
 Garbage collection can be disabled with the `nogc` build tag. For example:
 
@@ -250,7 +250,6 @@ Examples built on these bindings:
 - [LLD 22](https://lld.llvm.org)
 - [LLDB](https://lldb.llvm.org) (LLVM 22 packages on Linux; Xcode's Apple LLDB on macOS)
 - [pkg-config 0.29+](https://gitlab.freedesktop.org/pkg-config/pkg-config)
-- [bdwgc/libgc 8.0+](https://www.hboehm.info/gc/)
 - [libffi](https://sourceware.org/libffi/)
 - [OpenSSL 3.0+](https://www.openssl.org/)
 - [zlib 1.2+](https://github.com/madler/zlib)
@@ -325,7 +324,7 @@ For source builds, install the build dependencies:
 echo "deb http://apt.llvm.org/$(lsb_release -cs)/ llvm-toolchain-$(lsb_release -cs)-23 main" | sudo tee /etc/apt/sources.list.d/llvm.list
 wget -O - https://apt.llvm.org/llvm-snapshot.gpg.key | sudo apt-key add -
 sudo apt-get update
-sudo apt-get install -y llvm-23-dev clang-23 libclang-23-dev lld-23 lldb-23 libunwind-23-dev libc++-23-dev pkg-config libgc-dev libssl-dev zlib1g-dev libffi-dev libcjson-dev libsqlite3-dev libuv1-dev
+sudo apt-get install -y llvm-23-dev clang-23 libclang-23-dev lld-23 lldb-23 libunwind-23-dev libc++-23-dev pkg-config libssl-dev zlib1g-dev libffi-dev libcjson-dev libsqlite3-dev libuv1-dev
 ./install.sh
 ```
 

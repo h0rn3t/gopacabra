@@ -13,7 +13,7 @@ TARGET = main.out
 SOURCES = main.c
 HEADER = ../libexport.h
 PKG_CONFIG ?= pkg-config
-RUNTIME_LIBS = -lpthread -lm $(shell "$(PKG_CONFIG)" --libs bdw-gc || echo -lgc)
+RUNTIME_LIBS = -lpthread -lm
 
 # Default to static linking
 LINK_TYPE ?= static
@@ -51,7 +51,7 @@ else ifneq ($(WINDOWS),)
     PLATFORM_LIBS = -lsynchronization -lws2_32
     # Keep dependency discovery inside the selected target profile. The MSVC
     # and GNU/MinGW lanes provide separate pkg-config roots and library names.
-    RUNTIME_LIBS = $(shell "$(PKG_CONFIG)" --libs bdw-gc)
+    RUNTIME_LIBS =
     STATIC_STDLIB_LIBS = $(shell "$(PKG_CONFIG)" --libs libffi) $(WINDOWS_STATIC_STDLIB_LIBS)
 else
     SHARED_EXT = so

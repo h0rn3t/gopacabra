@@ -11,8 +11,9 @@ import (
 )
 
 // weakHandle supplies the GC-dependent identity used by GOROOT's weak package.
-// Go's collector removes weak registrations from spans during sweep. BDWGC
-// invokes our cleanup during allocation, so registry removal must be deferred.
+// Go's collector removes weak registrations from spans during sweep. A
+// conservative collector may invoke our cleanup during allocation, so registry
+// removal must be deferred.
 // Removing an entry releases the runtime's reference; a user-held weak.Pointer
 // must keep its dead handle alive to preserve identity.
 type weakHandle struct {
@@ -24,7 +25,7 @@ type weakHandle struct {
 	next unsafe.Pointer
 }
 
-// BDWGC conservatively treats pointer-looking uintptr values as live roots.
+// A conservative collector treats pointer-looking uintptr values as live roots.
 // Keep weak-pointer identities encoded everywhere they outlive the call that
 // registers them, including map keys and weak handles.
 func encodeWeakPointer(p unsafe.Pointer) uintptr {

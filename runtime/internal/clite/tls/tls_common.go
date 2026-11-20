@@ -17,9 +17,8 @@
  */
 
 // Package tls provides generic storage backed by the host thread-local
-// storage API. Native GC builds use scanned, uncollectable BDWGC slots;
-// linear-memory wasm GC builds use explicit TinyGo GC roots. Both keep Go
-// pointers in host TLS visible until the thread-local destructor runs.
+// storage API. Linear-memory wasm GC builds use explicit TinyGo GC roots that
+// keep Go pointers in host TLS visible until the thread-local destructor runs.
 // Builds without GC use calloc/free. Baremetal builds and builds without llgo
 // use no-op handles.
 //
@@ -38,7 +37,6 @@
 //	})
 //
 // Build tags:
-//   - llgo && !baremetal && !wasm && !nogc: GC-managed slots via BDWGC
 //   - llgo && !baremetal && wasm && llgo.wasm.gc.linear && !nogc: Explicit GC roots
 //   - llgo && !baremetal && (nogc || (wasm && !llgo.wasm.gc.linear)): calloc/free
 //   - !llgo || baremetal: No-op handles

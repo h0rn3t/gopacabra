@@ -13,7 +13,7 @@ RUN dpkg-deb --extract /tmp/llgo.deb /install
 FROM ${BASE_IMAGE}
 # Keep native dependencies aligned with the DEB override in .goreleaser.yaml.
 RUN apt-get update && apt-get install -y --no-install-recommends \
-    build-essential pkg-config libgc-dev libssl-dev zlib1g-dev libffi-dev \
+    build-essential pkg-config libssl-dev zlib1g-dev libffi-dev \
     libcjson-dev libsqlite3-dev libuv1-dev \
     && rm -rf /var/lib/apt/lists/*
 

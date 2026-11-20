@@ -1,3 +1,9 @@
+//go:build !nogc
+
+// Не застосовне до llgo: без трасувального GC (тег nogc завжди увімкнений)
+// об'єкти не стають недосяжними для збирача, SetFinalizer — no-op
+// (mfinal_nogc.go), тож фіналізатори ніколи не викликаються (P11.5.0.1).
+
 /*
  * Copyright (c) 2026 The XGo Authors (xgo.dev). All rights reserved.
  *
@@ -145,9 +151,9 @@ func TestRuntimeSetFinalizerWithNarrowResult(t *testing.T) {
 }
 
 func registerFinalizerForTest(register func()) {
-	// Let the registration stack disappear before forcing collection. BDWGC
-	// conservatively scans live stacks and may otherwise retain a stale pointer
-	// to the object under test.
+	// Let the registration stack disappear before forcing collection. A
+	// conservative collector scans live stacks and may otherwise retain a stale
+	// pointer to the object under test.
 	registered := make(chan struct{})
 	go func() {
 		register()

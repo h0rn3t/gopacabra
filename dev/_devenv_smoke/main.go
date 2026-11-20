@@ -6,8 +6,8 @@ import (
 )
 
 const (
-	LLGoPackage = "link: $(pkg-config --libs bdw-gc libffi openssl zlib sqlite3 libuv)"
-	LLGoFiles   = "$(pkg-config --cflags bdw-gc libffi openssl zlib sqlite3 libuv): _wrap/native.c"
+	LLGoPackage = "link: $(pkg-config --libs libffi openssl zlib sqlite3 libuv)"
+	LLGoFiles   = "$(pkg-config --cflags libffi openssl zlib sqlite3 libuv): _wrap/native.c"
 )
 
 //go:linkname checkNative C.llgo_check_native_dependencies

@@ -11,6 +11,11 @@ const (
 	finalizerInvalidCaseArgPrefix = "-llgo.finalizer-invalid-case="
 )
 
+type finalizerAssignableValue struct {
+	value int
+	keep  *int
+}
+
 var finalizerInvalidCases = []string{"non-function", "no parameters", "two parameters", "variadic", "wrong type"}
 
 func init() {

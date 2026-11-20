@@ -1078,8 +1078,7 @@ func TestWasmRuntimeAvoidsNativeHostDependencies(t *testing.T) {
 						t.Fatal(err)
 					}
 					switch path {
-					case "github.com/xgo-dev/llgo/runtime/internal/clite/libuv",
-						"github.com/xgo-dev/llgo/runtime/internal/clite/bdwgc":
+					case "github.com/xgo-dev/llgo/runtime/internal/clite/libuv":
 						t.Fatalf("wasm selected %s, which imports native host dependency %s", name, path)
 					}
 				}

@@ -117,7 +117,7 @@ install_macos_dependencies() {
 
     local formula
     local missing=()
-    for formula in bdw-gc openssl cjson libffi libuv pkg-config; do
+    for formula in openssl cjson libffi libuv pkg-config; do
         if ! brew list --versions "$formula" >/dev/null 2>&1; then
             missing+=("$formula")
         fi
@@ -143,33 +143,33 @@ install_linux_dependencies() {
             run_as_root apt-get update
             run_as_root apt-get install -y \
                 build-essential ca-certificates curl pkg-config \
-                libgc-dev libssl-dev zlib1g-dev libffi-dev libcjson-dev \
+                libssl-dev zlib1g-dev libffi-dev libcjson-dev \
                 libsqlite3-dev libuv1-dev
             ;;
         *" fedora "* | *" rhel "*)
             run_as_root dnf install -y \
                 gcc gcc-c++ make ca-certificates curl pkgconf-pkg-config \
-                gc-devel openssl-devel zlib-devel libffi-devel cjson-devel \
+                openssl-devel zlib-devel libffi-devel cjson-devel \
                 sqlite-devel libuv-devel
             ;;
         *" alpine "*)
             run_as_root apk add \
-                build-base ca-certificates curl pkgconf gc-dev openssl-dev \
+                build-base ca-certificates curl pkgconf openssl-dev \
                 zlib-dev libffi-dev cjson-dev sqlite-dev libuv-dev
             ;;
         *" arch "*)
             run_as_root pacman -S --needed --noconfirm \
-                base-devel ca-certificates curl pkgconf gc openssl zlib \
+                base-devel ca-certificates curl pkgconf openssl zlib \
                 libffi cjson sqlite libuv
             ;;
         *" suse "* | *" opensuse "*)
             run_as_root zypper --non-interactive install \
                 gcc gcc-c++ make ca-certificates curl pkg-config \
-                libgc-devel libopenssl-devel zlib-devel libffi-devel \
+                libopenssl-devel zlib-devel libffi-devel \
                 libcjson-devel sqlite3-devel libuv-devel
             ;;
         *)
-            die "unsupported Linux distribution; install a C/C++ toolchain, pkg-config, bdwgc, OpenSSL, zlib, libffi, cJSON, SQLite, and libuv, then rerun with --no-deps"
+            die "unsupported Linux distribution; install a C/C++ toolchain, pkg-config, OpenSSL, zlib, libffi, cJSON, SQLite, and libuv, then rerun with --no-deps"
             ;;
     esac
 }

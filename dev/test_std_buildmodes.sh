@@ -65,7 +65,7 @@ runtime_libs=(-lpthread -lm -lresolv)
 if [[ "$(uname -s)" == Darwin ]]; then
 	runtime_libs+=(-framework CoreFoundation -framework Security)
 fi
-for dependency in bdw-gc libffi; do
+for dependency in libffi; do
   if pkg-config --exists "${dependency}"; then
     while IFS= read -r flag; do
       [[ -n "${flag}" ]] && runtime_libs+=("${flag}")

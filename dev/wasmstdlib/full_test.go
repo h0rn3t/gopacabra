@@ -178,7 +178,6 @@ func TestFullAuditAcceptsReviewedSourceExclusions(t *testing.T) {
 	var inventory []byte
 	packages := []string{
 		"test/_stress/runtime/cpuprof",
-		"test/_stress/runtime/finalizer",
 		"test/_stress/runtime/signal",
 		"test/_stress/runtime/weak",
 		"test/cgo",
@@ -689,7 +688,7 @@ func TestFullSourceExclusionsAreProfileSpecific(t *testing.T) {
 		if err != nil {
 			t.Fatal(err)
 		}
-		for _, pkg := range []string{"test/_stress/runtime/cpuprof", "test/_stress/runtime/finalizer", "test/_stress/runtime/signal", "test/_stress/runtime/weak", "test/std/plugin", "test/std/syscall", "test/windows"} {
+		for _, pkg := range []string{"test/_stress/runtime/cpuprof", "test/_stress/runtime/signal", "test/_stress/runtime/weak", "test/std/plugin", "test/std/syscall", "test/windows"} {
 			if reason, ok := fullSourceExclusion(p, pkg); !ok || reason == "" {
 				t.Fatalf("%s did not classify %s", name, pkg)
 			}

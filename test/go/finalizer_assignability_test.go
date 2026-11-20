@@ -1,3 +1,9 @@
+//go:build !nogc
+
+// Не застосовне до llgo: без трасувального GC (тег nogc завжди увімкнений)
+// об'єкти не стають недосяжними для збирача, SetFinalizer — no-op
+// (mfinal_nogc.go), тож фіналізатори ніколи не викликаються (P11.5.0.1).
+
 /*
  * Copyright (c) 2026 The XGo Authors (xgo.dev). All rights reserved.
  *
@@ -20,11 +26,6 @@ import (
 	"runtime"
 	"testing"
 )
-
-type finalizerAssignableValue struct {
-	value int
-	keep  *int
-}
 
 type finalizerAssignablePointer *finalizerAssignableValue
 
@@ -88,7 +89,7 @@ func TestRuntimeSetFinalizerAssignableArgumentTypes(t *testing.T) {
 
 	for i, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			// BDWGC conservatively scans stacks and registers, so a stale
+			// A conservative collector scans stacks and registers, so a stale
 			// pointer can keep any one object reachable. Register several
 			// objects and require one real finalizer call to verify the ABI.
 			const registrations = 8

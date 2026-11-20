@@ -148,8 +148,8 @@ jobs:
           export LLGO_TEST_LLGEN="$RUNNER_TEMP/llgo-bin/llgen${tool_suffix}"
           dev/test_go_version.sh 1.27
 
-          # GC_malloc returns zeroed memory, so check allocation clearing with
-          # the malloc-backed runtime too. Poison fresh allocations on glibc.
+          # The malloc-backed runtime must clear allocations itself. Poison fresh
+          # allocations on glibc so the check does not rely on allocator reuse.
           (
             if [[ "$RUNNER_OS" == Linux ]]; then
               export MALLOC_PERTURB_=165

@@ -128,7 +128,6 @@ nfpms:
           - libc6 (>= 2.36)
           - build-essential
           - pkg-config
-          - libgc-dev
           - libssl-dev
           - zlib1g-dev
           - libffi-dev
@@ -143,7 +142,6 @@ nfpms:
           - gcc-c++
           - make
           - pkgconf-pkg-config
-          - gc-devel
           - openssl-devel
           - zlib-devel
           - libffi-devel

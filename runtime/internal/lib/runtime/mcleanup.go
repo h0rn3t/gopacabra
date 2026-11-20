@@ -43,7 +43,7 @@ func AddCleanup[T, S any](ptr *T, cleanup func(S), arg S) Cleanup {
 type Cleanup struct {
 	id uint64
 	// Keep Go's second word for type-layout compatibility, but leave it zero:
-	// BDWGC conservatively treats a uintptr containing ptr as a live root.
+	// A conservative collector treats a uintptr containing ptr as a live root.
 	ptr uintptr
 }
 

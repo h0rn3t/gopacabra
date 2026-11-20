@@ -58,9 +58,8 @@ func TestRuntimeAlignedAllocationGC(t *testing.T) {
 	}
 }
 
-// Run this with nogc as well: GC_malloc already returns zeroed memory and can
-// hide a missing clear in AllocZAligned. Linux CI poisons malloc allocations
-// with MALLOC_PERTURB_ so the nogc case does not rely on allocator reuse.
+// malloc does not clear memory, so AllocZAligned must. Linux CI poisons malloc
+// allocations with MALLOC_PERTURB_ so the test does not rely on allocator reuse.
 func TestRuntimeAlignedAllocationZeroed(t *testing.T) {
 	for _, alignment := range []uintptr{1, unsafe.Sizeof(uintptr(0)), 16, 32, 64, 4096, 16384} {
 		for _, size := range []uintptr{0, 1, 37, 4093} {

@@ -7,5 +7,5 @@ import (
 )
 
 func main() {
-	fmt.Println(env.ExpandEnv("$(pkg-config --libs bdw-gc)"))
+	fmt.Println(env.ExpandEnv("$(pkg-config --libs libffi)"))
 }

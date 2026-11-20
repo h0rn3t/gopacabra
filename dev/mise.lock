@@ -630,44 +630,6 @@ checksum = "sha256:045e62838ec78ad75974552ebeeccbee5a4a843272da47c7a67e99fd9cc25
 url = "https://conda.anaconda.org/conda-forge/osx-64/zstd-1.5.7-hbc1a06c_7.conda"
 checksum = "sha256:5277886d9704a624dc9b79ac985861e1e431bdb39a57c082507ab577a138ec6c"
 
-[[tools."conda:bdw-gc"]]
-version = "8.2.12"
-backend = "conda:bdw-gc"
-specifiers = ["8.2.12"]
-
-[tools."conda:bdw-gc".options]
-channel = "conda-forge"
-
-[tools."conda:bdw-gc"."platforms.linux-arm64"]
-checksum = "sha256:9da20747a80a5135607bb9008ee0c81c298fbbc914e6d708d4232382015460e6"
-url = "https://conda.anaconda.org/conda-forge/linux-aarch64/bdw-gc-8.2.12-h7ac5ae9_0.conda"
-conda_deps = [
-    "libgcc-16.2.0-h205dda4_7",
-    "libstdcxx-16.2.0-hef695bb_7",
-    "_openmp_mutex-4.5-20_gnu",
-    "libgomp-16.2.0-h8acb6b2_7",
-]
-
-[tools."conda:bdw-gc"."platforms.linux-x64"]
-checksum = "sha256:be5bcfc16beda04e3df874e3215558321309314deecc821ab3c2b9bf033363d7"
-url = "https://conda.anaconda.org/conda-forge/linux-64/bdw-gc-8.2.12-h54a6638_0.conda"
-conda_deps = [
-    "libgcc-16.2.0-ha9f2e26_7",
-    "libstdcxx-16.2.0-h934c35e_7",
-    "_openmp_mutex-4.5-20_gnu",
-    "libgomp-16.2.0-he0feb66_7",
-]
-
-[tools."conda:bdw-gc"."platforms.macos-arm64"]
-checksum = "sha256:d07e918740648e5c200565dbe09d38d508c9471f8b3fcc0fb14ee522d675a427"
-url = "https://conda.anaconda.org/conda-forge/osx-arm64/bdw-gc-8.2.12-h784d473_0.conda"
-conda_deps = ["libcxx-23.1.3-h55c6f16_0"]
-
-[tools."conda:bdw-gc"."platforms.macos-x64"]
-checksum = "sha256:922eb51738df82ff97f65dc0400088b82a275a404c3da4884c97e11f1c20d6a9"
-url = "https://conda.anaconda.org/conda-forge/osx-64/bdw-gc-8.2.12-h06076ce_0.conda"
-conda_deps = ["libcxx-23.1.3-h19cb2f5_0"]
-
 [[tools."conda:clangxx"]]
 version = "23.1.4"
 backend = "conda:clangxx"

@@ -201,8 +201,6 @@ func fullSourceExclusion(p profile, pkg string) (string, bool) {
 	switch pkg {
 	case "test/_stress/runtime/cpuprof":
 		return "SIGPROF stress requires a native Darwin or Linux process", true
-	case "test/_stress/runtime/finalizer":
-		return "BDWGC finalizer stress is native-only; linear-GC finalizers are covered by target runtime tests", true
 	case "test/_stress/runtime/signal":
 		return "POSIX signal stress is excluded by its native-only build contract", true
 	case "test/_stress/runtime/weak":
