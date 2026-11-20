@@ -1,7 +1,9 @@
 package build
 
 import (
+	"fmt"
 	"go/ast"
+	"go/build/constraint"
 	"go/parser"
 	"go/token"
 	"io/fs"
@@ -292,12 +294,13 @@ func TestNoTinyGoGC(t *testing.T) {
 	})
 }
 
-// TestNoESPTargets стереже видалення підтримки ESP: жодна ціль не
-// компілює під Xtensa чи riscv32-esp, не бере newlib-esp32 і не пакує
-// образ ESP, а колишні імена цілей не резолвляться.
-func TestNoESPTargets(t *testing.T) {
+// TestNoBaremetalTargets стереже видалення baremetal (ESP, Cortex-M,
+// RISC-V, RP2040, AVR, nRF, STM32 та інших плат): лишаються лише цілі
+// WebAssembly, колишні імена не резолвляться, а рантайм не має файлів з
+// тегом baremetal.
+func TestNoBaremetalTargets(t *testing.T) {
 	resolver := targets.NewDefaultResolver()
-	for _, name := range []string{"esp32", "esp32c3", "esp8266", "xtensa", "riscv32-esp", "m5stack", "nodemcu"} {
+	for _, name := range []string{"esp32", "esp32c3", "cortex-m-qemu", "riscv-qemu", "riscv32", "rp2040", "pico", "arduino", "nrf52840", "stm32f4disco", "gameboy-advance", "nintendoswitch"} {
 		if resolver.HasTarget(name) {
 			t.Errorf("HasTarget(%q) = true, want false", name)
 		}
@@ -307,14 +310,37 @@ func TestNoESPTargets(t *testing.T) {
 		t.Fatal(err)
 	}
 	for name, c := range all {
-		if strings.HasPrefix(c.LLVMTarget, "xtensa") || strings.Contains(c.LLVMTarget, "-esp-") {
-			t.Errorf("target %s: llvm-target = %q", name, c.LLVMTarget)
+		if c.GOARCH != "wasm" || !strings.HasPrefix(c.LLVMTarget, "wasm") {
+			t.Errorf("target %s: goarch = %q, llvm-target = %q, want wasm", name, c.GOARCH, c.LLVMTarget)
 		}
-		if c.Libc == "newlib-esp32" {
-			t.Errorf("target %s: libc = %q", name, c.Libc)
+	}
+	root := filepath.Join("..", "..", "runtime")
+	err = filepath.WalkDir(root, func(path string, d fs.DirEntry, err error) error {
+		if err != nil || d.IsDir() || !strings.HasSuffix(path, ".go") {
+			return err
 		}
-		if strings.HasPrefix(c.BinaryFormat, "esp") {
-			t.Errorf("target %s: binary-format = %q", name, c.BinaryFormat)
+		src, err := os.ReadFile(path)
+		if err != nil {
+			return err
 		}
+		for line := range strings.Lines(string(src)) {
+			if !constraint.IsGoBuild(line) {
+				continue
+			}
+			expr, err := constraint.Parse(line)
+			if err != nil {
+				return fmt.Errorf("%s: %w", path, err)
+			}
+			expr.Eval(func(tag string) bool {
+				if tag == "baremetal" {
+					t.Errorf("%s: build constraint uses baremetal: %s", path, strings.TrimSpace(line))
+				}
+				return false
+			})
+		}
+		return nil
+	})
+	if err != nil {
+		t.Fatalf("walk %s: %v", root, err)
 	}
 }
