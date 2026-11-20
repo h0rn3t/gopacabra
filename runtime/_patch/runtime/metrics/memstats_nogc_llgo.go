@@ -1,5 +1,3 @@
-//go:build nogc
-
 package metrics
 
 import "runtime"

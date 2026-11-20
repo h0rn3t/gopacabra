@@ -108,7 +108,7 @@ type runtimeNativeOwner struct {
 var runtimeNativeOwners = []runtimeNativeOwner{
 	{
 		`C.getenv C.getpagesize C.gettimeofday C.poll C.rand C.srand C.syscall C.write C.getentropy
-C.clock_gettime_nsec_np`,
+C.clock_gettime_nsec_np C.posix_memalign`,
 		"target libc / platform SDK",
 		``,
 	},

@@ -1,4 +1,4 @@
-//go:build llgo && !baremetal && (nogc || wasm)
+//go:build llgo && !baremetal
 
 package tls
 

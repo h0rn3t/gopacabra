@@ -44,11 +44,12 @@ func TestAuditCommand(t *testing.T) {
 	if data, err := os.ReadFile(output); err != nil || !json.Valid(data) {
 		t.Fatalf("report file: %v", err)
 	}
-	// A raw Wasm selection without the hosted GC profile exposes missing
-	// runtime APIs. Preserve the diagnostic report even though the command fails.
+	// A raw Wasm selection without the hosted profile leaves the GoJS random
+	// hook without a native provider. Preserve the diagnostic report even
+	// though the command fails.
 	stdout.Reset()
 	err = run([]string{"-goos=js", "-goarch=wasm"}, &stdout)
-	if err == nil || !strings.Contains(err.Error(), "unresolved runtime references") || !json.Valid(stdout.Bytes()) {
+	if err == nil || !strings.Contains(err.Error(), "runtime boundaries without a provider") || !json.Valid(stdout.Bytes()) {
 		t.Fatalf("missing-hook result: %v, report bytes %d", err, stdout.Len())
 	}
 	for _, args := range [][]string{{"unexpected"}, {"-unknown"}, {"-goos=invalid"}, {"-goos=linux", "-goarch=amd64", "-o=" + t.TempDir()}} {
