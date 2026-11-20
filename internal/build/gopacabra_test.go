@@ -13,6 +13,8 @@ import (
 	"strconv"
 	"strings"
 	"testing"
+
+	"github.com/xgo-dev/llgo/internal/targets"
 )
 
 func TestApplyGopacabraTag(t *testing.T) {
@@ -254,9 +256,9 @@ func TestNoTinyGoGC(t *testing.T) {
 		{name: "wasip1", goos: "wasip1", goarch: "wasm", mode: ModeBuild},
 		// Компонування js/wasm потребує emcc; ModeGen показує набір пакетів.
 		{name: "js", goos: "js", goarch: "wasm", mode: ModeGen},
-		// ModeBuild: C-файли рантайму компілюються лише в повній збірці. esp32,
-		// а не cortex-m4: у cortex-m4 немає libc, компонування там не пройде.
-		{name: "esp32", target: "esp32", mode: ModeBuild},
+		// ModeGen: жодна baremetal-ціль без ESP зараз не компонується
+		// (cortex-m-qemu, riscv-qemu, rp2040 — див. REPORT-PHASE11.md).
+		{name: "riscv-qemu", target: "riscv-qemu", mode: ModeGen},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
@@ -288,4 +290,31 @@ func TestNoTinyGoGC(t *testing.T) {
 			t.Fatalf("err = %v, want \"llgo.wasm.gc.linear is removed\"", err)
 		}
 	})
+}
+
+// TestNoESPTargets стереже видалення підтримки ESP: жодна ціль не
+// компілює під Xtensa чи riscv32-esp, не бере newlib-esp32 і не пакує
+// образ ESP, а колишні імена цілей не резолвляться.
+func TestNoESPTargets(t *testing.T) {
+	resolver := targets.NewDefaultResolver()
+	for _, name := range []string{"esp32", "esp32c3", "esp8266", "xtensa", "riscv32-esp", "m5stack", "nodemcu"} {
+		if resolver.HasTarget(name) {
+			t.Errorf("HasTarget(%q) = true, want false", name)
+		}
+	}
+	all, err := resolver.ResolveAll()
+	if err != nil {
+		t.Fatal(err)
+	}
+	for name, c := range all {
+		if strings.HasPrefix(c.LLVMTarget, "xtensa") || strings.Contains(c.LLVMTarget, "-esp-") {
+			t.Errorf("target %s: llvm-target = %q", name, c.LLVMTarget)
+		}
+		if c.Libc == "newlib-esp32" {
+			t.Errorf("target %s: libc = %q", name, c.Libc)
+		}
+		if strings.HasPrefix(c.BinaryFormat, "esp") {
+			t.Errorf("target %s: binary-format = %q", name, c.BinaryFormat)
+		}
+	}
 }
