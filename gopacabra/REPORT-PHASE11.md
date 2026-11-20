@@ -244,3 +244,40 @@ func main() {
 - Бокси `AllocU` звільняються `FreeAccounted(ptr, i64 0, i32 0)` — розмір 0 в обліку.
 - `typalias`: `&Foo{}` лишається в купі — немає міжпроцедурного escape.
 - Листова за суттю `main.fixed` (SIMD) отримує вхідне опитування — зайва ціна на гарячих коротких функціях.
+
+## P11.5.0.1 Видалення BDWGC (2026-11-20)
+
+Кожна збірка має тег `gopacabra`, а з ним `nogc`, тож файли рантайму з `!nogc` на нативних цілях були мертвим кодом. BDWGC під'єднувався лише через `runtime/internal/clite/bdwgc`.
+
+| Коміт | Що |
+| --- | --- |
+| `7903d9a95` | тест спершу: `TestRuntimeLinksNoTracingGC` — бінарник `hello` не має `libgc` серед `NEEDED` |
+| `03445b436` | видалено пакет `bdwgc`, `!nogc`-файли рантайму, тести лише про BDWGC; залежність `bdw-gc` з `install.sh`, `Dockerfile`, `dev/`, `.github`, `.goreleaser.yaml`. Тести фіналізаторів (`test/go/finalizer_test.go` тощо) — `//go:build !nogc` з причиною: без трасувального збирача `SetFinalizer` — no-op |
+| `e9c66116e` | нативні цілі обирають nogc-файли рантайму й без тегу `nogc` |
+| `f5d232a58` | README, `CLAUDE.md`: BDWGC видалено |
+
+Разом до документації: 71 файл, +131/−2412 рядків, 24 файли видалено.
+
+**Чому потрібен `e9c66116e`.** Без `!nogc`-файлів рантайм, завантажений без тегу `nogc`, неповний. Так його вантажать `importer.For("source")` у тестах `cl` (`TestArrayCompareReusesImmutableLocalStorage` — паніка на nil-об'єкті `AllocU`, що валила весь тестовий бінарник `cl`) і `dev/runtimeaudit` (19 неприв'язаних посилань). Тепер нативні nogc-файли мають умову `(nogc || !baremetal)` або `!baremetal`. `nogc` лишається розрізненням для baremetal і wasm `llgo.wasm.gc.linear` — це `tinygogc`, P11.5.0.2. До меж платформи в `internal/build/runtime_audit_boundaries.go` додано `C.posix_memalign`. У `dev/runtimeaudit` сирий js/wasm тепер звітує «runtime boundaries without a provider» (відомий брак провайдера `C.llgo_js_random_data`), а не «unresolved runtime references».
+
+### Що лишилось у `git grep -i 'bdwgc\|GC_malloc\|GC_init\|libgc'`
+
+Поза `PLAN.md`, `PROGRESS.md`, `INTENT.md` і звітами (історія):
+
+| Файл | Причина |
+| --- | --- |
+| `README.md`, `CLAUDE.md` | речення «BDWGC видалено» |
+| `LLGO.md` | посилання на зовнішній біндинг `goplus/lib` (не код llgo) |
+| `internal/build/package_archive.go` | коментар upstream про обхідний шлях; diff від upstream мінімальний |
+| `internal/build/gopacabra_test.go` | сам тест-сторож (`libgc`) |
+| `gopacabra/bench/allocbase` | бенчмарк порівнює з `libgc` свідомо |
+| `runtime/internal/runtime/tinygogc/*` | `GC_malloc`-подібні імена `tinygogc`, P11.5.0.2 |
+| `test/goroot/notapplicable.yaml` | причини описують збирач upstream |
+| `dev/mise.lock`, `dev/pixi.lock` | `libgcc` — хибний збіг |
+
+### Прийняття
+
+- Збірка з прихованим від `pkg-config` `bdw-gc` — код 0; у `NEEDED` бінарника немає `libgc`. Збираються нативний `hello`, `gopacabra1to1` і wasip1.
+- `gopacabra/fixtures.sh` з чистим `~/.cache/llgo` — 0 з 88.
+- `go test ./...` (`-timeout 120m`): падають лише відомі `TestBuildDo_DepFingerprintAndVersion`, три `TestSIMDFMV*` (середовище), `TestWasmGCRootFrameLinksRuntimeChain` (P11.5.0.2) і `TestRunCmdPassesGoBuildFlags` (на цій машині `GOFLAGS=-mod=mod` у go env; з `GOENV=off` — ok). Рядки `FAIL` для `cl/_testgo/runextest/bar` і `internal/build/testdata/linkfail/missing` — вивід дочірніх збірок у тестах, що навмисно падають.
+- Не перевірено: darwin, `GOROOT/test`.

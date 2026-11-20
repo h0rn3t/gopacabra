@@ -1929,3 +1929,13 @@
 - P11.5.0.4 і P11.5.0 відмічено в `PLAN.md`.
 - Не перевірено: `fixtures.sh`, `GOROOT/test`, darwin-хост (darwin/arm64 перевірено лише крос-IR фікстур з матрицею).
 - Наступне: P11.5.0.1 (видалити BDWGC), далі P11.5.0.2.
+
+## 2026-11-20 — P11.5.0.1 Видалити BDWGC
+
+- Тест спершу (`7903d9a95`): `TestRuntimeLinksNoTracingGC` — бінарник без `libgc` у `NEEDED`.
+- Реалізація (`03445b436`): видалено `runtime/internal/clite/bdwgc`, `!nogc`-файли рантайму, тести лише про BDWGC, залежність `bdw-gc` з install.sh, Dockerfile, dev/, CI, goreleaser. Тести фіналізаторів — `!nogc` з причиною.
+- `e9c66116e`: нативні цілі обирають nogc-рантайм і без тегу `nogc` — інакше `importer.For("source")` у тестах `cl` і `dev/runtimeaudit` бачили неповний рантайм (паніка в `cl`, 19 неприв'язаних посилань). `nogc` лишився розрізненням baremetal/wasm-linear (P11.5.0.2).
+- Документація: README (лого, `f5d232a58`), `CLAUDE.md`; розділ «P11.5.0.1» у `gopacabra/REPORT-PHASE11.md` з причиною кожного залишку `git grep`.
+- Перевірки: збірка без `libgc` — код 0; `fixtures.sh` — 0 з 88; `go test ./...` — лише відомі падіння (`TestBuildDo_DepFingerprintAndVersion`, три `TestSIMDFMV*`, `TestWasmGCRootFrameLinksRuntimeChain`, `TestRunCmdPassesGoBuildFlags` — `GOFLAGS` оточення).
+- Не перевірено: darwin, `GOROOT/test`.
+- Наступне: P11.5.0.2 (видалити `tinygogc`).
