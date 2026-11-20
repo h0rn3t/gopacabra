@@ -227,8 +227,8 @@ session did.
 - `gopacabra` is the only build: every `build.Do` build (the `llgo` command,
   `cltest`, `_cmptest`, the `GOROOT/test` runner) gets the tag, and nothing
   turns it off (`applyGopacabraTag` in `resolveBuildConfig`, `internal/build`).
-  The tracing collectors (BDWGC, `tinygogc`) are being removed (`PLAN.md`,
-  P11.5.0.1–P11.5.0.2); `-tags gopacabra` in commands is redundant.
+  BDWGC is removed (P11.5.0.1); `tinygogc` is being removed (`PLAN.md`,
+  P11.5.0.2); `-tags gopacabra` in commands is redundant.
 - `gopacabra` adds `nogc` and, on a native linux/amd64, linux/arm64 or
   darwin executable build, `gopacabramn` (M:N goroutines); `c-shared` and
   `c-archive` keep the 1:1 model, since M:N starts from the executable entry. `-tags gopacabra,gopacabra1to1` keeps the

@@ -1,3 +1,5 @@
+<p align="center"><img src="doc/gopacabra-logo.png" alt="Логотип Gopacabra" width="320"></p>
+
 Gopacabra — компілятор Go без трасувального GC
 =====
 
@@ -55,7 +57,7 @@ Go 1.27 ─▶ фронтенд llgo (go/packages + go/types + go/ssa)
 - **`GOROOT/test` під тегом `gopacabra` (P11.2, P11.3).** Режим `ci` (`.`, `fixedbugs`, 830 випадків) проти llgo без тегу: з `gopacabra` лишились 3 регресії, і всі не застосовні — `init1.go` чекає зростання `runtime.NumGC`, `mallocfin.go` і `tinyfin.go` — фіналізаторів, а трасувального збирача немає за задумом. Під `-O0 -asan` — жодного `heap-use-after-free`, `double-free` чи `attempting free`; ще 4 падіння — обмеження ASan, `-O0` і ліміту пам'яті раннера. Деталі — [gopacabra/REPORT-PHASE11.md](gopacabra/REPORT-PHASE11.md).
 
 - **Сервіс фази 11 (P11.4).** REST-сервіс [`gopacabra/stand/rest`](gopacabra/stand/rest) на fiber v3 і `modernc.org/sqlite`.
-- **`gopacabra` — єдина збірка (P11.5.0, триває).** Тег `gopacabra` отримує кожна збірка; трасувальні збирачі (BDWGC, `tinygogc`) видаляються. Дефекти рантайму, знайдені тестами llgo, закрито (P11.5.0.3).
+- **`gopacabra` — єдина збірка (P11.5.0, триває).** Тег `gopacabra` отримує кожна збірка; BDWGC видалено (P11.5.0.1), `tinygogc` видаляється (P11.5.0.2). Дефекти рантайму, знайдені тестами llgo, закрито (P11.5.0.3).
 
 Далі — перша збірка сервісу (P11.5: ланцюжок `modernc.org/sqlite` упирається в переклад асемблера і `__ccgo_fp`), його тести під `gopacabra` і замір p99, RSS і пропускної здатності проти `gc` (P11.6–P11.8).
 
