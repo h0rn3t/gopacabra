@@ -1939,3 +1939,15 @@
 - Перевірки: збірка без `libgc` — код 0; `fixtures.sh` — 0 з 88; `go test ./...` — лише відомі падіння (`TestBuildDo_DepFingerprintAndVersion`, три `TestSIMDFMV*`, `TestWasmGCRootFrameLinksRuntimeChain`, `TestRunCmdPassesGoBuildFlags` — `GOFLAGS` оточення).
 - Не перевірено: darwin, `GOROOT/test`.
 - Наступне: P11.5.0.2 (видалити `tinygogc`).
+
+## 2026-11-20 — P11.5.0.2 Видалити `tinygogc`
+
+- Тест спершу (`133ba32f7`): `TestNoTinyGoGC` — wasip1, js/wasm і baremetal без пакета `tinygogc`; явний `llgo.wasm.gc.linear` відхиляється.
+- Реалізація (`ae6346e6b`): видалено `tinygogc`, його C-файли, 53 файли рантайму за `llgo.wasm.gc.linear`/`!nogc`, тести лише про збирач; решту умов збірки згорнуто. `llgo.wasm.gc.linear` тепер дає помилку.
+- Baremetal під `gopacabra` не збирався зовсім. Виправлено: pthread-алокатор gopacabra має `!baremetal` (baremetal бере `z_nogc.go`, `z_defer_nogc.go`), `currentAccountShard` на baremetal — не TLS. Ціль тесту — esp32 (cortex-m4 без libc).
+- `1bfd4739c`: тест lifecycle-заглушок baremetal перевіряє `z_nogc.go`.
+- Окремо за проханням: оновлено лого (`396cd886e`).
+- Перевірки: `go test ./internal/build/` — лише відомі падіння (`TestBuildDo_DepFingerprintAndVersion`, три `TestSIMDFMV*`); `fixtures.sh` — 1 з 88 (`opstat`, відоме); нативний вивід — як `go run`.
+- Не перевірено: вивід wasip1 (немає wasmtime, node 20 без exnref), js/emscripten, esp32 в емуляторі, Wasmer, darwin.
+- Нова задача P11.5.0.5: esp32c3 не компонується (немає `__atomic_*`).
+- Наступне: P11.5.0.5 або P11.5.1.

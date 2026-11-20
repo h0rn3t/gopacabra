@@ -281,3 +281,56 @@ func main() {
 - `gopacabra/fixtures.sh` з чистим `~/.cache/llgo` — 0 з 88.
 - `go test ./...` (`-timeout 120m`): падають лише відомі `TestBuildDo_DepFingerprintAndVersion`, три `TestSIMDFMV*` (середовище), `TestWasmGCRootFrameLinksRuntimeChain` (P11.5.0.2) і `TestRunCmdPassesGoBuildFlags` (на цій машині `GOFLAGS=-mod=mod` у go env; з `GOENV=off` — ok). Рядки `FAIL` для `cl/_testgo/runextest/bar` і `internal/build/testdata/linkfail/missing` — вивід дочірніх збірок у тестах, що навмисно падають.
 - Не перевірено: darwin, `GOROOT/test`.
+
+## P11.5.0.2 Видалення `tinygogc` (2026-11-20)
+
+Під обов'язковим `gopacabra` (а з ним `nogc`) `tinygogc` реально працював лише на js/wasm: `configureWasmGC` вмикав там `llgo.wasm.gc.linear` типово. На wasip1 з `nogc` він уже був вимкнений. Baremetal під `gopacabra` не збирався зовсім.
+
+| Коміт | Що |
+| --- | --- |
+| `133ba32f7` | тест спершу: `TestNoTinyGoGC` — wasip1 (повна збірка), js/wasm (генерація: компонування потребує emcc), baremetal; пакет `tinygogc` не компілюється, явний `-tags llgo.wasm.gc.linear` відхиляється |
+| `ae6346e6b` | видалено `tinygogc`, його C-файли (`gc_wasm.c`, `finalizer_wasm.c`, `wasi_gc_world.c`, `registry_wasi_threads.c`) і 53 файли рантайму з умовою, хибною за `llgo.wasm.gc.linear=false, nogc=true`; решту умов згорнуто. `configureWasmGC` і `applyWasmGCLinkFlags` замінено на `rejectWasmGCLinear`. Тести, що перевіряли лише збирач, видалено (перелік — у коміті) |
+| `1bfd4739c` | `TestBaremetalRuntimeKeepsSchedulerFreeLifecycleStubs` перевіряє no-op `AddCleanupPtr` у `z_nogc.go` замість видаленого `cleanup_baremetal.go` |
+
+Реалізація: 137 файлів, +76/−7966 рядків, 83 файли видалено.
+
+**Baremetal.** Під `gopacabra` збірка будь-якої baremetal-цілі падала, бо baremetal має `GOOS=linux`:
+
+- нативний алокатор `alloc_gopacabra.go` (pthread) обирався умовою `(linux || darwin)`, а файли з `AllocU` і `FreeDeferNode` для baremetal+nogc не обиралися (`interface conversion: types.Object is nil`). Тепер алокатор gopacabra має `!baremetal`, а baremetal бере `z_nogc.go` і `z_defer_nogc.go`;
+- `currentAccountShard` — змінна TLS: компонувальник xtensa не знає її релокацію, на ARM без ОС немає `__aeabi_read_tp`. На baremetal це звичайна глобальна змінна (`account_shard_baremetal_gopacabra.go`): спільний шард лише зводить лічильники в один слот, додавання атомарні.
+
+Ціль у тесті — `esp32`, а не `cortex-m4`: у `cortex-m4` немає libc, вона не компонується з жодним рантаймом (`build.sh` у `_demo/embed/targetsbuild` позначає такі цілі як «warned»).
+
+**Цілі, де рантайм не працює.**
+
+| Ціль | Причина | Задача |
+| --- | --- | --- |
+| `esp32c3` (RISC-V без розширення A) | облік gopacabra кличе `__atomic_fetch_add_4/8`, `__atomic_fetch_or_4`, `__atomic_fetch_sub_8`; `compiler-rt/atomic.c` для ESP не збирається (`rtlib/compiler_rt.go`) | P11.5.0.5 |
+
+**Компіляторні GC roots лишились.** `cl/gcroot.go`, `ssa/gcroot.go` і `prog.EnableGCRoots` тепер ніколи не вмикаються. Код не видалено, щоб diff `cl`/`ssa` від upstream лишився малим.
+
+**Тести wasip1 з `dev/test_wasm_wasi_threads.py`** (`wasm-wasi-gc-arena`, `wasm-wasi-threaded-gc`, `wasm-wasi-main-goexit-gc`, `wasm-finalizer-direct`, `wasm-root-sharing`) лишено: під `gopacabra` wasip1 і раніше йшов з `nogc`. Проба `llgo_wasi_worker_stack_bounds` у `wasm-wasi-threads` більше не включає `gc_wasm.c` і перевіряє лише, що стек потоку містить його `sp`.
+
+### Що лишилось у `git grep -i 'tinygogc\|gc\.linear\|nonmoving'`
+
+Поза `PLAN.md`, `PROGRESS.md`, `INTENT.md` і звітами:
+
+| Файл | Причина |
+| --- | --- |
+| `README.md`, `CLAUDE.md` | речення «`tinygogc` видалено» |
+| `internal/build/build.go` | `rejectWasmGCLinear` — повідомлення про видалений тег |
+| `internal/build/gopacabra_test.go`, `testdata/notracinggc` | сам тест-сторож |
+| `test/goroot/notapplicable.yaml` | причини описують збирач upstream |
+
+### Прийняття
+
+- `TestNoTinyGoGC` — ok для wasip1, js/wasm, esp32 і явного тегу; до реалізації — червоний.
+- `go test ./internal/build/` з чистим `~/.cache/llgo` — лише відомі падіння: `TestBuildDo_DepFingerprintAndVersion`, три `TestSIMDFMV*` (darwin, середовище). `TestWasmGCRootFrameLinksRuntimeChain` видалено разом із збирачем. Нове падіння `TestBaremetalRuntimeKeepsSchedulerFreeLifecycleStubs` виправлено в `1bfd4739c`.
+- `gopacabra/fixtures.sh` з чистим кешем — 1 з 88: `opstat`, відоме падіння середовища.
+- Нативна фікстура `notracinggc` і `hello` — вивід як у `go run`.
+- Не перевірено:
+  - вивід під wasip1: wasmtime на стенді немає, node 20 не виконує модулі llgo (`try_table`, exnref);
+  - js/emscripten: немає emcc;
+  - запуск esp32 в емуляторі: немає qemu;
+  - wasi-threads під Wasmer;
+  - darwin.
