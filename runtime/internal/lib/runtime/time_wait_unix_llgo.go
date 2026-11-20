@@ -1,4 +1,4 @@
-//go:build !baremetal && !windows && (!wasm || (wasip1 && llgo.wasi_threads && !llgo.wasm.gc.linear))
+//go:build !baremetal && !windows && (!wasm || (wasip1 && llgo.wasi_threads))
 
 package runtime
 

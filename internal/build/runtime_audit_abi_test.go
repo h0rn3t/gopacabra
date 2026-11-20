@@ -82,7 +82,7 @@ func TestRuntimeMetadataRejectsInvalidBoundary(t *testing.T) {
 func TestRuntimeAuditMemory64Layout(t *testing.T) {
 	report, err := AuditRuntimeSources(RuntimeAuditConfig{
 		RuntimeDir: env.LLGoRuntimeDir(), GOOS: "js", GOARCH: "wasm",
-		Tags: []string{"llgo.wasm.gc.linear", "llgo.wasm.emscripten", "llgo.wasm.emscripten.memory64"},
+		Tags: []string{"llgo.wasm.emscripten", "llgo.wasm.emscripten.memory64"},
 	})
 	if err != nil {
 		t.Fatal(err)

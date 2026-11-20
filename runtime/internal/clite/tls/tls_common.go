@@ -37,8 +37,7 @@
 //	})
 //
 // Build tags:
-//   - llgo && !baremetal && wasm && llgo.wasm.gc.linear && !nogc: Explicit GC roots
-//   - llgo && !baremetal && (nogc || (wasm && !llgo.wasm.gc.linear)): calloc/free
+//   - llgo && !baremetal: calloc/free
 //   - !llgo || baremetal: No-op handles
 package tls
 

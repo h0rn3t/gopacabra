@@ -653,10 +653,10 @@ func TestFullSourceContextMatchesCompilerProfiles(t *testing.T) {
 		name, wantCGO string
 		wantTags      []string
 	}{
-		{"J32-GoJS", "0", []string{"llgo", "osusergo", "llgo.wasm.gc.linear"}},
-		{"J32-Emscripten", "1", []string{"llgo", "osusergo", "llgo.wasm.gc.linear", "llgo.wasm.emscripten"}},
-		{"J64-Emscripten", "1", []string{"llgo", "osusergo", "llgo.wasm.gc.linear", "llgo.wasm.emscripten", "llgo.wasm.emscripten.memory64"}},
-		{"W32-WASI", "1", []string{"llgo", "osusergo", "llgo.wasm.gc.linear", "llgo.wasm.wasi", "llgo.wasi_threads"}},
+		{"J32-GoJS", "0", []string{"llgo", "osusergo"}},
+		{"J32-Emscripten", "1", []string{"llgo", "osusergo", "llgo.wasm.emscripten"}},
+		{"J64-Emscripten", "1", []string{"llgo", "osusergo", "llgo.wasm.emscripten", "llgo.wasm.emscripten.memory64"}},
+		{"W32-WASI", "1", []string{"llgo", "osusergo", "llgo.wasm.wasi", "llgo.wasi_threads"}},
 		{"GoJS-reference", "0", nil},
 		{"GoWASI-reference", "0", nil},
 	}

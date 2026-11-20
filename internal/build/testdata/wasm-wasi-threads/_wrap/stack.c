@@ -32,10 +32,8 @@ int32_t llgo_probe_timer_clock(void) {
   return start >= 0 && result == ETIMEDOUT && elapsed >= INT64_C(2000000);
 }
 
-// Compile the collector's stack-bound helper into this nogc probe so the
-// pthread ABI is checked before threaded collection is enabled.
-#include "../../../../../runtime/internal/runtime/tinygogc/_wrap/gc_wasm.c"
-
+// Wasmer must report each pthread's C stack: the main thread falls back to
+// __stack_high, a worker's stack must contain its own stack pointer.
 extern unsigned char __stack_high;
 
 int32_t llgo_wasi_worker_stack_bounds(int32_t expect_worker) {
@@ -44,14 +42,12 @@ int32_t llgo_wasi_worker_stack_bounds(int32_t expect_worker) {
   size_t size = 0;
   int status = pthread_getattr_np(pthread_self(), &attr);
   uintptr_t sp = (uintptr_t)&attr;
-  uintptr_t top = llgo_gc_stack_top();
   if (status == ENOSYS)
-    return !expect_worker && top == (uintptr_t)&__stack_high && sp < top;
+    return !expect_worker && sp < (uintptr_t)&__stack_high;
   if (status != 0)
     return 0;
   status = pthread_attr_getstack(&attr, &base, &size);
   pthread_attr_destroy(&attr);
   uintptr_t start = (uintptr_t)base;
-  return status == 0 && size > 0 && sp >= start && sp - start < size &&
-         top == start + size;
+  return status == 0 && size > 0 && sp >= start && sp - start < size;
 }

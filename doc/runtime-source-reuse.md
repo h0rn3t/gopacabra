@@ -97,9 +97,9 @@ Hosted Wasm source selection needs the same profile tags as the build:
 
 ```sh
 go run ./dev/runtimeaudit -goos=js -goarch=wasm \
-  -tags=llgo.wasm.gc.linear,llgo.wasm.emscripten -o=runtime-js.json
+  -tags=llgo.wasm.emscripten -o=runtime-js.json
 go run ./dev/runtimeaudit -goos=wasip1 -goarch=wasm \
-  -tags=llgo.wasm.gc.linear,llgo.wasi_threads,llgo.wasm.workers \
+  -tags=llgo.wasi_threads,llgo.wasm.workers \
   -o=runtime-wasi.json
 ```
 

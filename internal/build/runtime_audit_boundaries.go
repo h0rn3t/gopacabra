@@ -136,7 +136,6 @@ C.llgo_cpu_profile_stop C.llgo_cpu_profile_update_signal`,
 	},
 	{"C.llgo_fault_capture_done C.llgo_install_fault_handler", "LLGo POSIX fault bridge", "runtime/internal/lib/runtime/_wrap/fault.c"},
 	{"C.llgo_framepointer", "LLGo frame-pointer intrinsic bridge", "runtime/internal/runtime/_wrap/fp.c"},
-	{"C.llgo_gc_stack_top", "LLGo linear-memory GC", "runtime/internal/runtime/tinygogc/_wrap/gc_wasm.c"},
 	{
 		`C.llgo_maxprocs`,
 		"LLGo platform CPU query",
@@ -166,20 +165,6 @@ C.llgo_signal_recv`,
 		`runtime/internal/stacktrace/_wrap/allthreads_linux.h`,
 	},
 	{"C.llgo_traceback_config C.llgo_traceback_crash", "LLGo fatal-output bridge", "runtime/internal/runtime/_wrap/traceback_crash.c"},
-	{
-		`C.llgo_wasi_gc_allocator_finish C.llgo_wasi_gc_allocator_lock C.llgo_wasi_gc_cond_timedwait
-C.llgo_wasi_gc_enter_begin C.llgo_wasi_gc_enter_end C.llgo_wasi_gc_leave_begin
-C.llgo_wasi_gc_leave_end C.llgo_wasi_gc_mutex_lock C.llgo_wasi_gc_park C.llgo_wasi_gc_pending
-C.llgo_wasi_gc_resume C.llgo_wasi_gc_stop C.llgo_wasi_gc_thread_start
-C.llgo_wasi_gc_wait_uint32`,
-		"LLGo WASI thread/GC synchronization",
-		`runtime/internal/runtime/_wrap/wasi_gc_world.c`,
-	},
-	{
-		`C.llgo_wasm_call_interface_sret C.llgo_wasm_call_sret`,
-		"LLGo Wasm finalizer ABI bridge",
-		`runtime/internal/lib/runtime/_wrap/finalizer_wasm.c`,
-	},
 }
 
 func runtimeNativeProviders(owners []runtimeNativeOwner) (map[string]runtimeNativeOwner, error) {

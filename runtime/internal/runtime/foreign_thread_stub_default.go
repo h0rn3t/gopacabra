@@ -1,4 +1,4 @@
-//go:build !windows && (!llgo || nogc || baremetal || !wasm || !llgo.wasm.gc.linear)
+//go:build !windows
 
 package runtime
 

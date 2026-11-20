@@ -1,5 +1,3 @@
-//go:build !llgo || !wasm || !llgo.wasm.gc.linear
-
 package gcroot
 
 var (

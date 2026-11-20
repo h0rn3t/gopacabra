@@ -350,10 +350,10 @@ func TestProfileSourceContexts(t *testing.T) {
 	t.Setenv("LLGO_WASI_THREADS", "")
 	t.Setenv("LLGO_WASM_WORKERS", "")
 	tests := map[string]struct{ tags, cgo string }{
-		"J32-GoJS":         {"llgo,osusergo,llgo.wasm.gc.linear", "0"},
-		"J32-Emscripten":   {"llgo,osusergo,llgo.wasm.gc.linear,llgo.wasm.emscripten", "1"},
-		"J64-Emscripten":   {"llgo,osusergo,llgo.wasm.gc.linear,llgo.wasm.emscripten,llgo.wasm.emscripten.memory64", "1"},
-		"W32-WASI":         {"llgo,osusergo,llgo.wasm.gc.linear,llgo.wasm.wasi,llgo.wasi_threads", "1"},
+		"J32-GoJS":         {"llgo,osusergo", "0"},
+		"J32-Emscripten":   {"llgo,osusergo,llgo.wasm.emscripten", "1"},
+		"J64-Emscripten":   {"llgo,osusergo,llgo.wasm.emscripten,llgo.wasm.emscripten.memory64", "1"},
+		"W32-WASI":         {"llgo,osusergo,llgo.wasm.wasi,llgo.wasi_threads", "1"},
 		"GoJS-reference":   {"", "0"},
 		"GoWASI-reference": {"", "0"},
 	}

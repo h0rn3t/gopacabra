@@ -1,4 +1,4 @@
-//go:build llgo && js && wasm && llgo.wasm.workers && !llgo.wasm.gc.linear
+//go:build llgo && js && wasm && llgo.wasm.workers
 
 package runtime
 

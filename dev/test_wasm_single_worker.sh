@@ -9,8 +9,6 @@ node_cmd="${NODE:-node}"
 scheduler_fixture="${repo_root}/internal/build/testdata/wasm-scheduler"
 timer_fixture="${repo_root}/internal/build/testdata/wasm-timers"
 callback_fixture="${repo_root}/internal/build/testdata/wasm-callback"
-gc_fixture="${repo_root}/internal/build/testdata/wasm-gc"
-lifecycle_fixture="${repo_root}/internal/build/testdata/wasm-lifecycle"
 test_fixture="${repo_root}/internal/build/testdata/wasm-test"
 runner_test_fixture="${repo_root}/internal/build/testdata/wasm-runner-test"
 runner_run_fixture="${repo_root}/internal/build/testdata/wasm-runner-run"
@@ -276,10 +274,6 @@ run_llgo_test_compile_only() {
 
 if [[ "${suite}" == "all" || "${suite}" == "runtime" ]]; then
 LLGO="${llgo_cmd}" NODE="${node_cmd}" bash "${repo_root}/dev/test_wasm_stack_bounds.sh"
-# The runtime is a nested Go module and is not covered by root-level go test.
-# Exercise the collector's allocation-free interval helper on the host before
-# the target fixtures check marking, reclamation, and finalizer integration.
-go -C "${repo_root}/runtime" test -count=1 -cover ./internal/runtime/tinygogc
 fi
 
 run_llgo_go_profile_test() {
@@ -313,12 +307,8 @@ run_llgo_go_profile_run() {
 }
 
 if [[ "${suite}" == "all" || "${suite}" == "runtime" ]]; then
-# Check finalizer registry scaling and queue removal without timing or
-# conservative-root assumptions, alongside the real Wasm lifecycle fixtures.
-go -C "${repo_root}" test ./internal/build -run '^TestWasmFinalizerCandidates$' -count=1
-
 # Single-worker browser targets exercise Fiber/Asyncify scheduling.
-# W32 pthread scheduling and segmented GC live in test_wasm_wasi_threads.py.
+# W32 pthread scheduling lives in test_wasm_wasi_threads.py.
 wasm_ci_run_case EC32/emscripten scheduler 1 0 0 0 0 \
 	run_emscripten emscripten emscripten-runner.mjs "${scheduler_fixture}" "wasm scheduler ok" "scheduler-emscripten"
 wasm_ci_run_case EC64/emscripten-memory64 scheduler 1 0 0 0 0 \
@@ -364,22 +354,6 @@ wasm_ci_run_case EC32/emscripten timers 1 0 0 0 0 \
 	run_emscripten emscripten emscripten-runner.mjs "${timer_fixture}" "wasm timers ok" "timers-emscripten"
 wasm_ci_run_case EC64/emscripten-memory64 timers 1 0 0 0 0 \
 	run_emscripten emscripten-memory64 emscripten-memory64-runner.mjs "${timer_fixture}" "wasm timers ok" "timers-memory64"
-
-# R2 enables the non-moving collector by default for each canonical
-# single-worker hosted target. This fixture covers active and suspended G roots,
-# closures/interfaces/aggregates, panic/recover unwinding, pure-Go loop
-# safepoints, reclamation, aligned allocation, and memory growth.
-wasm_ci_run_case EC32/emscripten gc 1 0 0 0 0 \
-	run_emscripten emscripten emscripten-runner.mjs "${gc_fixture}" "wasm gc ok" "gc-emscripten"
-wasm_ci_run_case EC64/emscripten-memory64 gc 1 0 0 0 0 \
-	run_emscripten emscripten-memory64 emscripten-memory64-runner.mjs "${gc_fixture}" "wasm gc ok" "gc-memory64"
-
-# Finalizers, cleanups, and weak references share the collector lifecycle but
-# have additional ordering, cancellation, and dynamic-call ABI requirements.
-wasm_ci_run_case EC32/emscripten lifecycle 1 0 0 0 0 \
-	run_llgo_run emscripten "${lifecycle_fixture}" "wasm lifecycle ok" "lifecycle-emscripten"
-wasm_ci_run_case EC64/emscripten-memory64 lifecycle 1 0 0 0 0 \
-	run_llgo_run emscripten-memory64 "${lifecycle_fixture}" "wasm lifecycle ok" "lifecycle-memory64"
 
 # A registered JS callback is a host wake source even when no Go timer exists.
 # This catches treating an empty timer heap as an immediate deadlock.

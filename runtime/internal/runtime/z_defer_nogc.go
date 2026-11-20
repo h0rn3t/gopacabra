@@ -1,4 +1,4 @@
-//go:build !baremetal && (!wasm || !llgo.wasm.gc.linear) && !(gopacabra && !gopacabraasan && (linux || darwin))
+//go:build !(gopacabra && !gopacabraasan && (linux || darwin) && !baremetal)
 
 /*
  * Copyright (c) 2025 The XGo Authors (xgo.dev). All rights reserved.

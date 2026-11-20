@@ -1,4 +1,4 @@
-//go:build !gopacabra || gopacabraasan || !(linux || darwin)
+//go:build !gopacabra || gopacabraasan || !(linux || darwin) || baremetal
 
 package runtime
 

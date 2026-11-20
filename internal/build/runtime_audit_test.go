@@ -23,7 +23,6 @@ func TestRuntimeOwnership(t *testing.T) {
 		t.Run(target.os+"-"+target.arch, func(t *testing.T) {
 			var tags []string
 			if target.arch == "wasm" {
-				tags = []string{"llgo.wasm.gc.linear"}
 				if target.os == "js" {
 					tags = append(tags, "llgo.wasm.emscripten")
 				}

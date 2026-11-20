@@ -387,7 +387,7 @@ func TestEnableWasmReflectLibffi(t *testing.T) {
 		t.Fatal(err)
 	}
 	flags := strings.Join(export.LDFLAGS, " ")
-	for _, entry := range []string{"PushCallerLocationFrameWasm", "RecordCallerLocationWasm", "RecordPanicLocationWasm", "tinygogc", "llgo_reflect_bind0_js", "llgo_reflect_bind1_js", "llgo_reflect_bindn_js"} {
+	for _, entry := range []string{"PushCallerLocationFrameWasm", "RecordCallerLocationWasm", "RecordPanicLocationWasm", "llgo_reflect_bind0_js", "llgo_reflect_bind1_js", "llgo_reflect_bindn_js"} {
 		if !strings.Contains(flags, entry) {
 			t.Errorf("missing Asyncify exclusion %q: %s", entry, flags)
 		}

@@ -639,11 +639,9 @@ func buildInvocation(inv Invocation, plan *initialBuildPlan) (result []Package, 
 	if err := configureWasmReflectLibffi(conf, &export, wasmWorkers); err != nil {
 		return nil, err
 	}
-	wasmGC, err := configureWasmGC(conf, &export)
-	if err != nil {
+	if err := rejectWasmGCLinear(conf); err != nil {
 		return nil, err
 	}
-	applyWasmGCLinkFlags(conf, &export)
 	if conf.AppExt == "" {
 		conf.AppExt = defaultAppExt(conf)
 	}
@@ -748,15 +746,13 @@ func buildInvocation(inv Invocation, plan *initialBuildPlan) (result []Package, 
 	prog.EnableGoGlobalDCE(conf.goGlobalDCEEnabled())
 	prog.EnableDeadcodeDrop(conf.deadcodeDropEnabled())
 	prog.EnableStackDeferFrames(frontendOptions.GopacabraFree)
-	prog.EnableGCRoots(wasmGC)
 	// M:N gopacabra (тег gopacabramn) переносить горутини між потоками: GLS — на G,
 	// а виклики C позначено, щоб sysmon забирав P у M, що застрягла в C.
 	gopacabraMN := slices.Contains(splitSourcePatchBuildTags(conf.Tags), "gopacabramn")
 	prog.EnableLogicalGoroutineLocality(usesSingleWorkerWasmScheduler(conf) || gopacabraMN)
 	prog.EnableBlockingCallMarkers(gopacabraMN)
-	prog.EnableThreadLocalGCRoots(useThreadLocalGCRoots(conf, wasmGC, wasmWorkers))
 	// Під gopacabramn safepoints читають запит витіснення від sysmon (P-NEW-09.10).
-	prog.EnableCooperativeSafepoints(wasmGC || wasmWorkers.Enabled() || gopacabraMN)
+	prog.EnableCooperativeSafepoints(wasmWorkers.Enabled() || gopacabraMN)
 	prog.EnablePreemptRequestPoll(gopacabraMN)
 	if conf.PthreadStackSize > 0 {
 		prog.SetPthreadStackSize(uint64(conf.PthreadStackSize))
@@ -1183,12 +1179,6 @@ func resolveTestPthreadStackSize(conf *Config) {
 	if conf.Target != "" || conf.Goos != runtime.GOOS || conf.Goarch != runtime.GOARCH {
 		conf.PthreadStackSize = 0
 	}
-}
-
-// Shared-memory collectors need one root chain per host thread. The
-// single-worker scheduler and nogc builds keep their existing root model.
-func useThreadLocalGCRoots(conf *Config, wasmGC bool, workers wasmworkers.Config) bool {
-	return wasmGC && (workers.Enabled() || conf.Goos == "wasip1")
 }
 
 type initialPackageLink struct {
@@ -1644,47 +1634,14 @@ func configureWasmReflectLibffi(conf *Config, export *crosscompile.Export, worke
 	return crosscompile.EnableWasmReflectLibffi(export)
 }
 
-func configureWasmGC(conf *Config, export *crosscompile.Export) (bool, error) {
-	explicit := slices.Contains(splitSourcePatchBuildTags(conf.Tags), "llgo.wasm.gc.linear")
-	if conf.Goarch != "wasm" {
-		if explicit {
-			return false, fmt.Errorf("llgo.wasm.gc.linear does not support GOARCH=%s", conf.Goarch)
-		}
-		return false, nil
+// rejectWasmGCLinear відхиляє тег llgo.wasm.gc.linear: він вмикав
+// трасувальний збирач tinygogc, видалений у P11.5.0.2; wasm збирається з
+// рантаймом gopacabra.
+func rejectWasmGCLinear(conf *Config) error {
+	if slices.Contains(splitSourcePatchBuildTags(conf.Tags), "llgo.wasm.gc.linear") {
+		return errors.New("llgo.wasm.gc.linear is removed: wasm builds use the gopacabra runtime without a tracing GC")
 	}
-
-	defaultEnabled := false
-	switch export.WasmProfile {
-	case crosscompile.WasmProfileJ32, crosscompile.WasmProfileJ64:
-		defaultEnabled = true
-	case crosscompile.WasmProfileW32:
-		if slices.Contains(splitSourcePatchBuildTags(conf.Tags), "nogc") {
-			if explicit {
-				return false, errors.New("WASI threads cannot combine nogc with llgo.wasm.gc.linear")
-			}
-			return false, nil
-		}
-		defaultEnabled = true
-	case crosscompile.WasmProfileNone:
-		if explicit {
-			return false, fmt.Errorf("llgo.wasm.gc.linear requires a supported hosted WebAssembly profile")
-		}
-		return false, nil
-	default:
-		if explicit {
-			return false, fmt.Errorf("llgo.wasm.gc.linear does not support WebAssembly profile %q", export.WasmProfile)
-		}
-		return false, nil
-	}
-
-	enabled := explicit || defaultEnabled
-	if enabled && !explicit {
-		if conf.Tags != "" {
-			conf.Tags += ","
-		}
-		conf.Tags += "llgo.wasm.gc.linear"
-	}
-	return enabled, nil
+	return nil
 }
 
 func usesSingleWorkerWasmScheduler(conf *Config) bool {
@@ -1696,17 +1653,6 @@ func usesSingleWorkerWasmScheduler(conf *Config) bool {
 		return true
 	default:
 		return false
-	}
-}
-
-func applyWasmGCLinkFlags(conf *Config, export *crosscompile.Export) {
-	if conf.Goos != "js" || conf.Goarch != "wasm" ||
-		(export.WasmProfile != crosscompile.WasmProfileJ32 && export.WasmProfile != crosscompile.WasmProfileJ64) ||
-		!slices.Contains(splitSourcePatchBuildTags(conf.Tags), "llgo.wasm.gc.linear") {
-		return
-	}
-	if !slices.Contains(export.LDFLAGS, "-sMALLOC=none") {
-		export.LDFLAGS = append(export.LDFLAGS, "-sMALLOC=none")
 	}
 }
 

@@ -1,5 +1,3 @@
-//go:build (nogc || !baremetal) && (!wasm || !llgo.wasm.gc.linear)
-
 package runtime
 
 import "runtime"

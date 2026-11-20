@@ -1,4 +1,4 @@
-//go:build gopacabra && !gopacabraasan && (linux || darwin) && gopacabrastat
+//go:build gopacabra && !gopacabraasan && (linux || darwin) && !baremetal && gopacabrastat
 
 package runtime
 

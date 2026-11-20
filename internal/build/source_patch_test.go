@@ -28,11 +28,8 @@ func TestWasmRuntimeSourcePatchTypeChecks(t *testing.T) {
 	}{
 		{name: "raw js wasm32", goos: "js"},
 		{name: "Emscripten wasm32", goos: "js", profile: crosscompile.WasmProfileJ32, buildFlags: []string{"-tags=llgo.wasm.emscripten,nogc"}},
-		{name: "Emscripten GC wasm32", goos: "js", profile: crosscompile.WasmProfileJ32, buildFlags: []string{"-tags=llgo,llgo.wasm.emscripten,llgo.wasm.gc.linear"}},
 		{name: "Emscripten Memory64", goos: "js", profile: crosscompile.WasmProfileJ64, buildFlags: []string{"-tags=llgo.wasm.emscripten,llgo.wasm.emscripten.memory64,nogc"}},
-		{name: "Emscripten GC Memory64", goos: "js", profile: crosscompile.WasmProfileJ64, buildFlags: []string{"-tags=llgo,llgo.wasm.emscripten,llgo.wasm.emscripten.memory64,llgo.wasm.gc.linear"}},
 		{name: "WASI wasm32", goos: "wasip1"},
-		{name: "WASI GC wasm32", goos: "wasip1", profile: crosscompile.WasmProfileW32, buildFlags: []string{"-tags=llgo,llgo.wasm.wasi,llgo.wasm.gc.linear"}},
 	} {
 		t.Run(test.name, func(t *testing.T) {
 			cfgEnv := withEnv(os.Environ(), "GOOS="+test.goos, "GOARCH=wasm")

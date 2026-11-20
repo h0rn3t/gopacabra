@@ -1,4 +1,4 @@
-//go:build llgo && js && wasm && !llgo.wasm.gc.linear
+//go:build llgo && js && wasm
 
 package wasmcontext
 

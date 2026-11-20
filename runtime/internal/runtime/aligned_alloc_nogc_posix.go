@@ -1,4 +1,4 @@
-//go:build !baremetal && (!wasm || !llgo.wasm.gc.linear) && (aix || darwin || dragonfly || freebsd || linux || netbsd || openbsd || solaris || wasip1)
+//go:build !baremetal && (aix || darwin || dragonfly || freebsd || linux || netbsd || openbsd || solaris || wasip1)
 
 /*
  * Copyright (c) 2026 The XGo Authors (xgo.dev). All rights reserved.

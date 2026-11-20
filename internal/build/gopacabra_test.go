@@ -254,8 +254,9 @@ func TestNoTinyGoGC(t *testing.T) {
 		{name: "wasip1", goos: "wasip1", goarch: "wasm", mode: ModeBuild},
 		// Компонування js/wasm потребує emcc; ModeGen показує набір пакетів.
 		{name: "js", goos: "js", goarch: "wasm", mode: ModeGen},
-		// ModeBuild: C-файли рантайму компілюються лише в повній збірці.
-		{name: "cortex-m4", target: "cortex-m4", mode: ModeBuild},
+		// ModeBuild: C-файли рантайму компілюються лише в повній збірці. esp32,
+		// а не cortex-m4: у cortex-m4 немає libc, компонування там не пройде.
+		{name: "esp32", target: "esp32", mode: ModeBuild},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {

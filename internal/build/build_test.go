@@ -823,63 +823,6 @@ func TestDefaultBuildTags(t *testing.T) {
 	}
 }
 
-func TestConfigureWasmGC(t *testing.T) {
-	t.Setenv("LLGO_WASI_THREADS", "0")
-	tests := []struct {
-		name    string
-		conf    Config
-		profile crosscompile.WasmProfile
-		wantGC  bool
-		err     bool
-	}{
-		{name: "J32", conf: Config{Goos: "js", Goarch: "wasm"}, profile: crosscompile.WasmProfileJ32, wantGC: true},
-		{name: "J64", conf: Config{Goos: "js", Goarch: "wasm"}, profile: crosscompile.WasmProfileJ64, wantGC: true},
-		{name: "W32", conf: Config{Goos: "wasip1", Goarch: "wasm"}, profile: crosscompile.WasmProfileW32, wantGC: true},
-		{name: "native", conf: Config{Goos: "linux", Goarch: "amd64"}},
-		{name: "native explicit", conf: Config{Goos: "linux", Goarch: "amd64", Tags: "llgo.wasm.gc.linear"}, err: true},
-		{name: "missing profile", conf: Config{Goos: "js", Goarch: "wasm", Tags: "llgo.wasm.gc.linear"}, err: true},
-	}
-	for _, test := range tests {
-		t.Run(test.name, func(t *testing.T) {
-			export := crosscompile.Export{WasmProfile: test.profile}
-			enabled, err := configureWasmGC(&test.conf, &export)
-			if (err != nil) != test.err {
-				t.Fatalf("configureWasmGC error = %v, want error %v", err, test.err)
-			}
-			if enabled != test.wantGC {
-				t.Fatalf("configureWasmGC enabled = %v, want %v", enabled, test.wantGC)
-			}
-			applyWasmGCLinkFlags(&test.conf, &export)
-			if got := slices.Contains(export.LDFLAGS, "-sMALLOC=none"); got != (test.wantGC && test.conf.Goos == "js") {
-				t.Fatalf("MALLOC=none present = %v", got)
-			}
-			if test.wantGC && !slices.Contains(splitSourcePatchBuildTags(test.conf.Tags), "llgo.wasm.gc.linear") {
-				t.Fatalf("internal GC tag missing from %q", test.conf.Tags)
-			}
-		})
-	}
-}
-
-func TestConfigureWasmGCWASIThreads(t *testing.T) {
-	t.Setenv("LLGO_WASI_THREADS", "1")
-	conf := Config{Goos: "wasip1", Goarch: "wasm", Tags: "llgo.wasm.gc.linear"}
-	if enabled, err := configureWasmGC(&conf, &crosscompile.Export{WasmProfile: crosscompile.WasmProfileW32}); err != nil || !enabled {
-		t.Fatalf("explicit WASI threaded GC = %v, %v; want true, nil", enabled, err)
-	}
-	conf.Tags = ""
-	if enabled, err := configureWasmGC(&conf, &crosscompile.Export{WasmProfile: crosscompile.WasmProfileW32}); err != nil || !enabled || !slices.Contains(splitSourcePatchBuildTags(conf.Tags), "llgo.wasm.gc.linear") {
-		t.Fatalf("default WASI threaded GC = %v, %v, tags %q; want enabled", enabled, err, conf.Tags)
-	}
-	conf.Tags = "nogc"
-	if enabled, err := configureWasmGC(&conf, &crosscompile.Export{WasmProfile: crosscompile.WasmProfileW32}); err != nil || enabled {
-		t.Fatalf("WASI threads with nogc = %v, %v; want false, nil", enabled, err)
-	}
-	conf.Tags = "nogc,llgo.wasm.gc.linear"
-	if _, err := configureWasmGC(&conf, &crosscompile.Export{WasmProfile: crosscompile.WasmProfileW32}); err == nil {
-		t.Fatal("WASI threads accepted conflicting collector tags")
-	}
-}
-
 func TestNeedStartWASITargetAliases(t *testing.T) {
 	if needStart(&context{
 		buildConf:    &Config{Target: "wasi-small"},
@@ -981,14 +924,6 @@ func TestConfigureWasmWorkers(t *testing.T) {
 	if !export.WasmRuntime.RunMainTask {
 		t.Fatal("worker runtime did not select the host-owned main entry")
 	}
-	if enabled, err := configureWasmGC(&conf, &export); err != nil {
-		t.Fatalf("default worker GC selection failed: %v", err)
-	} else if !enabled {
-		t.Fatal("worker runtime did not enable the wasm collector")
-	}
-	if !slices.Contains(splitSourcePatchBuildTags(conf.Tags), "llgo.wasm.gc.linear") {
-		t.Fatalf("worker GC tag missing from %q", conf.Tags)
-	}
 }
 
 func TestConfigureWasmWorkersReportsInvalidConfiguration(t *testing.T) {
@@ -1059,7 +994,7 @@ func TestWasmRuntimeAvoidsNativeHostDependencies(t *testing.T) {
 			ctx := gobuild.Default
 			ctx.GOOS = goos
 			ctx.GOARCH = "wasm"
-			ctx.BuildTags = []string{"llgo", "nogc", "llgo.wasm.gc.linear"}
+			ctx.BuildTags = []string{"llgo", "nogc"}
 			pkg, err := ctx.ImportDir(runtimeDir, 0)
 			if err != nil {
 				t.Fatal(err)
@@ -1085,9 +1020,7 @@ func TestWasmRuntimeAvoidsNativeHostDependencies(t *testing.T) {
 			}
 
 			for _, name := range []string{
-				"mfinal_wasm.go",
 				"runtime_baremetal.go",
-				"runtime_gc_nonmoving.go",
 				"signal_baremetal_llgo.go",
 				"time_wasm_llgo.go",
 				"unwind_wasm_llgo.go",

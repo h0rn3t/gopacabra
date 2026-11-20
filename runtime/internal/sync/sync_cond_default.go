@@ -1,4 +1,4 @@
-//go:build !windows && (!llgo || !wasip1 || !wasm || !llgo.wasi_threads || !llgo.wasm.gc.linear) && !(gopacabra && gopacabramn)
+//go:build !windows && !(gopacabra && gopacabramn)
 
 package sync
 

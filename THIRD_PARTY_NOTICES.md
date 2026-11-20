@@ -9,7 +9,6 @@ module carries its own copy of LLGo's Apache-2.0 license in `runtime/LICENSE`.
 
 LLGo contains source derived from the [TinyGo project](https://github.com/tinygo-org/tinygo):
 
-- the conservative bare-metal collector in `runtime/internal/runtime/tinygogc/gc_tinygo.go`;
 - firmware image support in `internal/firmware/esp.go`, `nrfutil.go`, `objcopy.go`, and `uf2.go`;
 - the marked flashing-support portions of `internal/flash/flash.go`;
 - serial monitoring and panic-location support in `internal/monitor/monitor.go`;

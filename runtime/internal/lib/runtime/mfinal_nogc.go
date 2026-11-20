@@ -1,5 +1,3 @@
-//go:build (nogc || !baremetal) && (!wasm || !llgo.wasm.gc.linear)
-
 package runtime
 
 // SetFinalizer is a no-op when garbage collection is disabled because objects
