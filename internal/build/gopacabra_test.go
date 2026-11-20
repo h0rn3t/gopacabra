@@ -238,3 +238,53 @@ func TestRuntimeLinksNoTracingGC(t *testing.T) {
 		t.Fatalf("walk %s: %v", root, err)
 	}
 }
+
+// TestNoTinyGoGC стереже P11.5.0.2: wasm і baremetal збираються з
+// рантаймом gopacabra, пакет трасувального збирача tinygogc не
+// компілюється, а режим llgo.wasm.gc.linear, що його вмикав, відхиляється.
+func TestNoTinyGoGC(t *testing.T) {
+	const tinygogcPkg = "github.com/xgo-dev/llgo/runtime/internal/runtime/tinygogc"
+	tests := []struct {
+		name   string
+		goos   string
+		goarch string
+		target string
+		mode   Mode
+	}{
+		{name: "wasip1", goos: "wasip1", goarch: "wasm", mode: ModeBuild},
+		// Компонування js/wasm потребує emcc; ModeGen показує набір пакетів.
+		{name: "js", goos: "js", goarch: "wasm", mode: ModeGen},
+		// ModeBuild: C-файли рантайму компілюються лише в повній збірці.
+		{name: "cortex-m4", target: "cortex-m4", mode: ModeBuild},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			conf := NewDefaultConf(tt.mode)
+			conf.OutFile = filepath.Join(t.TempDir(), "out")
+			if tt.goos != "" {
+				conf.Goos, conf.Goarch = tt.goos, tt.goarch
+			}
+			conf.Target = tt.target
+			var pkgs []string
+			conf.ModuleHook = func(pkg Package) { pkgs = append(pkgs, pkg.PkgPath) }
+			if _, err := Do([]string{"./testdata/notracinggc"}, conf); err != nil {
+				t.Fatalf("build: %v", err)
+			}
+			if !slices.Contains(pkgs, "github.com/xgo-dev/llgo/runtime/internal/runtime") {
+				t.Fatalf("runtime was not compiled; packages: %v", pkgs)
+			}
+			if slices.Contains(pkgs, tinygogcPkg) {
+				t.Errorf("%s compiled", tinygogcPkg)
+			}
+		})
+	}
+	t.Run("explicit-tag", func(t *testing.T) {
+		conf := NewDefaultConf(ModeGen)
+		conf.Goos, conf.Goarch = "js", "wasm"
+		conf.Tags = "llgo.wasm.gc.linear"
+		_, err := Do([]string{"./testdata/notracinggc"}, conf)
+		if err == nil || !strings.Contains(err.Error(), "llgo.wasm.gc.linear is removed") {
+			t.Fatalf("err = %v, want \"llgo.wasm.gc.linear is removed\"", err)
+		}
+	})
+}
