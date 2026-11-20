@@ -271,7 +271,7 @@ func main() {
 | `internal/build/package_archive.go` | коментар upstream про обхідний шлях; diff від upstream мінімальний |
 | `internal/build/gopacabra_test.go` | сам тест-сторож (`libgc`) |
 | `gopacabra/bench/allocbase` | бенчмарк порівнює з `libgc` свідомо |
-| `runtime/internal/runtime/tinygogc/*` | `GC_malloc`-подібні імена `tinygogc`, P11.5.0.2 |
+| `runtime/internal/runtime/tinygogc/*` | коментарі, що згадують BDWGC, і `gc_init` у `gc_wasm.c`; пакет видаляє P11.5.0.2 |
 | `test/goroot/notapplicable.yaml` | причини описують збирач upstream |
 | `dev/mise.lock`, `dev/pixi.lock` | `libgcc` — хибний збіг |
 
