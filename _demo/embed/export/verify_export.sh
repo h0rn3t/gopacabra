@@ -1,17 +1,20 @@
 #!/bin/bash
 
 set -e
+trap 'rm -f libverify.a libverify.h' EXIT
 
 echo "Building for embedded target..."
 
-# Build for embedded target as executable
+# Build for embedded target as a C archive: riscv-qemu has no libc stdio to
+# link the demo's printf calls into firmware, and the archive already carries
+# the exported symbol names.
 # Use llgo directly instead of llgo.sh to avoid go.mod version check
-llgo build -o test-verify --target=esp32 .
+llgo build -buildmode c-archive -o libverify.a --target=riscv-qemu .
 
 echo "Checking exported symbols..."
 
 # Get exported symbols
-exported_symbols=$(nm -gU ./test-verify.elf | grep -E "(HelloWorld|LPSPI2_IRQHandler|SysTick_Handler|AddFunc)" | awk '{print $NF}')
+exported_symbols=$(nm -gU ./libverify.a | grep -E "(HelloWorld|LPSPI2_IRQHandler|SysTick_Handler|AddFunc)" | awk '{print $NF}')
 
 echo ""
 echo "Exported symbols:"

@@ -56,7 +56,7 @@ type Export struct {
 
 	LLVMTarget   string   // LLVM Target
 	TargetABI    string   // RISC-V Target ABI (e.g., "lp64", "lp64d")
-	BinaryFormat string   // Binary format (e.g., "elf", "esp", "uf2")
+	BinaryFormat string   // Binary format (e.g., "elf", "uf2", "nrf-dfu")
 	FormatDetail string   // For uf2, it's uf2FamilyID
 	Emulator     string   // Emulator command template (e.g., "qemu-system-arm -M {} -kernel {}")
 	GDB          []string // GDB command candidates in preference order
@@ -998,14 +998,7 @@ func useTarget(targetName string, level optlevel.Level, ltoMode lto.Mode,
 		// double.
 		ccflags = append(ccflags, "-mdouble=64")
 	case "riscv32":
-		// Check llvm-target to distinguish ESP RISC-V chips from others
-		// ESP series (riscv32-esp-elf) only supports RV32IMC (no A/D/F extensions)
-		// Other RISC-V32 targets support RV32IMAC (with A extension)
-		if config.LLVMTarget == "riscv32-esp-elf" {
-			ccflags = append(ccflags, "-march=rv32imc")
-		} else {
-			ccflags = append(ccflags, "-march=rv32imac")
-		}
+		ccflags = append(ccflags, "-march=rv32imac")
 		ccflags = append(ccflags, "-fforce-enable-int128")
 	case "riscv64":
 		ccflags = append(ccflags, "-march=rv64gc")

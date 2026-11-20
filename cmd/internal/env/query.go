@@ -198,7 +198,6 @@ func llgoVariables(targetName string) (map[string]func() string, error) {
 		variables[name] = func() string { return os.Getenv(name) }
 	}
 	variables["LLGO_PICOLIBC_SOURCE_DIR"] = value(librarySourceDir(cacheDir, libc.GetPicolibcConfig().String()))
-	variables["LLGO_NEWLIB_ESP32_SOURCE_DIR"] = value(librarySourceDir(cacheDir, libc.GetNewlibESP32Config().String()))
 	variables["LLGO_COMPILER_RT_SOURCE_DIR"] = value(librarySourceDir(cacheDir, rtlib.GetCompilerRTConfig().String()))
 
 	llvm := newLLVMInfo()

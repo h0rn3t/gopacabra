@@ -400,7 +400,7 @@ func TestEnableWasmReflectLibffi(t *testing.T) {
 	}
 }
 
-// Configuration assertions do not need freshly compiled picolibc, newlib and
+// Configuration assertions do not need freshly compiled picolibc and
 // compiler-rt archives for every optimization/LTO combination. Keep real target
 // resolution and library plans; real compilation stays in TestUseTargetESPClang,
 // the compile package tests, and the ABI and embedded integration suites.
@@ -465,21 +465,6 @@ func TestUseTarget(t *testing.T) {
 			expectLLVM:  "riscv32-unknown-none",
 			expectCPU:   "generic-rv32",
 			expectMarch: "-march=rv32imac", // Generic RISC-V32 uses rv32imac (with A extension)
-		},
-		{
-			name:        "ESP32 Target (Xtensa)",
-			targetName:  "esp32",
-			expectError: false,
-			expectLLVM:  "xtensa",
-			expectCPU:   "esp32",
-		},
-		{
-			name:        "ESP32-C3 Target (ESP RISC-V)",
-			targetName:  "esp32c3",
-			expectError: false,
-			expectLLVM:  "riscv32-esp-elf",
-			expectCPU:   "generic-rv32",
-			expectMarch: "-march=rv32imc", // ESP32-C3 uses rv32imc (no A extension)
 		},
 		{
 			name:        "Nonexistent Target",
@@ -1073,8 +1058,8 @@ func TestUseTargetESPClangDownloadError(t *testing.T) {
 		t.Fatal(err)
 	}
 	if err := os.WriteFile(
-		filepath.Join(targetsDir, "esp-test.json"),
-		[]byte(`{"llvm-target":"xtensa","cpu":"esp32","build-tags":["esp"]}`), 0o644,
+		filepath.Join(targetsDir, "embedded-test.json"),
+		[]byte(`{"llvm-target":"riscv32-unknown-none","cpu":"generic-rv32"}`), 0o644,
 	); err != nil {
 		t.Fatal(err)
 	}
@@ -1090,23 +1075,23 @@ func TestUseTargetESPClangDownloadError(t *testing.T) {
 		espClangBaseUrl = originalBaseURL
 	})
 
-	_, err := UseTarget("esp-test", optlevel.Oz, lto.Thin)
+	_, err := UseTarget("embedded-test", optlevel.Oz, lto.Thin)
 	if err == nil || !strings.Contains(err.Error(), "404 Not Found") {
-		t.Fatalf("UseTarget(esp-test) error = %v, want download 404", err)
+		t.Fatalf("UseTarget(embedded-test) error = %v, want download 404", err)
 	}
 }
 
 func TestUseWithTarget(t *testing.T) {
 	// Test target-based configuration takes precedence
-	export, err := Use("linux", "amd64", "esp32", true, optlevel.Oz, lto.Thin, false)
+	export, err := Use("linux", "amd64", "rp2040", true, optlevel.Oz, lto.Thin, false)
 	if err != nil {
 		t.Fatalf("Unexpected error: %v", err)
 	}
 
 	// Check if LLVM target is in CCFLAGS
-	found := slices.Contains(export.CCFLAGS, "-mcpu=esp32")
+	found := slices.Contains(export.CCFLAGS, "-mcpu=cortex-m0plus")
 	if !found {
-		t.Errorf("Expected CPU generic in CCFLAGS, got %v", export.CCFLAGS)
+		t.Errorf("Expected -mcpu=cortex-m0plus in CCFLAGS, got %v", export.CCFLAGS)
 	}
 
 	// Test fallback to goos/goarch when no target specified

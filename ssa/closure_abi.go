@@ -44,8 +44,7 @@ func closureEnvABIForTarget(triple string) closureEnvABI {
 		return closureEnvNest
 	case arch == "riscv32", arch == "riscv64":
 		// LLVM and libffi both lower the RISC-V static chain through t2 (x7),
-		// allowing the direct ffi_call_go path. The ESP32-C3 suite exercises
-		// this transport on riscv32.
+		// allowing the direct ffi_call_go path.
 		return closureEnvNest
 	default:
 		return closureEnvExplicit

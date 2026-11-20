@@ -82,10 +82,6 @@ func getLibcCompileConfigByName(baseDir, libcName, target, mcpu, compiledLibrary
 		config = libc.GetPicolibcConfig()
 		sourceDir = filepath.Join(baseDir, config.String())
 		compileConfig = libc.GetPicolibcCompileConfig(sourceDir, target)
-	case "newlib-esp32":
-		config = libc.GetNewlibESP32Config()
-		sourceDir = filepath.Join(baseDir, config.String())
-		compileConfig = libc.GetNewlibESP32CompileConfig(sourceDir, target, mcpu)
 	default:
 		err = fmt.Errorf("unsupported libc: %s", libcName)
 		return

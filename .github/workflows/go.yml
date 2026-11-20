@@ -58,9 +58,6 @@ jobs:
         with:
           llvm-version: ${{matrix.llvm}}
 
-      - name: Install embedded dependencies
-        uses: ./.github/actions/setup-embed-deps
-
       - name: Clang information
         shell: bash
         run: |
@@ -173,7 +170,7 @@ jobs:
           # Start the longest suite immediately and overlap independent packages.
           # Separate summary files avoid interleaved Markdown; all JSON logs and
           # coverage profiles already have distinct names. Drain both processes
-          # and propagate either failure before the later emulator/coverage steps.
+          # and propagate either failure before the later coverage steps.
           mkdir -p go-test-timings
           summaries=$(mktemp -d go-test-timings/summaries.XXXXXX)
           trap 'rm -rf "$summaries"' EXIT
@@ -197,11 +194,6 @@ jobs:
         shell: bash
         working-directory: runtime
         run: python ../.github/scripts/run_go_tests.py --output-dir ../go-test-timings traceback go test -json -coverprofile=../coverage-traceback.txt -covermode=set ./internal/traceback ./internal/wordmap
-
-      - name: Test with embedded emulator env
-        env:
-          LLGO_EMBED_TESTS: "1"
-        run: python .github/scripts/run_go_tests.py embedded go test -json -timeout 60m ./cl -run '^TestRunEmbedEmulator$'
 
       - name: Check std symbol coverage
         shell: bash
@@ -375,6 +367,3 @@ jobs:
         run: |
           LLGO_DEMO_LLGORUN_FLAGS="-deadcodedrop" \
             bash .github/workflows/test_demo.sh
-
-      - name: Test C-only embedded deadcode-drop builds
-        run: python3 test/sizebuild/runtest.py --target=esp32c3

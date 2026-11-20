@@ -153,7 +153,7 @@ func TestNeedsEmscriptenBrowserHost(t *testing.T) {
 		},
 		{
 			name:   "embedded html skips host shim",
-			conf:   &Config{BuildMode: BuildModeExe, Target: "esp32"},
+			conf:   &Config{BuildMode: BuildModeExe, Target: "rp2040"},
 			output: "app.html",
 		},
 		{

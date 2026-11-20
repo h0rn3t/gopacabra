@@ -138,32 +138,6 @@ func TestGetLibcCompileConfigByName(t *testing.T) {
 			t.Errorf("Expected flags [%s], got: %v", expectedFlag, group.CFlags)
 		}
 	})
-
-	t.Run("NewlibESP32", func(t *testing.T) {
-		outputDir, cfg, err := getLibcCompileConfigByName(baseDir, "newlib-esp32", target, mcpu, testCompilerKey)
-		if err != nil {
-			t.Fatalf("Unexpected error: %v", err)
-		}
-
-		if len(cfg.Groups) != 3 {
-			t.Fatalf("Expected 3 group, got %d", len(cfg.Groups))
-		}
-		group := cfg.Groups[0]
-
-		expectedDir := compiledLibraryDir(baseDir, libc.GetNewlibESP32Config(), testCompilerKey)
-		if outputDir != expectedDir {
-			t.Fatalf("output dir = %q, want %q", outputDir, expectedDir)
-		}
-		expectedFile := filepath.Join(baseDir, libc.GetNewlibESP32Config().String(), "libgloss", "xtensa", "crt1-boards.S")
-		if !slices.Contains(group.Files, expectedFile) {
-			t.Errorf("Expected files [%s], got: %v", expectedFile, group.Files)
-		}
-
-		expectedFlags := "-I" + filepath.Join(baseDir, libc.GetNewlibESP32Config().String(), "libgloss")
-		if !slices.Contains(group.CFlags, expectedFlags) {
-			t.Errorf("Expected flags %v, got: %v", expectedFlags, group.CFlags)
-		}
-	})
 }
 
 func TestGetRTCompileConfigByName(t *testing.T) {
@@ -241,12 +215,6 @@ func TestCompilerRTCompileConfigPaths(t *testing.T) {
 			baseDir:  filepath.FromSlash("/avr/dir"),
 			target:   "avr",
 			expected: filepath.FromSlash("avr/divmodhi4.S"), // Expected platform file for AVR
-		},
-		{
-			name:     "XTENSA",
-			baseDir:  filepath.FromSlash("/xtensa/dir"),
-			target:   "xtensa",
-			expected: filepath.FromSlash("xtensa/ieee754_sqrtf.S"), // Expected platform file for XTENSA
 		},
 	}
 	needSkipDownload = true

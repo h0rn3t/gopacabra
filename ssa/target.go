@@ -35,7 +35,7 @@ type Target struct {
 	GOAMD64              string // "v1" (default), "v2", "v3", or "v4"
 	GOARM                string // "5", "6", "7" (default), with optional float mode
 	GOARM64              string // "v8.0" (default) through "v9.5", with optional extensions
-	Target               string // target name from -target flag (e.g., "esp32", "arm7tdmi", "wasi")
+	Target               string // target name from -target flag (e.g., "rp2040", "arm7tdmi", "wasi")
 	LLVMTarget           string // physical LLVM target selected by a target configuration
 	WasmProfile          string // logical hosted WebAssembly profile (j32, j64, or w32)
 	WasmProvider         string // hosted WebAssembly provider (gojs, emscripten, or wasi)
@@ -169,7 +169,7 @@ func (p *Target) Spec() (spec TargetSpec) {
 	// A native toolchain profile can select a physical ABI triple that differs
 	// from the GOOS/GOARCH default.
 	// Named embedded targets keep their existing backend triple here: their
-	// external compiler may support a target such as Xtensa that the host LLVM
+	// external compiler may support a backend that the host LLVM
 	// library used to build LLGo does not register.
 	if p.LLVMTarget != "" && (p.Target == "" || p.WasmProfile != "") {
 		spec.Triple = p.LLVMTarget

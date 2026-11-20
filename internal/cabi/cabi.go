@@ -41,8 +41,6 @@ func NewTransformer(prog ssa.Program, llvmTarget string, targetAbi string, optim
 		optimize: optimize,
 	}
 	switch arch {
-	case "xtensa":
-		tr.sys = &TypeInfoEsp32{tr}
 	case "riscv32":
 		tr.sys = &TypeInfoRiscv32{tr, targetAbi}
 	case "amd64":

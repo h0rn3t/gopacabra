@@ -48,7 +48,7 @@ func TestNativeSymbolStripScope(t *testing.T) {
 		{"shared", "linux", crosscompile.ObjectFormatELF, ModeBuild, BuildModeCShared, "", true},
 		{"archive", "linux", crosscompile.ObjectFormatELF, ModeBuild, BuildModeCArchive, "", false},
 		{"generation", "linux", crosscompile.ObjectFormatELF, ModeGen, BuildModeExe, "", false},
-		{"fixed", "linux", crosscompile.ObjectFormatELF, ModeBuild, BuildModeExe, "esp32c3", false},
+		{"fixed", "linux", crosscompile.ObjectFormatELF, ModeBuild, BuildModeExe, "riscv-qemu", false},
 		{"COFF", "windows", crosscompile.ObjectFormatCOFF, ModeBuild, BuildModeExe, "", false},
 	} {
 		t.Run(tt.name, func(t *testing.T) {

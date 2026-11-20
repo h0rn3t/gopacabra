@@ -99,7 +99,7 @@ func TestWebAssemblyTargetDefaultExtension(t *testing.T) {
 			t.Errorf("future/custom target %q extension = %q, want .wasm", target, got)
 		}
 	}
-	if got := defaultAppExt(&Config{BuildMode: BuildModeExe, Target: "esp32"}); got != ".elf" {
+	if got := defaultAppExt(&Config{BuildMode: BuildModeExe, Target: "rp2040"}); got != ".elf" {
 		t.Errorf("embedded target extension = %q, want .elf", got)
 	}
 	if got := defaultAppExt(&Config{BuildMode: BuildModeExe, Goos: "js", OutFile: "main.html"}); got != ".html" {
@@ -166,7 +166,7 @@ func TestExplicitOutputFile(t *testing.T) {
 	if !explicitOutputFile(&Config{Mode: ModeBuild, OutFile: "app"}, false) {
 		t.Fatal("native file")
 	}
-	if explicitOutputFile(&Config{Mode: ModeBuild, Target: "esp32", OutFile: "app.html"}, false) {
+	if explicitOutputFile(&Config{Mode: ModeBuild, Target: "rp2040", OutFile: "app.html"}, false) {
 		t.Fatal("non-js named target")
 	}
 	if !explicitOutputFile(&Config{Mode: ModeBuild, Target: "emscripten", Goos: "js", OutFile: "app.html"}, false) {
@@ -230,7 +230,7 @@ func TestBuildOutFmtsWithTarget(t *testing.T) {
 			name: "embedded target keeps configured output extension",
 			conf: &Config{
 				Mode:    ModeBuild,
-				Target:  "esp32",
+				Target:  "rp2040",
 				OutFile: "myapp",
 				AppExt:  ".elf",
 			},
@@ -241,30 +241,26 @@ func TestBuildOutFmtsWithTarget(t *testing.T) {
 			name: "build hex format",
 			conf: &Config{
 				Mode:    ModeBuild,
-				Target:  "esp32",
+				Target:  "rp2040",
 				AppExt:  ".elf",
 				OutFmts: OutFmts{Hex: true},
 			},
 			pkgName: "hello",
-			crossCompile: crosscompile.Export{
-				BinaryFormat: "esp32", // This will auto-set Bin: true
-			},
 			wantOut: "hello.elf",
-			wantBin: "hello.bin", // Now expected due to esp32 BinaryFormat
+			wantBin: "hello.bin", // hex is converted from bin
 			wantHex: "hello.hex",
 		},
 		{
 			name: "emulator mode with bin format",
 			conf: &Config{
 				Mode:     ModeRun,
-				Target:   "esp32",
+				Target:   "cortex-m-qemu",
 				AppExt:   ".elf",
 				Emulator: true,
 			},
 			pkgName: "hello",
 			crossCompile: crosscompile.Export{
-				BinaryFormat: "esp32",
-				Emulator:     "qemu-system-xtensa -machine esp32 -kernel {bin}",
+				Emulator: "qemu-system-arm -machine mps2-an385 -kernel {bin}",
 			},
 			wantBin: ".bin", // Should be temp file with .bin extension
 		},
@@ -272,28 +268,27 @@ func TestBuildOutFmtsWithTarget(t *testing.T) {
 			name: "flash command with hex format",
 			conf: &Config{
 				Mode:     ModeInstall,
-				Target:   "esp32",
+				Target:   "rp2040",
 				AppExt:   ".elf",
 				Emulator: false,
 			},
 			pkgName: "hello",
 			crossCompile: crosscompile.Export{
-				BinaryFormat: "esp32", // This will auto-set Bin: true
 				Device: flash.Device{
 					Flash: flash.Flash{
 						Method:  "command",
-						Command: "esptool.py --chip esp32 write_flash 0x10000 {hex}",
+						Command: "openocd -f board.cfg -c 'program {hex} verify reset exit'",
 					},
 				},
 			},
-			wantBin: ".bin", // Expected due to esp32 BinaryFormat
+			wantBin: ".bin", // hex is converted from bin
 			wantHex: ".hex", // Should be temp file with .hex extension
 		},
 		{
 			name: "multiple formats specified",
 			conf: &Config{
 				Mode:   ModeBuild,
-				Target: "esp32",
+				Target: "rp2040",
 				AppExt: ".elf",
 				OutFmts: OutFmts{
 					Bin: true,
@@ -304,7 +299,7 @@ func TestBuildOutFmtsWithTarget(t *testing.T) {
 			},
 			pkgName: "hello",
 			crossCompile: crosscompile.Export{
-				BinaryFormat: "esp32",
+				BinaryFormat: "uf2",
 			},
 			wantOut: "hello.elf",
 			wantBin: "hello.bin",
@@ -317,13 +312,13 @@ func TestBuildOutFmtsWithTarget(t *testing.T) {
 			name: "no formats specified",
 			conf: &Config{
 				Mode:    ModeBuild,
-				Target:  "esp32",
+				Target:  "rp2040",
 				AppExt:  ".elf",
 				OutFmts: OutFmts{}, // No formats specified
 			},
 			pkgName: "hello",
 			crossCompile: crosscompile.Export{
-				BinaryFormat: "esp32",
+				BinaryFormat: "uf2",
 			},
 			wantOut: "hello.elf",
 			wantBin: "", // No bin file should be generated

@@ -11,7 +11,7 @@ func TestNeedsFramePointer(t *testing.T) {
 		{&Target{GOOS: "linux", GOARCH: "amd64"}, true},
 		{&Target{GOOS: "darwin", GOARCH: "arm64"}, true},
 		{&Target{GOOS: "linux", GOARCH: "wasm"}, false},
-		{&Target{GOOS: "linux", GOARCH: "riscv32", Target: "esp32c3"}, false},
+		{&Target{GOOS: "linux", GOARCH: "riscv32", Target: "riscv-qemu"}, false},
 	}
 	for _, c := range cases {
 		p := NewProgram(c.target)

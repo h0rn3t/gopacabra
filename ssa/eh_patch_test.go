@@ -33,12 +33,12 @@ func TestSetjmpLongjmpIRPaths(t *testing.T) {
 }
 
 func TestSigjmpUsesSetjmpOnExplicitTarget(t *testing.T) {
-	// The esp32 target resolves to the Linux/ARM Go compatibility surface.
+	// The rp2040 target resolves to the Linux/ARM Go compatibility surface.
 	// Specify the resolved target up front instead of inheriting the host OS,
 	// which would incorrectly make this test exercise the Windows UCRT ABI on
 	// a Windows runner.
 	prog := ssatest.NewProgram(t, &ssa.Target{
-		GOOS: "linux", GOARCH: "arm", Target: "esp32",
+		GOOS: "linux", GOARCH: "arm", Target: "rp2040",
 	})
 	pkg := prog.NewPackage("foo", "foo")
 

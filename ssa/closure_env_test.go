@@ -84,8 +84,8 @@ func TestClosureEnvABIUsesPhysicalTarget(t *testing.T) {
 		llvmTarget string
 		want       closureEnvABI
 	}{
-		{"esp32", "xtensa", closureEnvExplicit},
-		{"esp32c3", "riscv32-esp-elf", closureEnvNest},
+		{"arduino", "avr", closureEnvExplicit},
+		{"riscv-qemu", "riscv32-unknown-none", closureEnvNest},
 	}
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
@@ -403,9 +403,9 @@ func TestClosureObjectCallMatrixAcrossTransports(t *testing.T) {
 			abi:  closureEnvExplicit,
 		},
 		{
-			name: "xtensa-explicit",
+			name: "avr-explicit",
 			tgt: &Target{
-				GOOS: "linux", GOARCH: "arm", Target: "esp32", LLVMTarget: "xtensa",
+				GOOS: "linux", GOARCH: "arm", Target: "arduino", LLVMTarget: "avr",
 			},
 			abi: closureEnvExplicit,
 		},

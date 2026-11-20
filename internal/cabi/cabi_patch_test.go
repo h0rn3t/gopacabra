@@ -99,7 +99,6 @@ func TestTargetArchAndNewTransformerArchSelection(t *testing.T) {
 		arch   string
 		check  func(TypeInfoSys) bool
 	}{
-		{"xtensa-esp32-none-elf", "", "xtensa", func(sys TypeInfoSys) bool { _, ok := sys.(*TypeInfoEsp32); return ok }},
 		{"riscv32-unknown-elf", "ilp32f", "riscv32", func(sys TypeInfoSys) bool {
 			rv, ok := sys.(*TypeInfoRiscv32)
 			return ok && rv.mabi == "ilp32f"

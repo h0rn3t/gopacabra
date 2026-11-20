@@ -735,7 +735,7 @@ func TestCallerFrameTrackingEligibility(t *testing.T) {
 	}{
 		{name: "enabled user package", pkgPath: "example.com/foo", track: true, want: true},
 		{name: "disabled flag", pkgPath: "example.com/foo", want: false},
-		{name: "named target", pkgPath: "example.com/foo", track: true, targetName: "esp32", want: false},
+		{name: "named target", pkgPath: "example.com/foo", track: true, targetName: "rp2040", want: false},
 		{name: "wasm", pkgPath: "example.com/foo", track: true, goarch: "wasm", want: true},
 		{name: "stdlib", pkgPath: "fmt", track: true, want: true},
 		{name: "runtime", pkgPath: "runtime", track: true, want: false},
@@ -990,7 +990,7 @@ func top() {
 	if canEmitPCLineLabelsForTarget(&llssa.Target{GOOS: "linux", GOARCH: "wasm"}) {
 		t.Fatal("wasm target should not emit pc-line labels")
 	}
-	if canEmitPCLineLabelsForTarget(&llssa.Target{GOOS: "linux", GOARCH: "amd64", Target: "esp32"}) {
+	if canEmitPCLineLabelsForTarget(&llssa.Target{GOOS: "linux", GOARCH: "amd64", Target: "rp2040"}) {
 		t.Fatal("named target should not emit pc-line labels")
 	}
 	if got, want := asmQuoteSymbol(`a\b"c$d`), `"a\\b\"c$$d"`; got != want {
@@ -1095,7 +1095,7 @@ func f() {
 }
 `)
 	prog := newLLSSAProg(t)
-	prog.Target().Target = "esp32"
+	prog.Target().Target = "rp2040"
 	pkg, err := NewPackage(prog, ssapkg, files)
 	if err != nil {
 		t.Fatal(err)

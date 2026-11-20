@@ -1002,7 +1002,7 @@ func TestExternalFuncInfoTableKeepsPayloadOutOfIR(t *testing.T) {
 // Targets without the frame-pointer attribute must declare the chain
 // broken so the runtime never attempts a physical walk there.
 func TestFuncInfoTableFPChainOff(t *testing.T) {
-	prog := llssa.NewProgram(&llssa.Target{GOOS: "linux", GOARCH: "riscv32", Target: "esp32c3"})
+	prog := llssa.NewProgram(&llssa.Target{GOOS: "linux", GOARCH: "riscv32", Target: "riscv-qemu"})
 	prog.EnableFuncInfoMetadata(true)
 	src := prog.NewPackage("example.com/p", "example.com/p")
 	ctx := &context{
@@ -1011,7 +1011,7 @@ func TestFuncInfoTableFPChainOff(t *testing.T) {
 			BuildMode: BuildModeExe,
 			Goos:      "linux",
 			Goarch:    "riscv32",
-			Target:    "esp32c3",
+			Target:    "riscv-qemu",
 		},
 	}
 	emitFuncInfoTable(ctx, src, nil, nil)

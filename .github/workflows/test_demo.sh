@@ -1,26 +1,9 @@
 #!/bin/bash
 set -e
 
-mode="host"
-case "${1:-}" in
-  --embedded)
-    mode="embedded"
-    shift
-    ;;
-  --embedded-build-only)
-    mode="embedded-build-only"
-    shift
-    ;;
-esac
-
 # Keep the scheduler deliberately small: directory consolidation owns coverage,
 # while this script only selects the few specialized profiles and runs them.
 jobs="${LLGO_DEMO_JOBS:-4}"
-if [ "$mode" != "host" ] && [ -z "${LLGO_DEMO_JOBS:-}" ]; then
-  # The first case for each target warms an expensive shared build cache. Run
-  # embedded cases sequentially by default so that cold work happens once.
-  jobs=1
-fi
 case "$jobs" in
   ""|*[!0-9]*|0)
     echo "LLGO_DEMO_JOBS must be a positive integer" >&2
@@ -37,99 +20,60 @@ tmp_root="$(mktemp -d)"
 trap 'rm -rf "$tmp_root"' EXIT
 
 run_dirs=()
-run_targets=()
-run_labels=()
-emulator=0
+cases=()
+use_lto=0
+use_globaldce=0
+use_deadcodedrop=0
+for flag in "${llgo_run_flags[@]}"; do
+  case "$flag" in
+    -lto=full) use_lto=1 ;;
+    -globaldce) use_globaldce=1 ;;
+    -deadcodedrop) use_deadcodedrop=1 ;;
+  esac
+done
 
-add_case() {
-  run_dirs+=("$1")
-  run_targets+=("$2")
-  run_labels+=("$3")
-}
-
-if [ "$mode" != "host" ]; then
-  if [ "$mode" = "embedded" ]; then
-    emulator=1
-  fi
-
-  # Positive target lists avoid recursively treating support packages as demos.
-  esp32_cases=(
-    ./_demo/c/catomic
-    ./_demo/c/hello
-    ./_demo/c/qsort
-    ./_demo/go/ifaceconv
-    ./_demo/go/linkname
-  )
-  esp32c3_cases=(
-    ./_demo/c/hello
-    ./_demo/c/qsort
+if [ "$use_lto" -eq 1 ] && [ "$use_globaldce" -eq 1 ]; then
+  cases=(
+    ./_demo/c/asmfullcall
+    ./_demo/c/cgofull
+    ./_demo/c/cabisret
+    ./_demo/c/cppintf
     ./_demo/go/cabi
-    ./_demo/go/ifaceconv
-    ./_demo/go/issue1538
-    ./_demo/go/linkname
+    ./_demo/go/export
+    ./_demo/go/reflect
+    ./_demo/go/stdlib
+    ./_demo/go/sync
   )
-  for d in "${esp32_cases[@]}"; do
-    add_case "$d" esp32 "$d (target=esp32)"
-  done
-  for d in "${esp32c3_cases[@]}"; do
-    add_case "$d" esp32c3-basic "$d (target=esp32c3-basic)"
-  done
+elif [ "$use_deadcodedrop" -eq 1 ]; then
+  cases=(
+    ./_demo/c/asmfullcall
+    ./_demo/c/cgofull
+    ./_demo/c/cabisret
+    ./_demo/go/cabi
+    ./_demo/go/reflect
+    ./_demo/go/stdlib
+    ./_demo/go/sync
+  )
 else
-  cases=()
-  use_lto=0
-  use_globaldce=0
-  use_deadcodedrop=0
-  for flag in "${llgo_run_flags[@]}"; do
-    case "$flag" in
-      -lto=full) use_lto=1 ;;
-      -globaldce) use_globaldce=1 ;;
-      -deadcodedrop) use_deadcodedrop=1 ;;
-    esac
-  done
-
-  if [ "$use_lto" -eq 1 ] && [ "$use_globaldce" -eq 1 ]; then
-    cases=(
-      ./_demo/c/asmfullcall
-      ./_demo/c/cgofull
-      ./_demo/c/cabisret
-      ./_demo/c/cppintf
-      ./_demo/go/cabi
-      ./_demo/go/export
-      ./_demo/go/reflect
-      ./_demo/go/stdlib
-      ./_demo/go/sync
-    )
-  elif [ "$use_deadcodedrop" -eq 1 ]; then
-    cases=(
-      ./_demo/c/asmfullcall
-      ./_demo/c/cgofull
-      ./_demo/c/cabisret
-      ./_demo/go/cabi
-      ./_demo/go/reflect
-      ./_demo/go/stdlib
-      ./_demo/go/sync
-    )
-  else
-    search_dirs=(./_demo/go/* ./_demo/c/*)
-    for d in "${search_dirs[@]}"; do
-      if [ -d "$d" ] && [ -n "$(ls "$d"/*.go 2>/dev/null)" ]; then
-        cases+=("$d")
-      fi
-    done
-  fi
-
-  for d in "${cases[@]}"; do
-    if [ "$d" = "./_demo/c/llama2-c" ] && [ "${LLGO_RUN_MODEL_DEMOS:-0}" != "1" ]; then
-      echo "SKIP $d (model demo runs in scheduled Model Demo workflow)"
-      continue
+  search_dirs=(./_demo/go/* ./_demo/c/*)
+  for d in "${search_dirs[@]}"; do
+    if [ -d "$d" ] && [ -n "$(ls "$d"/*.go 2>/dev/null)" ]; then
+      cases+=("$d")
     fi
-    if [ "$d" = "./_demo/c/helloc" ]; then
-      echo "SKIP $d (WASI C-FFI demo runs in the cross-compile workflow)"
-      continue
-    fi
-    add_case "$d" "" "$d"
   done
 fi
+
+for d in "${cases[@]}"; do
+  if [ "$d" = "./_demo/c/llama2-c" ] && [ "${LLGO_RUN_MODEL_DEMOS:-0}" != "1" ]; then
+    echo "SKIP $d (model demo runs in scheduled Model Demo workflow)"
+    continue
+  fi
+  if [ "$d" = "./_demo/c/helloc" ]; then
+    echo "SKIP $d (WASI C-FFI demo runs in the cross-compile workflow)"
+    continue
+  fi
+  run_dirs+=("$d")
+done
 
 total="${#run_dirs[@]}"
 failed=0
@@ -137,35 +81,10 @@ failed_cases=""
 
 run_case() {
   local dir="$1"
-  local target="$2"
-  local output_dir="$3"
+  local output_dir="$2"
   local output executable
   local -a cmd
-  if [ -n "$target" ]; then
-    echo "Testing $dir (target=$target)"
-  else
-    echo "Testing $dir"
-  fi
-
-  if [ -n "$target" ]; then
-    if [ "$mode" = "embedded-build-only" ]; then
-      cmd=(llgo build -o "$output_dir/firmware.elf")
-    else
-      cmd=(llgo run)
-    fi
-    cmd+=("${llgo_run_flags[@]}")
-    cmd+=("-target=$target")
-    if [ "$emulator" -eq 1 ]; then
-      cmd+=("-emulator")
-    fi
-    cmd+=(".")
-    if (cd "$dir" && GOTOOLCHAIN=local GOWORK=off "${cmd[@]}"); then
-      echo "PASS"
-      return
-    fi
-    echo "FAIL"
-    return 1
-  fi
+  echo "Testing $dir"
 
   mkdir -p "$output_dir"
   output="$output_dir/demo"
@@ -189,13 +108,11 @@ if [ "$jobs" -le 1 ] || [ "$total" -le 1 ]; then
   idx=0
   for i in "${!run_dirs[@]}"; do
     d="${run_dirs[$i]}"
-    target="${run_targets[$i]}"
-    label="${run_labels[$i]}"
     idx=$((idx+1))
     output_dir="$tmp_root/$(printf '%04d' "$idx")"
-    if ! run_case "$d" "$target" "$output_dir"; then
+    if ! run_case "$d" "$output_dir"; then
       failed=$((failed+1))
-      failed_cases="$failed_cases\n* :x: $label"
+      failed_cases="$failed_cases\n* :x: $d"
     fi
   done
 else
@@ -243,16 +160,14 @@ else
 
   for i in "${!run_dirs[@]}"; do
     d="${run_dirs[$i]}"
-    target="${run_targets[$i]}"
-    label="${run_labels[$i]}"
     idx=$((idx+1))
     log="$tmp_root/$(printf '%04d' "$idx").log"
     output_dir="$tmp_root/$(printf '%04d' "$idx")"
-    echo "Starting $label"
-    (run_case "$d" "$target" "$output_dir") >"$log" 2>&1 &
+    echo "Starting $d"
+    (run_case "$d" "$output_dir") >"$log" 2>&1 &
     pid=$!
     active_pids+=("$pid")
-    active_dirs+=("$label")
+    active_dirs+=("$d")
     active_logs+=("$log")
 
     while [ "${#active_pids[@]}" -ge "$jobs" ]; do

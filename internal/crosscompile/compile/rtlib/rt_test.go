@@ -46,7 +46,6 @@ func TestPlatformSpecifiedFiles(t *testing.T) {
 		{"riscv64-unknown-elf", 27},
 		{"arm-none-eabi", 19},
 		{"avr-unknown-elf", 6},
-		{"xtensa", 2},
 		{"x86_64-pc-windows", 0},
 	}
 
@@ -127,7 +126,6 @@ func TestGetCompilerRTConfig_DifferentTargets(t *testing.T) {
 		"riscv64-unknown-elf",
 		"arm-none-eabi",
 		"avr-unknown-elf",
-		"xtensa",
 	}
 
 	baseDir := filepath.FromSlash("/test/base")

@@ -62,7 +62,7 @@ def controlled_environment(source):
 
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("--target", choices=("wasi", "esp32c3"), required=True)
+    parser.add_argument("--target", choices=("wasi",), required=True)
     args = parser.parse_args()
     env = controlled_environment(os.environ)
     with tempfile.TemporaryDirectory(prefix="llgo-size-build-") as directory:
@@ -70,20 +70,6 @@ def main():
         suffix = ".exe" if os.name == "nt" else ""
         llgo = directory / f"llgo{suffix}"
         command(["go", "build", "-tags=dev", "-o", str(llgo), "./cmd/llgo"], env)
-        if args.target == "esp32c3":
-            # This entry never builds the Go runtime. Its preloaded runtime
-            # packages must not become DCE inputs with missing metadata.
-            for cold in (True, False):
-                output = directory / "cprintf.elf"
-                flags = ["-a"] if cold else []
-                command([str(llgo), "build", *flags, "-target=esp32c3",
-                         "-deadcodedrop", "-o", str(output),
-                         "./benchmark/binary_size/cprintf"], env)
-                if output.read_bytes()[:4] != b"\x7fELF":
-                    raise RuntimeError("C-only DCE did not produce an ELF image")
-            print("ESP32-C3 C-only DCE cold/warm builds passed (build-only)")
-            return
-
         wasmer = env.get("WASMER", "wasmer")
         if not shutil.which(wasmer):
             raise RuntimeError(f"Wasmer runner not found: {wasmer}")

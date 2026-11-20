@@ -1,8 +1,0 @@
-{
-	"inherits": [
-		"esp32c3-basic"
-	],
-	"extra-files": [
-		"targets/device/esp/esp32c3.c"
-	]
-}

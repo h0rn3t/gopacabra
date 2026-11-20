@@ -30,7 +30,6 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
-	"regexp"
 	"runtime"
 	"slices"
 	"strings"
@@ -109,23 +108,6 @@ func WithMetaCheck(enabled bool) RunOption {
 	return func(opts *runOptions) {
 		opts.checkMeta = enabled
 	}
-}
-
-// FilterEmulatorOutput strips emulator boot logs by returning output after "entry 0x...".
-func FilterEmulatorOutput(output string) string {
-	output = strings.ReplaceAll(output, "\r\n", "\n")
-	output = strings.ReplaceAll(output, "\r", "")
-	lines := strings.Split(output, "\n")
-	entryPattern := regexp.MustCompile(`^entry 0x[0-9a-fA-F]+$`)
-	for i, line := range lines {
-		if entryPattern.MatchString(strings.TrimSpace(line)) {
-			if i+1 < len(lines) {
-				return strings.Join(lines[i+1:], "\n")
-			}
-			return ""
-		}
-	}
-	return output
 }
 
 // RunAndTestFromDir executes tests under relDir and validates both runtime

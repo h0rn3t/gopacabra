@@ -88,7 +88,7 @@ func main() {}
 EOF
 	(
 		cd "${embed_dir}"
-		"${llgo_cmd}" build -v -target esp32-coreboard-v2 -o demo.out .
+		"${llgo_cmd}" build -v -target riscv-qemu -o demo.out .
 		test -f demo.out.elf
 	)
 fi

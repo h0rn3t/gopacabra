@@ -250,7 +250,7 @@ func TestLinuxDWARFCompressionArgs(t *testing.T) {
 		{"disabled", Config{Goos: "linux", LinkOptions: LinkOptions{DWARFCompression: DWARFCompressionDisabled}}, false},
 		{"omit", Config{Goos: "linux", LinkOptions: LinkOptions{DWARF: DWARFOmit}}, false},
 		{"archive", Config{Goos: "linux", BuildMode: BuildModeCArchive}, false},
-		{"fixed-target", Config{Goos: "linux", Target: "esp32c3", LinkOptions: LinkOptions{DWARF: DWARFPreserve}}, false},
+		{"fixed-target", Config{Goos: "linux", Target: "riscv-qemu", LinkOptions: LinkOptions{DWARF: DWARFPreserve}}, false},
 		{"other-platform", Config{Goos: "darwin"}, false},
 	} {
 		t.Run(tt.name, func(t *testing.T) {

@@ -2,8 +2,7 @@ package main
 
 import "github.com/goplus/lib/c"
 
-// verifyCMemory preserves the target libc data path formerly exercised by
-// embed/esp32/write without adding another independently compiled demo.
+// verifyCMemory exercises the libc data path: malloc, memset, strncpy and free.
 func verifyCMemory() {
 	buffer := c.Malloc(6)
 	if buffer == nil {

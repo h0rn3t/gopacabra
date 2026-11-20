@@ -3323,8 +3323,7 @@ func needStart(ctx *context) bool {
 		// makes current wasi-libc select __main_void and drop the Go entry.
 		return false
 	default:
-		// since newlib-esp32 provides _start, we don't need to provide a fake _start function
-		return ctx.crossCompile.Libc != "newlib-esp32"
+		return true
 	}
 }
 

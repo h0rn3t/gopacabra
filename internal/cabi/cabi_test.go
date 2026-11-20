@@ -32,8 +32,6 @@ func init() {
 	}
 	if extended {
 		archs = append(archs, "wasm32")
-		archs = append(archs, "esp32")
-		archs = append(archs, "esp32c3")
 		archs = append(archs, "riscv64_lp64f")
 		archs = append(archs, "riscv64_lp64d")
 		archs = append(archs, "riscv32_ilp32")
@@ -54,10 +52,6 @@ func buildConf(arch string) (conf *build.Config, targetAbi string) {
 		conf.Goarch = "arm"
 	case "i386":
 		conf.Goarch = "386"
-	case "esp32":
-		conf.Target = "esp32"
-	case "esp32c3":
-		conf.Target = "esp32c3"
 	case "riscv64_lp64f":
 		conf.Goarch = "riscv64"
 		targetAbi = "lp64f"

@@ -51,7 +51,7 @@ EXAMPLES:
 
 TARGET FILE FORMAT:
     # This is a comment
-    esp32
+    riscv-qemu
     cortex-m4
 
     # Another comment
@@ -160,14 +160,10 @@ case "$test_dir" in
 			"cortex-m33"
 			"cortex-m4"
 			"cortex-m7"
-			"d1mini"
-			"esp8266"
 			"gameboy-advance"
 			"hifive1b"
 			"maixbit"
-			"nodemcu"
 			"riscv-qemu"
-			"riscv32-esp"
 			"stm32l0x2"
 			"tkey"
 		)

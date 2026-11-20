@@ -6,7 +6,7 @@ inputs:
     required: false
     default: "1.27"
   embedded:
-    description: "Also run the ESP32 build smoke test"
+    description: "Also run the embedded (riscv-qemu) build smoke test"
     required: false
     default: "true"
   mod-version:

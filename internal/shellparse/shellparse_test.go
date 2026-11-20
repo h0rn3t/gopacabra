@@ -75,8 +75,8 @@ func TestParse(t *testing.T) {
 		},
 		{
 			name: "emulator command example",
-			cmd:  `qemu-system-xtensa -machine esp32 -kernel "/path/with spaces/firmware.bin"`,
-			want: []string{"qemu-system-xtensa", "-machine", "esp32", "-kernel", "/path/with spaces/firmware.bin"},
+			cmd:  `qemu-system-riscv32 -machine virt -kernel "/path/with spaces/firmware.bin"`,
+			want: []string{"qemu-system-riscv32", "-machine", "virt", "-kernel", "/path/with spaces/firmware.bin"},
 		},
 		{
 			name:    "unterminated double quote",

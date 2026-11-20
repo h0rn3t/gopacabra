@@ -9,9 +9,7 @@ import (
 // makeFirmwareImage creates a firmware image from the given input file.
 func makeFirmwareImage(infile, outfile, format, fmtDetail string) error {
 	fmt.Fprintf(os.Stderr, "Generating firmware image: %s -> %s (format: %s, detail: %s)\n", infile, outfile, format, fmtDetail)
-	if strings.HasPrefix(format, "esp") {
-		return makeESPFirmareImage(infile, outfile, format)
-	} else if format == "uf2" {
+	if format == "uf2" {
 		uf2Family := fmtDetail
 		return convertELFFileToUF2File(infile, outfile, uf2Family)
 	} else if format == "nrf-dfu" {
@@ -37,12 +35,7 @@ func ConvertFormats(binFmt, fmtDetail string, envMap map[string]string) error {
 	var err error
 	// Convert to bin format first (needed for img)
 	if envMap["bin"] != "" {
-		if strings.HasPrefix(binFmt, "esp") {
-			err = makeFirmwareImage(envMap["out"], envMap["bin"], binFmt, fmtDetail)
-		} else {
-			err = objcopy(envMap["out"], envMap["bin"], "bin")
-		}
-		if err != nil {
+		if err = objcopy(envMap["out"], envMap["bin"], "bin"); err != nil {
 			return fmt.Errorf("failed to convert to bin format: %w", err)
 		}
 	}

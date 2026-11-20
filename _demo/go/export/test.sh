@@ -265,29 +265,6 @@ fi
 
 echo ""
 
-# TODO(lijie): Uncomment if https://github.com/xgo-dev/llgo/pull/1268 merged
-# # Test 3: ESP32 target with c-archive mode
-# print_status "=== Test 3: Building with -target esp32 -buildmode c-archive ==="
-# if $LLGO_SCRIPT build -target esp32 -buildmode c-archive -o export .; then
-#     print_status "Build succeeded"
-
-#     # Check generated files
-#     check_file "libexport.a" "Static library for ESP32 (libexport.a)"
-#     check_file "libexport.h" "C header for ESP32 (libexport.h)"
-
-#     # Compare with expected header if it exists
-#     if [[ -f "libexport.h" ]]; then
-#         compare_header "libexport.h" "libexport.h.want" "esp32-c-archive"
-#     fi
-
-#     # Don't cleanup ESP32 files - keep them for inspection
-#     print_status "ESP32 build files kept for inspection"
-# else
-#     print_error "Build failed for ESP32 target"
-# fi
-
-# echo ""
-
 # Test 3: Go export demo execution
 print_status "=== Test 3: Running Go export demo ==="
 if go run export.go > /tmp/go_export_output.log 2>&1; then
