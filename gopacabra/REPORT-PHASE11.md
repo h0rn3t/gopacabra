@@ -449,3 +449,26 @@ func main() {
 - `modernc.org/libc` v1.80.1 (пробна програма з `libc.Xabs`), чистий кеш llgo, linux/amd64: у `abi0_linux_amd64.s` неперекладні всі 1 875 функцій (1 799 — `GO_ARGS`, P11.5.2; 45 — `complex128`; 23 — `complex64`; 12 — параметр-структура), у `tls_linux_amd64.s` — 4. Збірка — код 0, бінарник друкує `3`, як `go run`. Час збірки: 261 с з пошуком лише через переклад усього файлу (3 750 спроб, 3 хв 1 с), 72 с з фрагментами.
 - `go test ./internal/plan9asm/ ./internal/build/` — падіння лише відомі: `TestBuildDo_DepFingerprintAndVersion`, `TestSIMDFMVLLVM`, `TestSIMDFMVAggregatesLLVM`, `TestSIMDMidwayFMVLLVM`. `gofmt`, `go vet ./internal/plan9asm/ ./internal/build/` — чисто.
 - Не перевірено: darwin, повний CI, збірка `modernc.org/sqlite` (її блокують P11.5.2–P11.5.4).
+
+## P11.5.2 Макроси `funcdata.h` і ABI0-кадр amd64 (2026-11-21)
+
+**Проблема.** `modernc.org/libc` пише ABI0-обгортки з `#include "funcdata.h"`, `GO_ARGS` і `NO_LOCAL_POINTERS`. `plan9asm` не знав цих макросів (`amd64: unsupported instruction GO_ARGS`), тож 1 799 функцій `abi0_linux_amd64.s` і 4 функції `tls_linux_amd64.s` не перекладались. Після визначення макросів відкрилась друга вада: на amd64 обгортка кладе аргументи в `0(SP)…` і кличе Go-функцію через `CALL ·f(SB)` без `<ABIInternal>`, тобто за ABI0. `plan9asm` давав локальний стек лише 386, а на amd64 `SP` був звичайним регістром з нулем, тож виклик отримував невизначені аргументи.
+
+**Рішення** (рішення розробника: форк `plan9asm` і ABI0-кадр — одна задача):
+
+- `internal/plan9asm/translate.go`: перед кожним файлом порожні `#define GO_ARGS`, `GO_RESULTS_INITIALIZED`, `NO_LOCAL_POINTERS`. `PCDATA`/`FUNCDATA` `plan9asm` уже пропускав.
+- `github.com/xgo-dev/plan9asm` v0.6.2 скопійовано в `gopacabra/third_party/plan9asm` і підключено через `replace`; латки описано в його `GOPACABRA.md`:
+  - amd64 отримує `%local_stack`, щонайменше `$frame` з `TEXT` байтів над початковим SP;
+  - сигнатура оголошеної Go-функції несе розкладку її ABI0-кадру;
+  - `CALL` без `<ABIInternal>` до функції з кадром читає аргументи з `0(SP)…`, кличе і пише результати назад; `<ABIInternal>` лишає передачу через регістри;
+  - якщо SP ніде не змінюється, `off(SP)` — GEP у `%local_stack` замість `inttoptr`: LLVM розрізняє слоти кадру, і після `O2` кадр зникає — обгортка кличе функцію прямо з власними параметрами.
+- Відоме обмеження: іменований псевдо-SP (`x-8(SP)`) розбирається як апаратний SP.
+
+**Прийняття.**
+
+- Тест спершу (`41f3ec48b`): `internal/plan9asm/funcdata_test.go` — переклад функції з `#include "funcdata.h"`, `GO_ARGS`, `NO_LOCAL_POINTERS` і викликом Go-функції; фікстура `_cmptest/asmfuncdata` (amd64 `.s`, Go-версія для інших архітектур).
+- Тест спершу (`3e229344c`): `amd64_abi0_call_test.go` у форку — скаляр, два результати, рядок-аргумент, `<ABIInternal>`. Після `default<O2>` тіло — прямий виклик з `%arg0, %arg1`; до реалізації всі чотири випадки давали `unreachable`.
+- Реалізація (`2669f5535`): усі тести форку (`GOFLAGS=-mod=mod go test .`) і `go test ./internal/plan9asm/` — зелені. `llgo cmptest ./_cmptest/asmfuncdata` з чистим кешем — вивід як `go run` (`42`, `-23`).
+- `modernc.org/libc` v1.80.1, пробна програма з `libc.NewTLS` (`TLSAlloc` з `tls_linux_amd64.s`) і `libc.Xabs`, чистий кеш, linux/amd64: збірка — код 0, бінарник друкує `3`, як `go run`. Неперекладних функцій 183 замість 1 879: результат `float32` через `MOVL` у `+N(FP)` (83), `complex128` (45), `complex64` (23), `CALL *AX` (19), параметр-структура (12), виклик функції без Go-оголошення (`Y__libc_sigaction`, 1). У `tls_linux_amd64.s` — жодної.
+- `go test ./internal/plan9asm/ ./internal/build/` — падіння лише відомі: `TestBuildDo_DepFingerprintAndVersion`, `TestSIMDFMVLLVM`, `TestSIMDFMVAggregatesLLVM`, `TestSIMDMidwayFMVLLVM` (і їхні внутрішні рядки `runextest`/`linkfail`). `gofmt`, `go vet ./internal/plan9asm/ ./internal/build/` і `go vet` форку — чисто.
+- Не перевірено: darwin, повний CI, збірка `modernc.org/sqlite` (її блокують P11.5.3–P11.5.4).

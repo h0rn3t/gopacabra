@@ -1982,3 +1982,13 @@
 - Перевірки: `gofmt`, `go vet ./internal/plan9asm/ ./internal/build/` — чисто; `go test ./internal/plan9asm/ ./internal/build/` — падіння лише відомі (`TestBuildDo_DepFingerprintAndVersion`, три `TestSIMDFMV*`).
 - Не перевірено: darwin, повний CI, `modernc.org/sqlite`.
 - Наступне: P11.5.2.
+
+## 2026-11-21 — P11.5.2 Макроси `funcdata.h`
+
+- Рішення розробника: форк `plan9asm` і ABI0-кадр amd64 — одна задача з макросами.
+- Тести спершу: `41f3ec48b` (`internal/plan9asm/funcdata_test.go`, `_cmptest/asmfuncdata`), `3e229344c` (`amd64_abi0_call_test.go` у форку: скаляр, два результати, рядок, `<ABIInternal>`). Форк `plan9asm` v0.6.2 — `b83a5f8e8`.
+- Реалізація (`2669f5535`): порожні `GO_ARGS`, `GO_RESULTS_INITIALIZED`, `NO_LOCAL_POINTERS` перед кожним файлом; у форку amd64 має локальний стек на `$frame` з `TEXT`, а `CALL` без `<ABIInternal>` до Go-функції читає аргументи з `0(SP)…` і пише результати назад. Коли SP не змінюється, `off(SP)` — GEP у локальний стек, і після `O2` кадр зникає.
+- `modernc.org/libc` v1.80.1: проба з `libc.NewTLS` і `libc.Xabs` збирається з чистого кешу і друкує як `go run`. Неперекладних функцій 183 замість 1 879 (`float32` через `MOVL` у `FP`, `complex64/128`, `CALL *AX`, структури); у `tls_linux_amd64.s` — жодної.
+- Перевірки: тести форку, `go test ./internal/plan9asm/` — зелені; `llgo cmptest ./_cmptest/asmfuncdata` — як `go run`; `go test ./internal/build/` — падіння лише відомі (`TestBuildDo_DepFingerprintAndVersion`, три `TestSIMDFMV*`); `gofmt`, `go vet` — чисто.
+- Не перевірено: darwin, повний CI, `modernc.org/sqlite`.
+- Наступне: P11.5.3.

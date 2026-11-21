@@ -252,6 +252,10 @@ session did.
   `clang` resolves to the system one and rejects LLVM 23 IR:
   - Linux (Debian): `export PATH=/usr/lib/llvm-23/bin:$PATH`;
   - macOS: `export PATH=/opt/homebrew/opt/llvm/bin:/opt/homebrew/opt/lld/bin:$PATH`.
+- `github.com/xgo-dev/plan9asm` is replaced by the patched copy in
+  `gopacabra/third_party/plan9asm` (amd64 ABI0 call frame); its `GOPACABRA.md`
+  lists the patches. Test it on its own with `GOFLAGS=-mod=mod go test .`
+  from that directory.
 - `gopacabra/BASELINE.md` lists the known `go test ./...` failures (recorded on
   macOS); a change must not add to that list.
 
