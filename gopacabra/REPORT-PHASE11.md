@@ -472,3 +472,18 @@ func main() {
 - `modernc.org/libc` v1.80.1, пробна програма з `libc.NewTLS` (`TLSAlloc` з `tls_linux_amd64.s`) і `libc.Xabs`, чистий кеш, linux/amd64: збірка — код 0, бінарник друкує `3`, як `go run`. Неперекладних функцій 183 замість 1 879: результат `float32` через `MOVL` у `+N(FP)` (83), `complex128` (45), `complex64` (23), `CALL *AX` (19), параметр-структура (12), виклик функції без Go-оголошення (`Y__libc_sigaction`, 1). У `tls_linux_amd64.s` — жодної.
 - `go test ./internal/plan9asm/ ./internal/build/` — падіння лише відомі: `TestBuildDo_DepFingerprintAndVersion`, `TestSIMDFMVLLVM`, `TestSIMDFMVAggregatesLLVM`, `TestSIMDMidwayFMVLLVM` (і їхні внутрішні рядки `runextest`/`linkfail`). `gofmt`, `go vet ./internal/plan9asm/ ./internal/build/` і `go vet` форку — чисто.
 - Не перевірено: darwin, повний CI, збірка `modernc.org/sqlite` (її блокують P11.5.3–P11.5.4).
+
+## P11.5.3 Значення функції з однословного об'єкта (2026-11-21)
+
+**Проблема.** ccgo кличе функцію за словом даних інтерфейсу (`__ccgo_fp`) так: `(*(*func(...))(unsafe.Pointer(&struct{ uintptr }{fp})))(...)`. У `gc` значення функції — одне слово, вказівник на funcval. У llgo воно займає два слова `{fn, ctx}`, тож llgo читав 16 байтів з 8-байтового об'єкта: `fn = fp` і сміття замість `ctx`. Виклик ішов за адресою коробки і падав з `nil pointer dereference`.
+
+**Рішення.** `cl/compile.go` `wordFuncValueSource`: якщо `*x` має тип функції, а `x` — `Convert` з `unsafe.Pointer`, який своєю чергою — `Convert` вказівника на об'єкт розміру слова, то `cl` читає слово `w`, а потім `{fn, ctx}` за `w`. Саме так llgo кладе функцію в інтерфейс: слово даних указує на коробку `{fn, ctx}`. Правильна llgo-програма так не читає (це був вихід за межі об'єкта), тож для upstream зміна нейтральна.
+
+Обмеження: нульове слово дає падіння на читанні, а не nil-функцію; ccgo перевіряє `uintptr` на нуль до виклику.
+
+**Прийняття.**
+
+- Тест спершу (`6a6dec78d`): `_cmptest/ccgofp` і `cl/_testgo/ccgofp` — статична функція і замикання через `__ccgo_fp`, читання через `&struct{ uintptr }{fp}` і `&fp` (`fp uintptr`). На HEAD обидва падали з `panic: runtime error: invalid memory address or nil pointer dereference`.
+- Реалізація (`a58ebf288`): `llgo cmptest ./_cmptest/ccgofp` — вивід як `go run` (`5`, `9`, `42`, `56`); FileCheck у `cl/_testgo/ccgofp` — чотири пари `load ptr` → `load { ptr, ptr }` з цього слова.
+- `go test -count=1 -timeout 90m ./cl/` з чистим кешем — `ok` (707 с), падінь немає. `gofmt`, `go vet ./cl/` — чисто.
+- Не перевірено: darwin, повний CI, `modernc.org/sqlite` (блокує P11.5.4).

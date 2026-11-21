@@ -1992,3 +1992,12 @@
 - Перевірки: тести форку, `go test ./internal/plan9asm/` — зелені; `llgo cmptest ./_cmptest/asmfuncdata` — як `go run`; `go test ./internal/build/` — падіння лише відомі (`TestBuildDo_DepFingerprintAndVersion`, три `TestSIMDFMV*`); `gofmt`, `go vet` — чисто.
 - Не перевірено: darwin, повний CI, `modernc.org/sqlite`.
 - Наступне: P11.5.3.
+
+## 2026-11-21 — P11.5.3 Значення функції з однословного об'єкта
+
+- Тест спершу (`6a6dec78d`): `_cmptest/ccgofp` і `cl/_testgo/ccgofp` — статична функція і замикання через `__ccgo_fp`, обидві форми читання (`&struct{ uintptr }{fp}`, `&fp`); FileCheck: кожен виклик спершу читає слово, потім `{ ptr, ptr }` за ним. На HEAD — `nil pointer dereference`.
+- Реалізація (`a58ebf288`): `cl/compile.go` `wordFuncValueSource` — `*(*func(...))(unsafe.Pointer(p))`, де `p` — вказівник на об'єкт розміру слова, читає слово `w`, потім `{fn, ctx}` за `w`.
+- Перевірки: `go test ./cl/` з чистим кешем — зелений; `llgo cmptest ./_cmptest/ccgofp` — як `go run` (5, 9, 42, 56); `gofmt`, `go vet ./cl/` — чисто.
+- Обмеження: нульове слово дає падіння на читанні, а не nil-функцію (ccgo перевіряє `uintptr` на нуль до виклику).
+- Не перевірено: darwin, повний CI, `modernc.org/sqlite` (блокує P11.5.4).
+- Наступне: P11.5.4.
