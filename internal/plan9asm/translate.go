@@ -1,11 +1,15 @@
 package plan9asm
 
 import (
+	"bytes"
+	"crypto/sha256"
 	"fmt"
 	"go/types"
 	"os"
 	"regexp"
+	"slices"
 	"strings"
+	"sync"
 
 	archcfg "github.com/xgo-dev/llgo/internal/goarch"
 	"github.com/xgo-dev/llgo/internal/packages"
@@ -30,6 +34,10 @@ type ModuleTranslation struct {
 	Module     gllvm.Module
 	Signatures map[string]extplan9asm.FuncSig
 	Functions  []FunctionInfo
+	// Untranslated містить функції, які plan9asm не зміг перекласти
+	// (розв'язане ім'я → причина). Їх немає в Module, тож посилання на них
+	// падає на компоновці.
+	Untranslated map[string]string
 }
 
 type TranslateOptions struct {
@@ -116,12 +124,13 @@ func TranslateSourceModuleForPkgWithOptions(pkg *packages.Package, sfile string,
 		src = append([]byte("#define GOAMD64_"+level+"\n"), src...)
 	}
 
-	tr, err := extplan9asm.TranslateGoModule(extplan9asm.GoPackage{
+	gopkg := extplan9asm.GoPackage{
 		Path:    symbolPkgPath,
 		Types:   pkg.Types,
 		Imports: imports,
 		Syntax:  pkg.Syntax,
-	}, src, extplan9asm.GoModuleOptions{
+	}
+	gopt := extplan9asm.GoModuleOptions{
 		FileName:       sfile,
 		GOOS:           goos,
 		GOARCH:         goarch,
@@ -133,16 +142,195 @@ func TranslateSourceModuleForPkgWithOptions(pkg *packages.Package, sfile string,
 		ResolveSym:     resolve,
 		KeepFunc:       keep,
 		ManualSig:      manualSig,
-	})
+	}
+	tr, err := extplan9asm.TranslateGoModule(gopkg, src, gopt)
+	var untranslated map[string]string
 	if err != nil {
-		return nil, err
+		key := fmt.Sprintf("%s\x00%s\x00%s\x00%s\x00%+v\x00%x", symbolPkgPath, sfile, goos, goarch, opt, sha256.Sum256(src))
+		v, ok := untranslatedCache.Load(key)
+		if !ok {
+			v, _ = untranslatedCache.LoadOrStore(key, untranslatableFuncs(gopkg, src, gopt))
+		}
+		untranslated = v.(map[string]string)
+		if untranslated == nil {
+			return nil, err
+		}
+		gopt.KeepFunc = func(textSym, resolved string) bool {
+			_, bad := untranslated[resolved]
+			return !bad && keep(textSym, resolved)
+		}
+		tr, err = extplan9asm.TranslateGoModule(gopkg, src, gopt)
+		if err != nil && isEmptyFileErr(err) {
+			// Жодна функція файлу не перекладається: лишається порожній модуль.
+			mod := gllvm.GlobalContext().NewModule(sfile)
+			mod.SetTarget(gopt.TargetTriple)
+			tr, err = &extplan9asm.GoModuleTranslation{Module: mod}, nil
+		}
+		if err != nil {
+			return nil, err
+		}
 	}
 
 	funcs := make([]FunctionInfo, 0, len(tr.Functions))
 	for _, fn := range tr.Functions {
 		funcs = append(funcs, FunctionInfo{TextSymbol: fn.TextSymbol, ResolvedSymbol: fn.ResolvedSymbol})
 	}
-	return &ModuleTranslation{Module: tr.Module, Signatures: tr.Signatures, Functions: funcs}, nil
+	return &ModuleTranslation{Module: tr.Module, Signatures: tr.Signatures, Functions: funcs, Untranslated: untranslated}, nil
+}
+
+// untranslatedCache пам'ятає результат untranslatableFuncs: той самий файл
+// перекладається кілька разів за збірку (компіляція, сигнатури, аналіз
+// ініціалізаторів, пояснення помилки компоновки).
+var untranslatedCache sync.Map
+
+// untranslatableFuncs знаходить функції файлу, через які падає переклад, і
+// повертає їх (розв'язане ім'я → причина). nil означає, що помилку не
+// вдається звести до окремих функцій (розбір файлу, взаємодія функцій), і
+// збірка має впасти, як раніше.
+func untranslatableFuncs(gopkg extplan9asm.GoPackage, src []byte, gopt extplan9asm.GoModuleOptions) map[string]string {
+	keep := gopt.KeepFunc
+	if keep == nil {
+		keep = func(string, string) bool { return true }
+	}
+	try := func(set []string) error {
+		opt := gopt
+		opt.KeepFunc = func(textSym, resolved string) bool {
+			return slices.Contains(set, resolved) && keep(textSym, resolved)
+		}
+		tr, err := extplan9asm.TranslateGoModule(gopkg, src, opt)
+		if err == nil {
+			tr.Module.Dispose()
+		}
+		return err
+	}
+
+	// Порожній набір перевіряє, що файл розбирається, і збирає імена функцій.
+	var remaining []string
+	probe := gopt
+	probe.KeepFunc = func(textSym, resolved string) bool {
+		if keep(textSym, resolved) && !slices.Contains(remaining, resolved) {
+			remaining = append(remaining, resolved)
+		}
+		return false
+	}
+	tr, err := extplan9asm.TranslateGoModule(gopkg, src, probe)
+	if err == nil {
+		tr.Module.Dispose()
+	} else if !isEmptyFileErr(err) {
+		return nil
+	}
+
+	// isolate звужує набір, що не перекладається, до однієї функції, яка не
+	// перекладається й сама.
+	var isolate func(set []string) (string, error)
+	isolate = func(set []string) (string, error) {
+		if len(set) == 1 {
+			return set[0], try(set)
+		}
+		half := len(set) / 2
+		for _, part := range [][]string{set[:half], set[half:]} {
+			if err := try(part); err != nil {
+				return isolate(part)
+			}
+		}
+		return "", nil
+	}
+
+	bad := make(map[string]string)
+	// Більшість часу спроби займає розбір усього файлу (50 мс на 585 КБ
+	// modernc.org/libc, 1875 функцій), а помилка називає одну функцію. Тому
+	// спершу кожна функція перекладається з власного короткого фрагмента;
+	// цикл нижче перевіряє решту разом і доловлює те, що фрагменти пропустили.
+	common, bodies := splitFuncs(src)
+	for _, body := range bodies {
+		name := ""
+		opt := gopt
+		opt.KeepFunc = func(textSym, resolved string) bool {
+			name = resolved
+			return keep(textSym, resolved)
+		}
+		tr, err := extplan9asm.TranslateGoModule(gopkg, append(slices.Clip(common), body...), opt)
+		if err == nil {
+			tr.Module.Dispose()
+			continue
+		}
+		if _, reason, _ := strings.Cut(err.Error(), name+": "); name != "" && reason != "" {
+			bad[name] = reason
+		}
+	}
+	remaining = slices.DeleteFunc(remaining, func(n string) bool {
+		_, ok := bad[n]
+		return ok
+	})
+
+	for len(remaining) != 0 {
+		err := try(remaining)
+		if err == nil {
+			return bad
+		}
+		// Помилка зазвичай називає функцію; перевіряємо її окремо, бо помилка
+		// сигнатури виклику називає не функцію, а того, кого вона викликає.
+		name := ""
+		for _, n := range remaining {
+			if strings.Contains(err.Error(), n+": ") && len(n) > len(name) {
+				name = n
+			}
+		}
+		var soloErr error
+		if name != "" {
+			soloErr = try([]string{name})
+		}
+		if soloErr == nil {
+			name, soloErr = isolate(remaining)
+		}
+		// Помилка, що не називає функцію (наприклад, недійсний режим x87),
+		// стосується всього файлу.
+		reason := ""
+		if soloErr != nil {
+			_, reason, _ = strings.Cut(soloErr.Error(), name+": ")
+		}
+		if reason == "" {
+			return nil
+		}
+		bad[name] = reason
+		remaining = slices.DeleteFunc(remaining, func(n string) bool { return n == name })
+	}
+	return bad
+}
+
+// splitFuncs ділить файл на спільні рядки (усе до першого TEXT, #include,
+// #define, DATA, GLOBL) і тіла функцій від TEXT до наступного TEXT.
+// Умовна компіляція і #undef залежать від місця в файлі, тож для такого
+// файлу поділу немає.
+func splitFuncs(src []byte) (common []byte, bodies [][]byte) {
+	inDefine := false
+	for line := range bytes.Lines(src) {
+		stmt := string(bytes.TrimSpace(line))
+		if inDefine || strings.HasPrefix(stmt, "#") {
+			if !inDefine && !strings.HasPrefix(stmt, "#include") && !strings.HasPrefix(stmt, "#define") {
+				return nil, nil
+			}
+			inDefine = strings.HasSuffix(stmt, `\`)
+			common = append(common, line...)
+			continue
+		}
+		op, _, _ := strings.Cut(strings.ReplaceAll(stmt, "\t", " "), " ")
+		switch {
+		case op == "TEXT":
+			bodies = append(bodies, slices.Clone(line))
+		case op == "DATA" || op == "GLOBL" || len(bodies) == 0:
+			common = append(common, line...)
+		default:
+			bodies[len(bodies)-1] = append(bodies[len(bodies)-1], line...)
+		}
+	}
+	return common, bodies
+}
+
+// isEmptyFileErr повідомляє, що перекладачу не лишилося жодної функції:
+// TranslateModule відмовляється створювати порожній модуль.
+func isEmptyFileErr(err error) bool {
+	return strings.HasSuffix(err.Error(), ": empty file")
 }
 
 func shouldKeepResolvedFunc(pkgPath, goos, goarch, resolved string) bool {

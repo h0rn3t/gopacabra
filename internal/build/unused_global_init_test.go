@@ -189,7 +189,9 @@ func TestUnusedGlobalInitNativeInputs(t *testing.T) {
 		{name: "cgo linker flag", declarations: "//go:cgo_ldflag \"-pthread\"\n"},
 		{name: "cgo dynamic import", declarations: "//go:cgo_import_dynamic local remote \"lib.so\"\n"},
 		{name: "missing assembly", native: "read_wasm.s"},
-		{name: "invalid assembly", native: "read_wasm.s", assembly: "TEXT ·Read(SB),NOSPLIT,$0-8\n\tINVALID\n"},
+		{name: "invalid assembly", native: "read_wasm.s", assembly: "TEXT ·Read(SB\n\tRET\n"},
+		// Неперекладна функція не потрапляє в бінарник і не посилається на глобали.
+		{name: "untranslatable function", native: "read_wasm.s", assembly: "TEXT ·Read(SB),NOSPLIT,$0-8\n\tINVALID\n", prune: true},
 		{name: "disabled assembly", native: "read_wasm.s", assembly: "TEXT ·Read(SB),NOSPLIT,$0-8\n\tRET\n", asmDisabled: true},
 		{name: "empty assembly", native: "read_wasm.s", assembly: "// placeholder\n", prune: true},
 		{name: "empty native declarations", declarations: `const LLGoFiles = ""; const LLGoPackage = "normal"`, prune: true},

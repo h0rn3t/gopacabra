@@ -25,6 +25,7 @@ import (
 	"go/parser"
 	"go/token"
 	"go/types"
+	"io"
 	"log"
 	"os"
 	"os/exec"
@@ -1320,6 +1321,11 @@ func executeInitialPackageLink(ctx *context, link *initialPackageLink, verbose, 
 		}
 		return removeStaleWasmManifest(link.conf, link.outFmts)
 	}()
+	if linkErr, ok := errors.AsType[*linkError](err); ok {
+		if why := explainUntranslatedAsm(ctx, linkErr.output); why != "" {
+			err = fmt.Errorf("%w%s", err, why)
+		}
+	}
 	if err != nil {
 		return nil, err
 	}
@@ -2910,14 +2916,26 @@ func linkObjFiles(ctx *context, app string, objFiles, linkArgs []string, verbose
 	if needsWasmFinalization(ctx.buildConf) {
 		ctx.effectiveLinkArgs = cmd.LinkArguments(buildArgs...)
 	}
+	var linkStderr bytes.Buffer
+	cmd.Stderr = io.MultiWriter(cmd.Stderr, &linkStderr)
 	if err := cmd.Link(buildArgs...); err != nil {
 		if len(ltoObjectArgs) != 0 {
 			_ = os.RemoveAll(filepath.Dir(ltoObjectArgs[len(ltoObjectArgs)-1]))
 		}
-		return err
+		return &linkError{err: err, output: linkStderr.String()}
 	}
 	return nil
 }
+
+// linkError зберігає вивід компоновника: контекст компоновки не тримає
+// пакетів, тож пояснення додає executeInitialPackageLink.
+type linkError struct {
+	err    error
+	output string
+}
+
+func (e *linkError) Error() string { return e.err.Error() }
+func (e *linkError) Unwrap() error { return e.err }
 
 // funcInfoSiteLayoutArgs places the ELF entry carrier immediately before .bss,
 // at the file-backed tail of the final writable PT_LOAD. pclnpost can shorten

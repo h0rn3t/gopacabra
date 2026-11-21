@@ -5,11 +5,13 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"slices"
 	"strings"
 
 	"github.com/xgo-dev/llgo/internal/packages"
 	llplan9asm "github.com/xgo-dev/llgo/internal/plan9asm"
 	llruntime "github.com/xgo-dev/llgo/runtime"
+	"github.com/xgo-dev/llgo/ssa/abi"
 	gllvm "github.com/xgo-dev/llvm"
 	extplan9asm "github.com/xgo-dev/plan9asm"
 )
@@ -276,6 +278,41 @@ func parsePlan9AsmPkgsEnv(raw string) plan9asmPkgsEnv {
 		}
 		return plan9asmPkgsEnv{mode: plan9asmEnvSelected, pkgs: pkgs}
 	}
+}
+
+// explainUntranslatedAsm пояснює помилку компоновки: для кожної функції .s,
+// яку plan9asm не переклав і яку названо у виводі компоновника, повертає
+// рядок з її іменем і причиною. Причини обчислюються тут, а не під час
+// компіляції, бо пакет із кешу не перекладається.
+func explainUntranslatedAsm(ctx *context, linkOutput string) string {
+	var lines []string
+	for pkg := range ctx.pkgs {
+		if pkg == nil || pkg.Types == nil || !strings.Contains(linkOutput, abi.PathOf(pkg.Types)+".") {
+			continue
+		}
+		sfiles, err := compiledPkgSFiles(ctx, pkg)
+		if err != nil {
+			continue
+		}
+		for _, sfile := range sfiles {
+			src, err := llplan9asm.ReadFileWithOverlay(ctx.buildConf.Overlay, sfile)
+			if err != nil {
+				continue
+			}
+			tr, err := llplan9asm.TranslateSourceModuleForPkgWithOptions(pkg, sfile, src, ctx.buildConf.Goos, ctx.buildConf.Goarch, plan9asmTranslateOptions(ctx.buildConf))
+			if err != nil {
+				continue
+			}
+			tr.Module.Dispose()
+			for name, reason := range tr.Untranslated {
+				if strings.Contains(linkOutput, name) {
+					lines = append(lines, fmt.Sprintf("\n%s: plan9asm could not translate %s: %s", name, sfile, reason))
+				}
+			}
+		}
+	}
+	slices.Sort(lines)
+	return strings.Join(lines, "")
 }
 
 // plan9asmSigsForPkg returns the Plan 9 assembly signatures for pkgPath. The
