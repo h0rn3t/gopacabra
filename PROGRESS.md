@@ -1972,3 +1972,13 @@
 - Перевірки: `go build ./...`, `gofmt`, `go vet` — чисто; `go test ./internal/... ./cmd/... ./ssa/... ./cl/` — падіння лише відомі (`TestBuildDo_DepFingerprintAndVersion`, три `TestSIMDFMV*`, `TestRunCmdPassesGoBuildFlags`).
 - Не перевірено: модуль `runtime` окремо, повний CI, darwin.
 - Наступне: P11.5.1.
+
+## 2026-11-21 — P11.5.1 Неперекладна функція асемблера без посилань
+
+- Тест спершу (`5230fa362`): `internal/build/plan9asm_untranslated_test.go` — програма, що кличе перекладну функцію, збирається і друкує як `go run`; програма, що кличе функцію з параметром-структурою, падає з іменем функції і `unsupported struct type`.
+- Реалізація (`e2e16cf75`): `internal/plan9asm` знаходить функції, через які падає переклад файлу, виключає їх через `KeepFunc` і зберігає причину в `ModuleTranslation.Untranslated`. Спершу кожна функція перекладається з короткого фрагмента файлу, потім решта перевіряється разом. Файл з `#if…`/`#undef` не ділиться. `internal/build` зберігає вивід компоновника (`linkError`) і додає до помилки рядок `<функція>: plan9asm could not translate <файл>: <причина>`. Помилки розбору файлу — як раніше.
+- `TestUnusedGlobalInitNativeInputs`: `INVALID` у тілі функції тепер — неперекладна функція, а не файл без перекладу, тому відсікання глобалів дозволене.
+- `modernc.org/libc` v1.80.1: неперекладні всі 1 875 функцій `abi0_linux_amd64.s` (1 799 — `GO_ARGS`, це P11.5.2). Пробна програма збирається з чистого кешу за 72 с (без фрагментів — 261 с) і друкує як `go run`.
+- Перевірки: `gofmt`, `go vet ./internal/plan9asm/ ./internal/build/` — чисто; `go test ./internal/plan9asm/ ./internal/build/` — падіння лише відомі (`TestBuildDo_DepFingerprintAndVersion`, три `TestSIMDFMV*`).
+- Не перевірено: darwin, повний CI, `modernc.org/sqlite`.
+- Наступне: P11.5.2.
