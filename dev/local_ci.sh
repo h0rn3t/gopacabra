@@ -99,7 +99,7 @@ run_hello() {
 	if [[ "$mod_version" == 1.20 ]]; then
 		go_version=1.20
 	fi
-	LLGO="$(command -v llgo)" LLGO_HELLO_EMBED=0 \
+	LLGO="$(command -v llgo)" \
 		"$repo_root/dev/with_go_version.sh" "$go_version" \
 		"$repo_root/dev/test_helloworld.sh" "$mod_version"
 }
@@ -156,9 +156,6 @@ if [ -z "$demo_jobs" ]; then
 	fi
 fi
 (cd "$workdir" && LLGO_DEMO_JOBS="$demo_jobs" bash .github/workflows/test_demo.sh)
-
-log_section "Build targets"
-(cd "$workdir/_demo/embed/targetsbuild" && bash build.sh)
 
 log_section "Hello World"
 hello_logs=()

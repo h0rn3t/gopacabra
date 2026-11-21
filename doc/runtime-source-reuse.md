@@ -145,7 +145,7 @@ time syscall and checks return/errno behavior, including a preceding failed
 syscall. This is an explicit raw-syscall reference, not forced execution of
 libc's internal fallback or proof that libc used vDSO. Native executable and
 C-library tests exercise the same adapters without owning process startup.
-Android, unsupported architectures, Wasm and embedded backends retain their
+Android, unsupported architectures and Wasm backends retain their
 existing selection.
 
 ## Validation

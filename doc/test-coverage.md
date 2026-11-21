@@ -55,7 +55,7 @@ Every test process gets its own coverage directory and profile fragment. For `-c
 
 ## Scope and validation
 
-This implementation enables native host test and application executables. Wasm and embedded/emulator targets reject coverage explicitly until their runners can transport coverage files reliably. C archive/shared-library build modes also reject coverage: they need a defined host-controlled flush lifecycle rather than a Go executable's exit hooks. Fuzz-guidance instrumentation is not included.
+This implementation enables native host test and application executables. Wasm targets reject coverage explicitly until their runners can transport coverage files reliably. C archive/shared-library build modes also reject coverage: they need a defined host-controlled flush lifecycle rather than a Go executable's exit hooks. Fuzz-guidance instrumentation is not included.
 
 `go test ./internal/build -run '^TestCoverage'` exercises exact Go profile comparisons for all three modes, multi-package selection and no-test packages, JSON events, cache reuse/isolation, LTO retention, writer APIs, early exit, and failing test profiles. Two already-linked test processes use a rendezvous to detect accidental serialization by a common `-coverprofile`, without mistaking a peer's compilation time for serialized execution. Protocol validation and concurrent fragment merging have separate unit tests. Protocol integration tests use O0 to limit repeated optimization work; dedicated ThinLTO/Full LTO cases use O2, and the native core CI matrix also exercises the default Os mode.
 

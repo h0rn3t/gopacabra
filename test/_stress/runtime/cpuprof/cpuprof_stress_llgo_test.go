@@ -1,4 +1,4 @@
-//go:build llgo && !baremetal && !wasm && (darwin || linux) && (amd64 || arm64)
+//go:build llgo && !wasm && (darwin || linux) && (amd64 || arm64)
 
 package cpuprofstress
 

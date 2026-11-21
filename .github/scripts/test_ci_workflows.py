@@ -19,7 +19,7 @@ import ci_policy
 WORKFLOWS = Path(__file__).resolve().parents[1] / "workflows"
 PREPARE = "./.github/workflows/ci-prepare.yml"
 CODE_WORKFLOWS = {
-    "llgo.yml": 10, "go.yml": 4, "targets.yml": 3, "build-cache.yml": 2,
+    "llgo.yml": 10, "go.yml": 4, "build-cache.yml": 2,
     "benchmark.yml": 3, "release-build.yml": 7, "doc.yml": 4, "fmt.yml": 1,
     "mise.yml": 3, "pixi.yml": 3,
 }
@@ -251,37 +251,6 @@ sys.exit(subprocess.call(command + ['./internal/build']))
                 self.assertTrue(all("-json" in args for args in calls))
 
 
-    def test_embedded_debuggers_share_setup_without_losing_backend_failures(self):
-        job = load("targets.yml")["jobs"]["embedded-debug"]
-        self.assertCountEqual(job["strategy"]["matrix"]["os"],
-                              ["ubuntu-24.04", "macos-15"])
-        self.assertNotIn("backend", job["strategy"]["matrix"])
-        for backend in ("gdb", "lldb"):
-            step = next(step for step in job["steps"]
-                        if f"runtest.py --backend {backend}" in step.get("run", ""))
-            self.assertIn("!cancelled()", step["if"])
-            self.assertIn("steps.compiler.outcome == 'success'", step["if"])
-            self.assertNotIn("continue-on-error", step)
-
-    def test_all_board_fixtures_share_one_compiler_and_cache(self):
-        job = load("targets.yml")["jobs"]["llgo"]
-        self.assertEqual(matrix_size(job), 1)
-        steps = job["steps"]
-        compiler = next(step for step in steps if step.get("id") == "compiler")
-        self.assertIn("go build -tags=dev", compiler["run"])
-        self.assertIn("LLGO_TEST_COMPILER=", compiler["run"])
-        cache = next(step for step in steps
-                     if step.get("uses") == "./.github/actions/setup-llgo-cache")
-        self.assertEqual(cache["with"]["crosscompile-cache-mode"], "readwrite")
-        self.assertEqual(cache["with"]["build-cache-scope"], "embedded-boards")
-        for fixture in ("empty", "defer"):
-            step = next(step for step in steps
-                        if step.get("run") == f"bash build.sh {fixture}")
-            self.assertEqual(step["working-directory"], "_demo/embed/targetsbuild")
-            self.assertIn("!cancelled()", step["if"])
-            self.assertIn("steps.compiler.outcome == 'success'", step["if"])
-            self.assertNotIn("continue-on-error", step)
-
     def test_wasm_caches_use_pinned_go_and_include_workers(self):
         steps = load("llgo.yml")["jobs"]["wasm-runtime"]["steps"]
         go = next(i for i, step in enumerate(steps)
@@ -308,7 +277,7 @@ sys.exit(subprocess.call(command + ['./internal/build']))
                 path.write_text(f"#!/bin/sh\necho '{output}'\n")
                 path.chmod(0o755)
             profiles = []
-            for scope in ("", "embedded-boards", "wasm-runtime", "wasm-workers", "bad/scope"):
+            for scope in ("", "native-demos", "wasm-runtime", "wasm-workers", "bad/scope"):
                 output = directory / "outputs"
                 output.write_text("")
                 result = subprocess.run(["bash", "-c", resolve], cwd=root,

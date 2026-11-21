@@ -1,4 +1,4 @@
-//go:build linux && amd64 && !baremetal
+//go:build linux && amd64
 
 package runtime
 

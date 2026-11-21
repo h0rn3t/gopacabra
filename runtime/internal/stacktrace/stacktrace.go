@@ -1,4 +1,4 @@
-//go:build !baremetal && !wasm
+//go:build !wasm
 
 // Package stacktrace owns native thread registrations and raw stack snapshots.
 // No Go code runs in its asynchronous capture handler.

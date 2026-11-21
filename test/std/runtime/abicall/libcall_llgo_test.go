@@ -1,4 +1,4 @@
-//go:build llgo && (darwin || linux) && !wasm && !baremetal
+//go:build llgo && (darwin || linux) && !wasm
 
 package abicall
 

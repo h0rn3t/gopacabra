@@ -38,7 +38,7 @@ func init() {
 	flags.AddTestBinaryFlags(&Cmd.Flag)
 	testExec = flags.AddExecFlag(&Cmd.Flag)
 	flags.AddEmulatorFlags(&Cmd.Flag)
-	flags.AddEmbeddedFlags(&Cmd.Flag)
+	flags.AddTargetFlag(&Cmd.Flag)
 	flags.FinalizeNativeFlags("test", &Cmd.Flag)
 }
 
@@ -181,7 +181,7 @@ func validateProfileTarget(conf *build.Config, args []string) error {
 		cpuArch := conf.Goarch == "amd64" || conf.Goarch == "arm64"
 		freestanding := false
 		for _, tag := range strings.Fields(strings.ReplaceAll(conf.Tags, ",", " ")) {
-			freestanding = freestanding || tag == "baremetal" || tag == "wasm"
+			freestanding = freestanding || tag == "wasm"
 		}
 		if conf.Target != "" || !nativeOS || conf.Goarch == "wasm" || freestanding || name == "cpuprofile" && !cpuArch {
 			return fmt.Errorf("-%s is unsupported for target %s (%s/%s): LLGo profiling requires a qualified native runtime", name, conf.Target, conf.Goos, conf.Goarch)

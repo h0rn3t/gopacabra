@@ -7,7 +7,6 @@ import (
 	"testing"
 
 	"github.com/xgo-dev/llgo/internal/crosscompile"
-	"github.com/xgo-dev/llgo/internal/flash"
 )
 
 func TestBuildOutFmtsIsolatesImplicitExecutionOutputs(t *testing.T) {
@@ -98,9 +97,6 @@ func TestWebAssemblyTargetDefaultExtension(t *testing.T) {
 		if got := defaultAppExt(&Config{BuildMode: BuildModeExe, Target: target}); got != ".wasm" {
 			t.Errorf("future/custom target %q extension = %q, want .wasm", target, got)
 		}
-	}
-	if got := defaultAppExt(&Config{BuildMode: BuildModeExe, Target: "rp2040"}); got != ".elf" {
-		t.Errorf("embedded target extension = %q, want .elf", got)
 	}
 	if got := defaultAppExt(&Config{BuildMode: BuildModeExe, Goos: "js", OutFile: "main.html"}); got != ".html" {
 		t.Errorf("js html output extension = %q, want .html", got)
@@ -202,180 +198,36 @@ func sameHostPath(got, want string) bool {
 
 func TestBuildOutFmtsWithTarget(t *testing.T) {
 	tests := []struct {
-		name         string
-		conf         *Config
-		pkgName      string
-		crossCompile crosscompile.Export
-		wantOut      string // use empty string to indicate temp file
-		wantBin      string
-		wantHex      string
-		wantImg      string
-		wantUf2      string
-		wantZip      string
+		name    string
+		conf    *Config
+		wantOut string
 	}{
 		{
-			name: "build with -o",
-			conf: &Config{
-				Mode:    ModeBuild,
-				OutFile: "myapp",
-				AppExt:  "",
-			},
-			pkgName: "hello",
-			crossCompile: crosscompile.Export{
-				BinaryFormat: "",
-			},
+			name:    "build with -o",
+			conf:    &Config{Mode: ModeBuild, OutFile: "myapp"},
 			wantOut: "myapp",
 		},
 		{
-			name: "embedded target keeps configured output extension",
-			conf: &Config{
-				Mode:    ModeBuild,
-				Target:  "rp2040",
-				OutFile: "myapp",
-				AppExt:  ".elf",
-			},
-			pkgName: "hello",
-			wantOut: "myapp.elf",
+			name:    "named target keeps configured output extension",
+			conf:    &Config{Mode: ModeBuild, Target: "wasi", OutFile: "myapp", AppExt: ".wasm"},
+			wantOut: "myapp.wasm",
 		},
 		{
-			name: "build hex format",
-			conf: &Config{
-				Mode:    ModeBuild,
-				Target:  "rp2040",
-				AppExt:  ".elf",
-				OutFmts: OutFmts{Hex: true},
-			},
-			pkgName: "hello",
-			wantOut: "hello.elf",
-			wantBin: "hello.bin", // hex is converted from bin
-			wantHex: "hello.hex",
-		},
-		{
-			name: "emulator mode with bin format",
-			conf: &Config{
-				Mode:     ModeRun,
-				Target:   "cortex-m-qemu",
-				AppExt:   ".elf",
-				Emulator: true,
-			},
-			pkgName: "hello",
-			crossCompile: crosscompile.Export{
-				Emulator: "qemu-system-arm -machine mps2-an385 -kernel {bin}",
-			},
-			wantBin: ".bin", // Should be temp file with .bin extension
-		},
-		{
-			name: "flash command with hex format",
-			conf: &Config{
-				Mode:     ModeInstall,
-				Target:   "rp2040",
-				AppExt:   ".elf",
-				Emulator: false,
-			},
-			pkgName: "hello",
-			crossCompile: crosscompile.Export{
-				Device: flash.Device{
-					Flash: flash.Flash{
-						Method:  "command",
-						Command: "openocd -f board.cfg -c 'program {hex} verify reset exit'",
-					},
-				},
-			},
-			wantBin: ".bin", // hex is converted from bin
-			wantHex: ".hex", // Should be temp file with .hex extension
-		},
-		{
-			name: "multiple formats specified",
-			conf: &Config{
-				Mode:   ModeBuild,
-				Target: "rp2040",
-				AppExt: ".elf",
-				OutFmts: OutFmts{
-					Bin: true,
-					Hex: true,
-					Img: true,
-					Uf2: true,
-				},
-			},
-			pkgName: "hello",
-			crossCompile: crosscompile.Export{
-				BinaryFormat: "uf2",
-			},
-			wantOut: "hello.elf",
-			wantBin: "hello.bin",
-			wantHex: "hello.hex",
-			wantImg: "hello.img",
-			wantUf2: "hello.uf2",
-			wantZip: "", // Not specified
-		},
-		{
-			name: "no formats specified",
-			conf: &Config{
-				Mode:    ModeBuild,
-				Target:  "rp2040",
-				AppExt:  ".elf",
-				OutFmts: OutFmts{}, // No formats specified
-			},
-			pkgName: "hello",
-			crossCompile: crosscompile.Export{
-				BinaryFormat: "uf2",
-			},
-			wantOut: "hello.elf",
-			wantBin: "", // No bin file should be generated
-			wantHex: "", // No hex file should be generated
+			name:    "named target default output",
+			conf:    &Config{Mode: ModeBuild, Target: "wasi", AppExt: ".wasm"},
+			wantOut: "hello.wasm",
 		},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			// Determine if multi-package (mock single package for simplicity)
-			multiPkg := false
-
-			result, err := buildOutFmts(tt.pkgName, tt.conf, multiPkg, &tt.crossCompile)
+			result, err := buildOutFmts("hello", tt.conf, false, &crosscompile.Export{})
 			if err != nil {
-				t.Errorf("buildOutFmts() error = %v", err)
-				return
+				t.Fatalf("buildOutFmts() error = %v", err)
 			}
-
-			// Check base output path
-			if tt.wantOut != "" {
-				if !sameHostPath(result.Out, tt.wantOut) {
-					t.Errorf("buildOutFmts().Out = %v, want %v", result.Out, tt.wantOut)
-				}
-			} else {
-				// Should be a temp file
-				if result.Out == "" || !strings.Contains(result.Out, tt.pkgName) {
-					t.Errorf("buildOutFmts().Out should be temp file containing %v, got %v", tt.pkgName, result.Out)
-				}
+			if !sameHostPath(result.Out, tt.wantOut) {
+				t.Errorf("buildOutFmts().Out = %v, want %v", result.Out, tt.wantOut)
 			}
-
-			// Check format-specific paths
-			checkFormatPath := func(actual, expected, formatName string) {
-				if expected == "" {
-					// Empty means no file should be generated
-					if actual != "" {
-						t.Errorf("buildOutFmts().%s = %v, want empty (no file generated)", formatName, actual)
-					}
-				} else if strings.HasPrefix(expected, ".") && !strings.Contains(expected[1:], ".") {
-					// ".xxx" means temp file with .xxx extension
-					if actual == "" {
-						t.Errorf("buildOutFmts().%s = empty, want temp file with %s extension", formatName, expected)
-					} else if !strings.HasSuffix(actual, expected) || !strings.Contains(actual, tt.pkgName) {
-						t.Errorf("buildOutFmts().%s should be temp file with %s extension containing %v, got %v", formatName, expected, tt.pkgName, actual)
-					}
-				} else {
-					// "aaa.xxx" means exact file name
-					if actual != expected {
-						t.Errorf("buildOutFmts().%s = %v, want %v", formatName, actual, expected)
-					}
-				}
-			}
-
-			checkFormatPath(result.Bin, tt.wantBin, "Bin")
-			checkFormatPath(result.Hex, tt.wantHex, "Hex")
-			checkFormatPath(result.Img, tt.wantImg, "Img")
-			checkFormatPath(result.Uf2, tt.wantUf2, "Uf2")
-			checkFormatPath(result.Zip, tt.wantZip, "Zip")
 		})
 	}
 }
@@ -540,23 +392,6 @@ func TestBuildOutFmtsNativeTarget(t *testing.T) {
 				if result.Out == "" || !strings.Contains(result.Out, tt.pkgName) {
 					t.Errorf("buildOutFmts().Out should be temp file containing %v, got %v", tt.pkgName, result.Out)
 				}
-			}
-
-			// For native targets, no format files should be generated
-			if result.Bin != "" {
-				t.Errorf("buildOutFmts().Bin = %v, want empty for native target", result.Bin)
-			}
-			if result.Hex != "" {
-				t.Errorf("buildOutFmts().Hex = %v, want empty for native target", result.Hex)
-			}
-			if result.Img != "" {
-				t.Errorf("buildOutFmts().Img = %v, want empty for native target", result.Img)
-			}
-			if result.Uf2 != "" {
-				t.Errorf("buildOutFmts().Uf2 = %v, want empty for native target", result.Uf2)
-			}
-			if result.Zip != "" {
-				t.Errorf("buildOutFmts().Zip = %v, want empty for native target", result.Zip)
 			}
 		})
 	}

@@ -1,4 +1,4 @@
-//go:build gopacabra && !baremetal
+//go:build gopacabra
 
 package runtime
 

@@ -1,7 +1,0 @@
-{
-	"inherits": ["riscv-basic"],
-	"extra-files": [
-		"targets/device/riscv/start.S",
-		"targets/device/riscv/handleinterrupt.S"
-	]
-}

@@ -86,7 +86,6 @@ var sourcePatchPkgs = map[string]struct{}{
 	"go/build":                     {},
 	"go/importer":                  {},
 	"internal/cpu":                 {},
-	"internal/runtime/atomic":      {},
 	"internal/runtime/maps":        {},
 	"internal/runtime/sys":         {},
 	"internal/sync":                {},
@@ -103,7 +102,6 @@ var sourcePatchPkgs = map[string]struct{}{
 }
 
 var sourcePatchAsmPkgs = map[string]map[string]struct{}{
-	"internal/runtime/atomic": {"arm": {}},
-	"sync/atomic":             {"*": {}},
-	"syscall":                 {"*": {}},
+	"sync/atomic": {"*": {}},
+	"syscall":     {"*": {}},
 }

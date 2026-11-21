@@ -243,7 +243,7 @@ func TestRuntimeLinksNoTracingGC(t *testing.T) {
 	}
 }
 
-// TestNoTinyGoGC стереже P11.5.0.2: wasm і baremetal збираються з
+// TestNoTinyGoGC стереже P11.5.0.2: wasm збирається з
 // рантаймом gopacabra, пакет трасувального збирача tinygogc не
 // компілюється, а режим llgo.wasm.gc.linear, що його вмикав, відхиляється.
 func TestNoTinyGoGC(t *testing.T) {
@@ -252,24 +252,17 @@ func TestNoTinyGoGC(t *testing.T) {
 		name   string
 		goos   string
 		goarch string
-		target string
 		mode   Mode
 	}{
 		{name: "wasip1", goos: "wasip1", goarch: "wasm", mode: ModeBuild},
 		// Компонування js/wasm потребує emcc; ModeGen показує набір пакетів.
 		{name: "js", goos: "js", goarch: "wasm", mode: ModeGen},
-		// ModeGen: жодна baremetal-ціль без ESP зараз не компонується
-		// (cortex-m-qemu, riscv-qemu, rp2040 — див. REPORT-PHASE11.md).
-		{name: "riscv-qemu", target: "riscv-qemu", mode: ModeGen},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			conf := NewDefaultConf(tt.mode)
 			conf.OutFile = filepath.Join(t.TempDir(), "out")
-			if tt.goos != "" {
-				conf.Goos, conf.Goarch = tt.goos, tt.goarch
-			}
-			conf.Target = tt.target
+			conf.Goos, conf.Goarch = tt.goos, tt.goarch
 			var pkgs []string
 			conf.ModuleHook = func(pkg Package) { pkgs = append(pkgs, pkg.PkgPath) }
 			if _, err := Do([]string{"./testdata/notracinggc"}, conf); err != nil {

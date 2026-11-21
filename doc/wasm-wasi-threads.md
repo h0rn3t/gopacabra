@@ -3,7 +3,7 @@
 `llgo build/run/test -target wasi` (including the `wasip1` alias and raw
 `GOOS=wasip1 GOARCH=wasm`) uses wasi-libc's pthread startup, shared linear
 memory, and the threaded linear collector by default. WASI output no longer
-runs Binaryen Asyncify. Native and embedded pthread backends are unchanged.
+runs Binaryen Asyncify. Native pthread backends are unchanged.
 
 The LLGo Wasmer release `llgo-v7.5.0.1` is the default runner. Install it with
 `bash dev/install_wasmer.sh`, and add the printed cache `bin` directory to `PATH`.

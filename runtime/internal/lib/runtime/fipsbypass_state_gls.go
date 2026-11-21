@@ -1,4 +1,4 @@
-//go:build go1.26 && llgo && !baremetal
+//go:build go1.26 && llgo
 
 package runtime
 

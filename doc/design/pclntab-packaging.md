@@ -28,7 +28,7 @@ The policy is deliberately separate from Go's `-ldflags=-s` and `-w`:
 - Native executable and archive builds preserve DWARF by default. As with
   cmd/link, Darwin `c-shared` defaults to omitting DWARF. `-w=false` explicitly
   preserves it and `-w` explicitly omits it.
-- Wasm and named embedded targets retain their default omission policy.
+- Wasm targets retain their default omission policy.
   `-w=false` enables metadata when the selected target supports it.
 - `-s` records native symbol-table omission intent and implies `-w` unless
   `-w` is explicitly set; the explicit value wins regardless of argument order.

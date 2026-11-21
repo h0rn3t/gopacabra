@@ -168,11 +168,7 @@ func main() { missing() }
 func TestRemoveTemporaryBuildOutputs(t *testing.T) {
 	root := t.TempDir()
 	output := filepath.Join(root, "program.elf")
-	base := strings.TrimSuffix(output, filepath.Ext(output))
-	artifacts := []string{
-		output, pclnSidecarPath(output), base + ".bin", base + ".hex",
-		base + ".img", base + ".uf2", base + ".zip",
-	}
+	artifacts := []string{output, pclnSidecarPath(output)}
 	for _, artifact := range artifacts {
 		if err := os.WriteFile(artifact, []byte("generated"), 0o644); err != nil {
 			t.Fatal(err)

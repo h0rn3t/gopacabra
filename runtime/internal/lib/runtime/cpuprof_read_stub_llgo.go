@@ -1,4 +1,4 @@
-//go:build baremetal || wasm || (!darwin && !linux) || ((darwin || linux) && !amd64 && !arm64)
+//go:build wasm || (!darwin && !linux) || ((darwin || linux) && !amd64 && !arm64)
 
 package runtime
 

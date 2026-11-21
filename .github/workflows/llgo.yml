@@ -186,7 +186,6 @@ jobs:
         uses: ./.github/actions/test-helloworld
         with:
           go-version: "1.20"
-          embedded: "false"
           mod-version: "1.20"
 
       - name: Test Hello World with go.mod 1.21 through 1.26
@@ -194,8 +193,7 @@ jobs:
         shell: bash
         run: |
           for mod_version in 1.21 1.22 1.23 1.24 1.25 1.26; do
-            LLGO_HELLO_EMBED=false \
-              dev/with_go_version.sh 1.27 dev/test_helloworld.sh "$mod_version"
+            dev/with_go_version.sh 1.27 dev/test_helloworld.sh "$mod_version"
           done
 
       - name: Test Hello World with go.mod 1.27
@@ -252,14 +250,6 @@ jobs:
           cd _demo/go/export
           chmod +x test.sh
           ./test.sh
-
-      - name: Test export with different symbol names on embedded targets
-        shell: bash
-        run: |
-          echo "Testing //export with different symbol names on embedded targets..."
-          cd _demo/embed/export
-          chmod +x verify_export.sh
-          ./verify_export.sh
 
       - name: _xtool build tests
         run: |

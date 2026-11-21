@@ -389,47 +389,6 @@ func TestSyscallSourcePatchPreservesTargetImplementations(t *testing.T) {
 	}
 }
 
-func TestArmBaremetalAtomicSourcePatchReplacesAsm(t *testing.T) {
-	const pkgPath = "internal/runtime/atomic"
-	if !llruntime.HasSourcePatchPkg(pkgPath) {
-		t.Fatal("internal/runtime/atomic should be registered as a source patch package")
-	}
-	if llruntime.HasAltPkg(pkgPath) {
-		t.Fatal("internal/runtime/atomic should not remain an alt package")
-	}
-	if !llruntime.SourcePatchReplacesAsmForGOARCH(pkgPath, "arm") {
-		t.Fatal("internal/runtime/atomic ARM assembly should be replaceable by its source patch")
-	}
-
-	runtimeDir := env.LLGoRuntimeDir()
-	ctx := sourcePatchBuildContext{
-		goos:       "linux",
-		goarch:     "arm",
-		goversion:  runtime.Version(),
-		buildFlags: []string{"-tags=llgo,baremetal"},
-	}
-	changed, overlay, files, err := applySourcePatchForPkg(nil, nil, runtimeDir, runtime.GOROOT(), pkgPath, ctx)
-	if err != nil {
-		t.Fatal(err)
-	}
-	if !changed || len(files) != 1 {
-		t.Fatalf("baremetal ARM patch changed = %v, files = %v, want one selected patch", changed, files)
-	}
-	asmFile := filepath.Join(runtime.GOROOT(), "src", "internal", "runtime", "atomic", "atomic_arm.s")
-	if got := string(overlay[asmFile]); got != "// replaced by LLGo source patch\n" {
-		t.Fatalf("overlay[%q] = %q, want assembly replacement", asmFile, got)
-	}
-
-	ctx.buildFlags = []string{"-tags=llgo"}
-	changed, _, files, err = applySourcePatchForPkg(nil, nil, runtimeDir, runtime.GOROOT(), pkgPath, ctx)
-	if err != nil {
-		t.Fatal(err)
-	}
-	if changed || len(files) != 0 {
-		t.Fatalf("non-baremetal ARM patch changed = %v, files = %v, want no selected patch", changed, files)
-	}
-}
-
 func TestUniqueSourcePatchUsesStdlibDependencyGraph(t *testing.T) {
 	const pkgPath = "unique"
 	if !llruntime.HasSourcePatchPkg(pkgPath) {

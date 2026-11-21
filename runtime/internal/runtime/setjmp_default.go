@@ -1,4 +1,4 @@
-//go:build !linux && !windows && !baremetal && !wasm
+//go:build !linux && !windows && !wasm
 
 package runtime
 

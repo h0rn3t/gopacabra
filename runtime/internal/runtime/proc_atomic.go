@@ -1,5 +1,3 @@
-//go:build !baremetal
-
 /*
  * Copyright (c) 2026 The XGo Authors (xgo.dev). All rights reserved.
  *

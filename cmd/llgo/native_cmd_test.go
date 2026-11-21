@@ -155,7 +155,7 @@ func TestNativeUnsupportedControlsFailBeforeLoading(t *testing.T) {
 			t.Fatalf("post-package %s exit=%d output=%s", control, code, out)
 		}
 	}
-	for _, command := range []string{"clean", "monitor"} {
+	for _, command := range []string{"clean"} {
 		out, code := nativeCommand(t, dir, nil, command, "-no-such-flag")
 		if code != 1 || !strings.Contains(out, "flag provided but not defined") {
 			t.Fatalf("%s exit=%d output=%s", command, code, out)
@@ -189,27 +189,6 @@ func TestNativeVersionInspectionDiagnostics(t *testing.T) {
 	out, code := nativeCommand(t, dir, nil, "version", "missing.exe")
 	if code != exit.ExitCode() || out != string(wantOutput) {
 		t.Fatalf("version: llgo=(%d,%q), go=(%d,%q)", code, out, exit.ExitCode(), wantOutput)
-	}
-}
-
-func TestMonitorHelpDoesNotRequireGoDefaultsOrToolchain(t *testing.T) {
-	noGoPath := ""
-	if runtime.GOOS == "windows" {
-		// MinGW test binaries need runtime DLLs from PATH before main runs.
-		// Remove Go tool directories while retaining those DLL search paths.
-		var paths []string
-		for _, dir := range filepath.SplitList(os.Getenv("PATH")) {
-			if _, err := exec.LookPath(filepath.Join(dir, "go")); err != nil {
-				paths = append(paths, dir)
-			}
-		}
-		noGoPath = strings.Join(paths, string(os.PathListSeparator))
-	}
-	for _, defaults := range []string{"", "-mod=mod -count=1 -tags=custom"} {
-		out, code := nativeCommand(t, t.TempDir(), []string{"GOFLAGS=" + defaults, "GOENV=" + filepath.Join(t.TempDir(), "missing-goenv"), "PATH=" + noGoPath, "LLGO_TEST_NATIVE_NO_GO=1"}, "monitor", "-h")
-		if code != 0 || !strings.Contains(out, "Usage") {
-			t.Fatalf("monitor help GOFLAGS=%q exit=%d output=%s", defaults, code, out)
-		}
 	}
 }
 

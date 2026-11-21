@@ -64,7 +64,7 @@ func init() {
 	flags.AddCommonFlags(&Cmd.Flag)
 	flags.AddCompilerVerboseFlag(&Cmd.Flag)
 	flags.AddBuildFlags(&Cmd.Flag)
-	flags.AddEmbeddedFlags(&Cmd.Flag)
+	flags.AddTargetFlag(&Cmd.Flag)
 	flags.AddOutputFlags(&Cmd.Flag)
 	Cmd.Flag.StringVar(&backendFlag, "backend", string(backendAuto), "debug backend: auto, lldb, gdb, or browser; wasmtime is reserved and unavailable")
 	Cmd.Flag.StringVar(&lldbPath, "lldb", "", "path to LLDB (default $LLGO_LLDB or auto-detect)")
@@ -304,11 +304,9 @@ func prepareArtifact(conf *build.Config) (cleanup func(), artifact string, err e
 }
 
 func debugArtifactExtension(conf *build.Config) string {
+	// Named targets are WebAssembly only.
 	if conf.Target != "" {
-		if conf.Goarch == "wasm" || strings.HasPrefix(conf.Target, "wasi") || strings.HasPrefix(conf.Target, "wasm") || strings.HasPrefix(conf.Target, "emscripten") {
-			return ".wasm"
-		}
-		return ".elf"
+		return ".wasm"
 	}
 	switch conf.Goos {
 	case "js", "wasi", "wasip1":

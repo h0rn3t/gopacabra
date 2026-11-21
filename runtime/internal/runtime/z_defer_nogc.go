@@ -1,4 +1,4 @@
-//go:build !(gopacabra && !gopacabraasan && (linux || darwin) && !baremetal)
+//go:build !(gopacabra && !gopacabraasan && (linux || darwin))
 
 /*
  * Copyright (c) 2025 The XGo Authors (xgo.dev). All rights reserved.

@@ -1,4 +1,4 @@
-//go:build llgo && !baremetal && !wasm
+//go:build llgo && !wasm
 
 package runtime
 

@@ -21,7 +21,7 @@ class ClassifyPathTests(unittest.TestCase):
             "cl/compile.go": "compiler",
             "cmd/llgo/main.go": "compiler",
             "internal/build/build.go": "compiler",
-            "targets/device/riscv64.json": "compiler",
+            "targets/wasi.json": "compiler",
             "go.mod": "compiler",
             "runtime/abi/abi.go": "runtime",
             "runtime/go.mod": "runtime",

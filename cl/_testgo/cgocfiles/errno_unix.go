@@ -1,4 +1,4 @@
-//go:build !windows && !baremetal
+//go:build !windows
 
 package main
 

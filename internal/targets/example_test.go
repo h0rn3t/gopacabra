@@ -10,7 +10,7 @@ func ExampleResolver_Resolve() {
 	resolver := NewDefaultResolver()
 
 	// Resolve a specific target
-	config, err := resolver.Resolve("rp2040")
+	config, err := resolver.Resolve("wasi")
 	if err != nil {
 		log.Fatal(err)
 	}
@@ -39,10 +39,9 @@ func ExampleResolver_ListAvailableTargets() {
 		log.Fatal(err)
 	}
 
-	// Show first 10 targets
 	sort.Strings(targets)
-	fmt.Printf("Available targets (first 10 of %d):\n", len(targets))
-	for i, target := range targets[:10] {
+	fmt.Printf("Available targets (%d):\n", len(targets))
+	for i, target := range targets {
 		fmt.Printf("%d. %s\n", i+1, target)
 	}
 }

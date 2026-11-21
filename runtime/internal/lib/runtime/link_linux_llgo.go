@@ -1,5 +1,4 @@
-//go:build linux && !baremetal
-// +build linux,!baremetal
+//go:build linux
 
 package runtime
 

@@ -1,4 +1,4 @@
-//go:build linux && arm64 && !baremetal
+//go:build linux && arm64
 
 package cpu
 

@@ -169,20 +169,6 @@ func CollectArtifacts(conf *Config, out *OutFmtDetails) ([]Artifact, error) {
 	if err := add(ArtifactRoleRuntimeSymbols, "pclntab", out.PCLN); err != nil {
 		return nil, err
 	}
-	for _, deployment := range []struct {
-		format string
-		path   string
-	}{
-		{"bin", out.Bin},
-		{"hex", out.Hex},
-		{"img", out.Img},
-		{"uf2", out.Uf2},
-		{"zip", out.Zip},
-	} {
-		if err := add(ArtifactRoleDeployment, deployment.format, deployment.path); err != nil {
-			return nil, err
-		}
-	}
 	if err := add(ArtifactRoleDeployment, "wasm-manifest", out.WasmManifest); err != nil {
 		return nil, err
 	}

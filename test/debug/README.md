@@ -10,11 +10,6 @@ entry points and their tool requirements.
 
 - [Runtime inspection](runtime/README.md) shares native Go and C fixtures between
   LLDB and GDB, covering variables, runtime values, goroutines, and backtraces.
-- [Embedded transports](embedded/README.md) exercises Cortex-M QEMU sessions
-  through GDB Remote and LLDB, including explicit image download into an empty
-  simulator, then checks that DWARF leaves flash bytes unchanged.
-- [Physical probes](hardware/README.md) reuses the embedded fixture on a real
-  target. It requires explicit opt-in and is not part of normal CI.
 - [Wasm logical stacks](wasm/README.md) exercises the installed Chrome extension
   with Memory32/64, parked goroutines, GC, and 1/2/4 workers.
 
@@ -44,18 +39,7 @@ tested there. See the
 [runtime coverage matrix](runtime/README.md#gdb-runtime-acceptance). These
 limitations do not apply to the native LLDB suite.
 
-Run the embedded suite with QEMU, target-aware GDB, LLDB and LLVM tools installed:
-
-```sh
-bash test/debug/embedded/runtest.sh
-```
-
-The Targets workflow runs GDB and LLDB separately on Linux x64, macOS arm64 and
-Windows x64 hosts against the same Cortex-M3 target. It verifies that the physical-probe
-entry point refuses to halt or load a device without its documented opt-in.
-Passing QEMU acceptance does not imply a physical-probe test was performed.
-
-The runtime and embedded fixtures retain their own `go.mod` files, including
+The runtime fixtures retain their own `go.mod` files, including
 the `lldbtest` module name used by runtime debugger type assertions. The nested
 modules exclude these programs
 from root-module `go test ./test/...` and `llgo test ./test/...` enumeration.

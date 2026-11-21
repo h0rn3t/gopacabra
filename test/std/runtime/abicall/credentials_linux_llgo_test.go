@@ -1,4 +1,4 @@
-//go:build llgo && linux && !wasm && !baremetal
+//go:build llgo && linux && !wasm
 
 package abicall
 

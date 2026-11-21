@@ -1,4 +1,4 @@
-//go:build llgo && wasm && !baremetal && llgo.wasm.debugger
+//go:build llgo && wasm && llgo.wasm.debugger
 
 package runtime
 

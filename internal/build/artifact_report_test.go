@@ -29,12 +29,9 @@ func TestCollectArtifacts(t *testing.T) {
 	htmlGlue := write("app.js", "html-glue")
 	html := write("app.html", "html")
 	host := write(wasmFSScriptName, "filesystem-host")
-	elf := write("app.elf", "elf-data")
 	dwarf := write("app.debug.wasm", "debug")
 	pcln := write("app.wasm.pclntab", "pcln")
 	manifest := write("app.wasm-manifest.json", "manifest")
-	bin := write("app.bin", "bin")
-	hex := write("app.hex", "hex-data")
 
 	tests := []struct {
 		name string
@@ -105,16 +102,6 @@ func TestCollectArtifacts(t *testing.T) {
 				{Role: ArtifactRoleDebugDeployment, Format: "wasm", Path: main, Size: 4},
 				{Role: ArtifactRoleDeployment, Format: "javascript", Path: glue, Size: 10},
 				{Role: ArtifactRoleDeployment, Format: "javascript", Path: host, Size: 15},
-			},
-		},
-		{
-			name: "host and deployment formats",
-			conf: Config{Target: "cortex-m-qemu", DebugArtifactMode: DebugArtifactHost},
-			out:  OutFmtDetails{Out: elf, Bin: bin, Hex: hex},
-			want: []Artifact{
-				{Role: ArtifactRoleDebug, Format: "elf", Path: elf, Size: 8},
-				{Role: ArtifactRoleDeployment, Format: "bin", Path: bin, Size: 3},
-				{Role: ArtifactRoleDeployment, Format: "hex", Path: hex, Size: 8},
 			},
 		},
 		{
@@ -209,7 +196,6 @@ func TestCollectArtifactsValidation(t *testing.T) {
 	}{
 		{name: "missing DWARF", mode: DebugArtifactExternal, out: OutFmtDetails{Out: main, DWARF: main + ".debug.wasm"}, role: ArtifactRoleDebug},
 		{name: "missing runtime symbols", mode: DebugArtifactNone, out: OutFmtDetails{Out: main, PCLN: main + ".pclntab"}, role: ArtifactRoleRuntimeSymbols},
-		{name: "missing deployment format", mode: DebugArtifactNone, out: OutFmtDetails{Out: main, Bin: main + ".bin"}, role: ArtifactRoleDeployment},
 		{name: "missing final manifest", mode: DebugArtifactNone, out: OutFmtDetails{Out: main, WasmManifest: main + ".wasm-manifest.json"}, role: ArtifactRoleDeployment},
 	} {
 		t.Run(tt.name, func(t *testing.T) {
@@ -230,7 +216,6 @@ func TestPrimaryArtifactFormat(t *testing.T) {
 	}{
 		{name: "wasm architecture", conf: Config{Goarch: "wasm"}, path: "app", want: "wasm"},
 		{name: "wasm extension", path: "app.WASM", want: "wasm"},
-		{name: "target ELF", conf: Config{Target: "cortex-m-qemu"}, path: "app.elf", want: "elf"},
 		{name: "archive", conf: Config{Goarch: "wasm", BuildMode: BuildModeCArchive}, path: "libapp.a", want: "archive"},
 		{name: "Mach-O", conf: Config{Goos: "darwin", BuildMode: BuildModeCShared}, path: "libapp.dylib", want: "macho"},
 		{name: "ELF", conf: Config{Goos: "linux", BuildMode: BuildModeCShared}, path: "libapp.so", want: "elf"},

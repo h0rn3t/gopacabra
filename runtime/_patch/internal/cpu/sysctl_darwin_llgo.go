@@ -1,4 +1,4 @@
-//go:build darwin && !ios && !baremetal
+//go:build darwin && !ios
 
 package cpu
 

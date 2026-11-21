@@ -1,4 +1,4 @@
-//go:build go1.24 && !baremetal && !nogc && !wasm
+//go:build go1.24 && !nogc && !wasm
 
 package weakstress
 

@@ -1,7 +1,6 @@
-//go:build go1.26 && (!llgo || baremetal)
+//go:build go1.26 && !llgo
 
 package runtime
 
-// Bare-metal runtimes have one execution context and must not introduce a
-// native TLS relocation for the locality package cache.
+// Збірка без llgo не має TLS-локальності llgo, тож тут звичайна глобальна змінна.
 var fipsBypassDepth uint32

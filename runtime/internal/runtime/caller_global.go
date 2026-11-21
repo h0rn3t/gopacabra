@@ -1,4 +1,4 @@
-//go:build !llgo || baremetal
+//go:build !llgo
 
 /*
  * Copyright (c) 2026 The XGo Authors (xgo.dev). All rights reserved.
@@ -18,8 +18,7 @@
 
 package runtime
 
-// Bare-metal runtimes have one execution context and must not introduce a
-// native TLS relocation for the locality package cache.
+// Збірка без llgo не має TLS-локальності llgo, тож тут звичайна глобальна змінна.
 var callerLocationStoreCurrent *callerLocationStore
 
 // This source set has one global caller store, so its local index is already

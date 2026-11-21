@@ -50,7 +50,7 @@ EOF
 	go mod tidy
 	if [[ "${OS:-}" == "Windows_NT" || "${RUNNER_OS:-}" == "Windows" ]]; then
 		# ExitProcess does not flush UCRT streams. Keep C output observable for
-		# this native smoke test without leaking the setting into embedded builds.
+		# this native smoke test.
 		output="$(LLGO_STDIO_NOBUF=1 "${llgo_cmd}" run . 2>&1)" && status=0 || status=$?
 	else
 		output="$("${llgo_cmd}" run . 2>&1)" && status=0 || status=$?
@@ -72,25 +72,5 @@ EOF
 		exit 1
 	fi
 )
-
-if [[ "${LLGO_HELLO_EMBED:-1}" != 0 && "${LLGO_HELLO_EMBED:-1}" != false ]]; then
-	embed_dir="${work_dir}/embed"
-	mkdir -p "${embed_dir}"
-	cat >"${embed_dir}/go.mod" <<EOF
-module embed-smoke
-
-go ${mod_version}
-EOF
-	cat >"${embed_dir}/main.go" <<'EOF'
-package main
-
-func main() {}
-EOF
-	(
-		cd "${embed_dir}"
-		"${llgo_cmd}" build -v -target riscv-qemu -o demo.out .
-		test -f demo.out.elf
-	)
-fi
 
 echo "Hello World smoke test passed with $(go env GOVERSION), go.mod ${mod_version}"

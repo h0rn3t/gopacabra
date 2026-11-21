@@ -97,8 +97,8 @@ func TestLLGoEnvironment(t *testing.T) {
 		}
 	}
 	mustWrite("runtime/go.mod", "module github.com/xgo-dev/llgo/runtime\n")
-	mustWrite("targets/base.json", `{"goos":"linux","goarch":"arm","libc":"picolibc","serial":"usb"}`)
-	mustWrite("targets/board.json", `{"inherits":["base"],"cpu":"cortex-m0plus","serial-port":["cafe:babe"]}`)
+	mustWrite("targets/base.json", `{"goos":"wasip1","goarch":"wasm"}`)
+	mustWrite("targets/board.json", `{"inherits":["base"],"cpu":"mvp"}`)
 	if err := os.MkdirAll(filepath.Join(root, "crosscompile", "clang"), 0755); err != nil {
 		t.Fatal(err)
 	}
@@ -127,7 +127,7 @@ func TestLLGoEnvironment(t *testing.T) {
 	}
 
 	var output bytes.Buffer
-	args := []string{"-json", "-target", "board", "GOOS", "LLGO_ROOT", "LLGO_RUNTIME_DIR", "LLGO_EMBEDDED_CLANG_DIR", "LLGO_WASI_LIBC_DIR", "LLGO_TARGET_GOOS", "LLGO_TARGET_GOARCH", "LLGO_TARGET_CPU", "LLGO_TARGET_LIBC", "LLGO_TARGET_SERIAL", "LLGO_TARGET_SERIAL_PORTS"}
+	args := []string{"-json", "-target", "board", "GOOS", "LLGO_ROOT", "LLGO_RUNTIME_DIR", "LLGO_EMBEDDED_CLANG_DIR", "LLGO_WASI_LIBC_DIR", "LLGO_TARGET_GOOS", "LLGO_TARGET_GOARCH", "LLGO_TARGET_CPU"}
 	if err := run(args, nil, &output, &output); err != nil {
 		t.Fatalf("env %q: %v, %s", args, err, &output)
 	}
@@ -136,17 +136,14 @@ func TestLLGoEnvironment(t *testing.T) {
 		t.Fatal(err)
 	}
 	for name, want := range map[string]string{
-		"GOOS":                     runtime.GOOS,
-		"LLGO_ROOT":                root,
-		"LLGO_RUNTIME_DIR":         filepath.Join(root, "runtime"),
-		"LLGO_EMBEDDED_CLANG_DIR":  filepath.Join(root, "crosscompile", "clang"),
-		"LLGO_WASI_LIBC_DIR":       "",
-		"LLGO_TARGET_GOOS":         "linux",
-		"LLGO_TARGET_GOARCH":       "arm",
-		"LLGO_TARGET_CPU":          "cortex-m0plus",
-		"LLGO_TARGET_LIBC":         "picolibc",
-		"LLGO_TARGET_SERIAL":       "usb",
-		"LLGO_TARGET_SERIAL_PORTS": "cafe:babe",
+		"GOOS":                    runtime.GOOS,
+		"LLGO_ROOT":               root,
+		"LLGO_RUNTIME_DIR":        filepath.Join(root, "runtime"),
+		"LLGO_EMBEDDED_CLANG_DIR": filepath.Join(root, "crosscompile", "clang"),
+		"LLGO_WASI_LIBC_DIR":      "",
+		"LLGO_TARGET_GOOS":        "wasip1",
+		"LLGO_TARGET_GOARCH":      "wasm",
+		"LLGO_TARGET_CPU":         "mvp",
 	} {
 		if got[name] != want {
 			t.Errorf("%s = %q, want %q", name, got[name], want)
@@ -192,7 +189,6 @@ func TestWasmTargetEnvironment(t *testing.T) {
 		{"wasi", "w32", "wasi", "wasip1", "wasm", "wasm32-unknown-wasip1"},
 		{"wasm", "j32", "emscripten", "js", "wasm", "wasm32-unknown-emscripten"},
 		{"wasip1", "w32", "wasi", "wasip1", "wasm", "wasm32-unknown-wasip1"},
-		{"cortex-m0", "", "", "linux", "arm", "thumbv6m-unknown-unknown-eabi"},
 	} {
 		t.Run(test.target, func(t *testing.T) {
 			var output bytes.Buffer
@@ -299,9 +295,6 @@ func TestExtendedFormattingAndHelpers(t *testing.T) {
 	}
 	if got := resolveTool("missing-llgo-tool", dir); got != "" {
 		t.Errorf("resolveTool(missing) = %q", got)
-	}
-	if got := librarySourceDir(dir, "lib-version"); got != filepath.Join(dir, "crosscompile", "lib-version") {
-		t.Errorf("librarySourceDir = %q", got)
 	}
 	if got := envAssignment("linux", "X", "a'b"); got != `X='a'\''b'` {
 		t.Errorf("Unix assignment = %q", got)

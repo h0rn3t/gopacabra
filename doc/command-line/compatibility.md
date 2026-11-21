@@ -81,7 +81,7 @@ plugin, PIE and other modes are rejected. `-buildenv` has been removed because i
 had no consumer. `clean` exposes
 only its implemented package tags, verbosity and directory selection; cleanup
 planning and cache controls are pending. Size reports belong to `build`, and
-LTO pass plugins belong to build-producing commands rather than `monitor`.
+LTO pass plugins belong to build-producing commands.
 
 `run` and `cmptest` select consecutive `.go` file operands before program
 arguments. The Go reference used by `cmptest` receives exactly those files.

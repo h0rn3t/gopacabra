@@ -1,4 +1,0 @@
-{
-    "inherits": ["pico2"],
-    "build-tags": ["pico2-w", "cyw43439"]
-}

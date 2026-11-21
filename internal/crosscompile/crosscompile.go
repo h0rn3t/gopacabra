@@ -10,9 +10,7 @@ import (
 	"slices"
 	"strings"
 
-	"github.com/xgo-dev/llgo/internal/crosscompile/compile"
 	"github.com/xgo-dev/llgo/internal/env"
-	"github.com/xgo-dev/llgo/internal/flash"
 	"github.com/xgo-dev/llgo/internal/lto"
 	"github.com/xgo-dev/llgo/internal/optlevel"
 	"github.com/xgo-dev/llgo/internal/targets"
@@ -46,7 +44,6 @@ type Export struct {
 	BuildTags      []string
 	GOOS           string
 	GOARCH         string
-	Libc           string
 	Linker         string // Linker to use (e.g., "ld.lld", "avr-ld")
 	LinkerArgs     []string
 	LinkerIdentity string
@@ -56,9 +53,7 @@ type Export struct {
 
 	LLVMTarget   string   // LLVM Target
 	TargetABI    string   // RISC-V Target ABI (e.g., "lp64", "lp64d")
-	BinaryFormat string   // Binary format (e.g., "elf", "uf2", "nrf-dfu")
-	FormatDetail string   // For uf2, it's uf2FamilyID
-	Emulator     string   // Emulator command template (e.g., "qemu-system-arm -M {} -kernel {}")
+	Emulator     string   // Emulator command template (e.g., "wasmer run {}")
 	GDB          []string // GDB command candidates in preference order
 	DebugInfo    DebugInfoPolicy
 	WasmPostLink WasmPostLink
@@ -66,9 +61,6 @@ type Export struct {
 	// WASIInitialMemory is a target default applied at final link only when
 	// explicit linker arguments do not already select an initial memory/heap.
 	WASIInitialMemory uint64
-
-	// Flashing/Debugging configuration
-	Device flash.Device // Device configuration for flashing/debugging
 }
 
 // WasmRuntime describes entry behavior implemented by the selected runtime.
@@ -297,25 +289,6 @@ func (p DebugInfoPolicy) CanRetain() bool {
 	return p.Capability == DebugInfoRetainable
 }
 
-// targetDebugInfoPolicy covers direct linker invocations from UseTarget. Normal
-// hosted Wasm/WASI builds route through useWithGOARMAndToolchain and the driver
-// policy; the wasm-ld case also supports direct target-policy callers.
-func targetDebugInfoPolicy(linker, llvmTarget string) DebugInfoPolicy {
-	switch linker {
-	case "ld.lld":
-		if !strings.HasPrefix(llvmTarget, "wasm") {
-			return DebugInfoPolicy{OmitLinkFlags: []string{"-S"}}
-		}
-	case "wasm-ld":
-		if strings.HasPrefix(llvmTarget, "wasm") {
-			return DebugInfoPolicy{OmitLinkFlags: []string{"-S"}}
-		}
-	}
-	// Unknown or mismatched linker/target pairs intentionally omit DWARF until
-	// retention has been validated for that direct-linker path.
-	return DebugInfoPolicy{Capability: DebugInfoUnavailable}
-}
-
 // URLs and configuration that can be overridden for testing
 var (
 	wasiSdkUrl      = "https://github.com/WebAssembly/wasi-sdk/releases/download/wasi-sdk-25/wasi-sdk-25.0-x86_64-macos.tar.gz"
@@ -353,21 +326,6 @@ func buildEnvMap(llgoRoot string) map[string]string {
 	// envs["zip"] = ""      // Path to zip file
 
 	return envs
-}
-
-// getCanonicalArchName returns the canonical architecture name for a target triple
-func getCanonicalArchName(triple string) string {
-	arch := strings.Split(triple, "-")[0]
-	if arch == "arm64" {
-		return "aarch64"
-	}
-	if strings.HasPrefix(arch, "arm") || strings.HasPrefix(arch, "thumb") {
-		return "arm"
-	}
-	if arch == "mipsel" {
-		return "mips"
-	}
-	return arch
 }
 
 // getESPClangRoot returns the ESP Clang root directory, checking LLGoROOT first,
@@ -434,36 +392,6 @@ func getESPClangPlatform(goos, goarch string) string {
 		}
 	}
 	return ""
-}
-
-// ldFlagsFromFileName extracts the library name from a filename for use in linker flags
-// For example, "libmath.a" becomes "math" for use with "-lmath"
-func ldFlagsFromFileName(fileName string) string {
-	return strings.TrimPrefix(strings.TrimSuffix(fileName, ".a"), "lib")
-}
-
-// compileWithConfig compiles libraries according to the provided configuration
-// and returns the necessary linker flags for linking against the compiled libraries
-func compileWithConfig(
-	compileConfig compile.CompileConfig,
-	outputDir string, options compile.CompileOptions,
-) (ldflags []string, err error) {
-	if err = os.MkdirAll(outputDir, 0o755); err != nil {
-		return nil, fmt.Errorf("create compiled library cache %q: %w", outputDir, err)
-	}
-	ldflags = append(ldflags, "-nostdlib", "-L"+outputDir)
-
-	for _, group := range compileConfig.Groups {
-		err = group.Compile(outputDir, options)
-		if err != nil {
-			break
-		}
-		if filepath.Ext(group.OutputFileName) == ".o" {
-			continue
-		}
-		ldflags = append(ldflags, "-l"+ldFlagsFromFileName(group.OutputFileName))
-	}
-	return
 }
 
 // ltoLinkerOptFlag maps LLGo's optimization level to lld's numeric LTO
@@ -861,279 +789,6 @@ func usesNativePlatformToolchain(hostGOOS, hostGOARCH, targetGOOS, targetGOARCH 
 	return hostGOOS == targetGOOS && hostGOARCH == targetGOARCH
 }
 
-// UseTarget loads configuration from a target name (e.g., "rp2040", "wasi")
-func UseTarget(targetName string, level optlevel.Level, ltoMode lto.Mode) (export Export, err error) {
-	return useTarget(targetName, level, ltoMode, compileWithConfig)
-}
-
-func useTarget(targetName string, level optlevel.Level, ltoMode lto.Mode,
-	buildLibrary func(compile.CompileConfig, string, compile.CompileOptions) ([]string, error),
-) (export Export, err error) {
-	resolver := targets.NewDefaultResolver()
-
-	config, err := resolver.Resolve(targetName)
-	if err != nil {
-		return export, fmt.Errorf("failed to resolve target %s: %w", targetName, err)
-	}
-
-	target := config.LLVMTarget
-	if target == "" {
-		return export, fmt.Errorf("target '%s' does not have a valid LLVM target triple", targetName)
-	}
-
-	cpu := config.CPU
-	if cpu == "" {
-		return export, fmt.Errorf("target '%s' does not have a valid CPU configuration", targetName)
-	}
-	wasmProfile := WasmProfile(config.WasmProfile)
-	wasmProvider := WasmProvider(config.WasmProvider)
-	if !validWasmSelection(wasmProfile, wasmProvider) {
-		return Export{}, fmt.Errorf("target %q has unsupported WebAssembly profile/provider %q/%q", targetName, config.WasmProfile, config.WasmProvider)
-	}
-
-	// The downloaded Espressif toolchain carries all backends used by LLGo's
-	// embedded profiles on every supported host.
-	clangRoot, clangErr := getESPClangRoot(true)
-	if clangErr != nil {
-		err = clangErr
-		return
-	}
-	export.ClangRoot = clangRoot
-	export.CC = filepath.Join(clangRoot, "bin", "clang++")
-
-	// Convert target config to Export - only export necessary fields
-	export.BuildTags = config.BuildTags
-	export.GOOS = config.GOOS
-	export.GOARCH = config.GOARCH
-	export.WasmProfile = wasmProfile
-	export.WasmProvider = wasmProvider
-	export.ExtraFiles = config.ExtraFiles
-	export.LLVMTarget = config.LLVMTarget
-	export.TargetABI = config.TargetABI
-	export.BinaryFormat = config.BinaryFormat
-	export.FormatDetail = config.FormatDetail()
-	export.GDB = append([]string(nil), config.GDB...)
-	export.DebugInfo = targetDebugInfoPolicy(config.Linker, config.LLVMTarget)
-
-	// Set flashing/debugging configuration
-	export.Device = flash.Device{
-		Serial:     config.Serial,
-		SerialPort: config.SerialPort,
-		Flash: flash.Flash{
-			Method:            config.FlashMethod,
-			Command:           config.FlashCommand,
-			Flash1200BpsReset: config.Flash1200BpsReset == "true",
-		},
-		MSD: flash.MSD{
-			VolumeName:   config.MSDVolumeName,
-			FirmwareName: config.MSDFirmwareName,
-		},
-		OpenOCD: flash.OpenOCD{
-			Interface: config.OpenOCDInterface,
-			Transport: config.OpenOCDTransport,
-			Target:    config.OpenOCDTarget,
-		},
-	}
-
-	// Build environment map for template variable expansion
-	envs := buildEnvMap(env.LLGoROOT())
-	// Keep the unnamed output placeholder for build/run to fill after linking,
-	// while resolving stable target paths at configuration time.
-	export.Emulator = env.ExpandEnvWithDefault(config.Emulator, envs, "{}")
-
-	// Convert LLVMTarget, CPU, Features to CCFLAGS/LDFLAGS
-	// ICF off for Go pc-identity semantics (see the non-cross flags above).
-	ldflags := []string{"--icf=none"}
-	ccflags := []string{level.Flag()}
-	cflags := []string{"-Wno-override-module", "-Qunused-arguments", "-Wno-unused-command-line-argument"}
-	clangTarget := config.LLVMTarget
-	if clangTarget != "" {
-		cflags = append(cflags, "--target="+clangTarget)
-		ccflags = append(ccflags, "--target="+clangTarget)
-	}
-	// Expand template variables in cflags
-	expandedCFlags := env.ExpandEnvSlice(config.CFlags, envs)
-	cflags = append(cflags, expandedCFlags...)
-
-	if config.Linker == "ld.lld" && ltoMode.Enabled() {
-		if optFlag := ltoLinkerOptFlag(level); optFlag != "" {
-			ldflags = append(ldflags, optFlag)
-		}
-		cflags = append(cflags, ltoMode.ClangFlag())
-		ccflags = append(ccflags, ltoMode.ClangFlag())
-	}
-
-	// The following parameters are inspired by tinygo/builder/library.go
-	// Handle CPU configuration
-	if cpu != "" {
-		// X86 has deprecated the -mcpu flag, so we need to use -march instead.
-		// However, ARM has not done this.
-		if strings.HasPrefix(target, "i386") || strings.HasPrefix(target, "x86_64") {
-			ccflags = append(ccflags, "-march="+cpu)
-		} else if strings.HasPrefix(target, "avr") {
-			ccflags = append(ccflags, "-mmcu="+cpu)
-		} else {
-			ccflags = append(ccflags, "-mcpu="+cpu)
-		}
-
-		// For ld.lld linker, also add CPU info to linker flags
-		if config.Linker == "ld.lld" {
-			ldflags = append(ldflags, "-mllvm", "-mcpu="+cpu)
-		}
-	}
-
-	// Handle architecture-specific flags
-	canonicalArch := getCanonicalArchName(target)
-	switch canonicalArch {
-	case "arm":
-		if strings.Split(target, "-")[2] == "linux" {
-			ccflags = append(ccflags, "-fno-unwind-tables", "-fno-asynchronous-unwind-tables")
-		} else {
-			ccflags = append(ccflags, "-fshort-enums", "-fomit-frame-pointer", "-mfloat-abi=soft", "-fno-unwind-tables", "-fno-asynchronous-unwind-tables")
-		}
-	case "avr":
-		// AVR defaults to C float and double both being 32-bit. This deviates
-		// from what most code (and certainly compiler-rt) expects. So we need
-		// to force the compiler to use 64-bit floating point numbers for
-		// double.
-		ccflags = append(ccflags, "-mdouble=64")
-	case "riscv32":
-		ccflags = append(ccflags, "-march=rv32imac")
-		ccflags = append(ccflags, "-fforce-enable-int128")
-	case "riscv64":
-		ccflags = append(ccflags, "-march=rv64gc")
-		// codegen option should be added to ldflags for lto
-		ldflags = append(ldflags, "-mllvm", "-march=rv64gc")
-	case "mips":
-		ccflags = append(ccflags, "-fno-pic")
-	}
-
-	// Handle soft float
-	if strings.Contains(config.Features, "soft-float") || strings.Contains(strings.Join(config.CFlags, " "), "soft-float") {
-		// Use softfloat instead of floating point instructions. This is
-		// supported on many architectures.
-		ccflags = append(ccflags, "-msoft-float")
-	} else {
-		if strings.HasPrefix(target, "armv5") {
-			// On ARMv5 we need to explicitly enable hardware floating point
-			// instructions: Clang appears to assume the hardware doesn't have a
-			// FPU otherwise.
-			ccflags = append(ccflags, "-mfpu=vfpv2")
-		}
-	}
-
-	// Handle Features
-	if config.Features != "" {
-		// Only add -mllvm flags for non-WebAssembly linkers
-		if config.Linker == "ld.lld" {
-			ldflags = append(ldflags, "-mllvm", "-mattr="+config.Features)
-		}
-	}
-
-	// Handle code generation configuration
-	if config.CodeModel != "" {
-		ccflags = append(ccflags, "-mcmodel="+config.CodeModel)
-		if ltoMode.Enabled() {
-			// codegen option should be added to ldflags for lto
-			ldflags = append(ldflags, "-mllvm", "-code-model="+config.CodeModel)
-		}
-	}
-	if config.TargetABI != "" {
-		ccflags = append(ccflags, "-mabi="+config.TargetABI)
-		if ltoMode.Enabled() {
-			// codegen option should be added to ldflags for lto
-			ldflags = append(ldflags, "-mllvm", "-target-abi="+config.TargetABI)
-		}
-	}
-	if config.RelocationModel != "" {
-		switch config.RelocationModel {
-		case "pic":
-			ccflags = append(ccflags, "-fPIC")
-		case "static":
-			ccflags = append(ccflags, "-fno-pic")
-		}
-	}
-
-	// Handle Linker - keep it for external usage
-	if config.Linker != "" {
-		export.Linker = config.Linker
-		if clangRoot != "" {
-			export.Linker = filepath.Join(clangRoot, "bin", config.Linker)
-		}
-	}
-	if config.LinkerScript != "" {
-		ldflags = append(ldflags, "-T", config.LinkerScript)
-	}
-	var libcIncludeDir []string
-	var compiledLibraryKey string
-	if config.Libc != "" || config.RTLib != "" {
-		var compilerKey string
-		compilerKey, err = compilerCacheKey(export.CC)
-		if err != nil {
-			return
-		}
-		compiledLibraryKey = compiledLibraryCacheKey(compilerKey, ccflags, ldflags)
-	}
-	ldflags = append(ldflags, "-L", env.LLGoROOT()) // search targets/*.ld
-
-	if config.Libc != "" {
-		var outputDir string
-		var libcLDFlags []string
-		var compileConfig compile.CompileConfig
-		baseDir := filepath.Join(cacheRoot(), "crosscompile")
-
-		outputDir, compileConfig, err = getLibcCompileConfigByName(baseDir, config.Libc, config.LLVMTarget, config.CPU, compiledLibraryKey)
-		if err != nil {
-			return
-		}
-		libcLDFlags, err = buildLibrary(compileConfig, outputDir, compile.CompileOptions{
-			CC:      export.CC,
-			Linker:  export.Linker,
-			CCFLAGS: ccflags,
-			LDFLAGS: ldflags,
-		})
-		if err != nil {
-			return
-		}
-		cflags = append(cflags, compileConfig.ExportCFlags...)
-		ldflags = append(ldflags, libcLDFlags...)
-
-		libcIncludeDir = compileConfig.ExportCFlags
-		export.Libc = config.Libc
-	}
-
-	if config.RTLib != "" {
-		var outputDir string
-		var rtLibLDFlags []string
-		var compileConfig compile.CompileConfig
-		baseDir := filepath.Join(cacheRoot(), "crosscompile")
-
-		outputDir, compileConfig, err = getRTCompileConfigByName(baseDir, config.RTLib, config.LLVMTarget, compiledLibraryKey)
-		if err != nil {
-			return
-		}
-		rtLibLDFlags, err = buildLibrary(compileConfig, outputDir, compile.CompileOptions{
-			CC:      export.CC,
-			Linker:  export.Linker,
-			CCFLAGS: ccflags,
-			LDFLAGS: ldflags,
-			CFLAGS:  libcIncludeDir,
-		})
-		if err != nil {
-			return
-		}
-		ldflags = append(ldflags, rtLibLDFlags...)
-	}
-
-	// Combine with config flags and expand template variables
-	export.CFLAGS = cflags
-	export.CCFLAGS = ccflags
-	expandedLDFlags := env.ExpandEnvSlice(config.LDFlags, envs)
-	export.LDFLAGS = append(ldflags, expandedLDFlags...)
-
-	return export, nil
-}
-
 // Use extends the original Use function to support target-based configuration
 // If targetName is provided, it takes precedence over goos/goarch
 func Use(goos, goarch, targetName string, forceEspClang bool, level optlevel.Level, ltoMode lto.Mode, goGlobalDCE bool) (export Export, err error) {
@@ -1167,9 +822,6 @@ func UseWithGOARMAndToolchain(goos, goarch, goarm, targetName string, forceEspCl
 	}
 	wasmProfile := WasmProfile(config.WasmProfile)
 	wasmProvider := WasmProvider(config.WasmProvider)
-	if wasmProfile == WasmProfileNone && wasmProvider == WasmProviderNone {
-		return UseTarget(targetName, level, ltoMode)
-	}
 	if !validWasmSelection(wasmProfile, wasmProvider) {
 		return export, fmt.Errorf("target %q has unsupported WebAssembly profile/provider %q/%q", targetName, config.WasmProfile, config.WasmProvider)
 	}

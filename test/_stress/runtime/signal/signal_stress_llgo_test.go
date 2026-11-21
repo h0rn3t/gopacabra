@@ -1,4 +1,4 @@
-//go:build llgo && !baremetal && !wasm && !windows && !plan9
+//go:build llgo && !wasm && !windows && !plan9
 
 package signalstress
 

@@ -625,19 +625,19 @@ func TestGenericLocalTypeColdAndHotPackageCache(t *testing.T) {
 func TestResolveOutputsUsesInvocationDirectory(t *testing.T) {
 	dir := t.TempDir()
 	out := &OutFmtDetails{
-		Out: "app",
-		Bin: filepath.Join("firmware", "app.bin"),
-		Hex: filepath.Join(dir, "app.hex"),
+		Out:   "app",
+		PCLN:  filepath.Join("sidecar", "app.pclntab"),
+		DWARF: filepath.Join(dir, "app.debug.wasm"),
 	}
 	resolveOutputs(dir, out)
 	if out.Out != filepath.Join(dir, "app") {
 		t.Fatalf("Out = %q", out.Out)
 	}
-	if out.Bin != filepath.Join(dir, "firmware", "app.bin") {
-		t.Fatalf("Bin = %q", out.Bin)
+	if out.PCLN != filepath.Join(dir, "sidecar", "app.pclntab") {
+		t.Fatalf("PCLN = %q", out.PCLN)
 	}
-	if out.Hex != filepath.Join(dir, "app.hex") {
-		t.Fatalf("absolute Hex changed to %q", out.Hex)
+	if out.DWARF != filepath.Join(dir, "app.debug.wasm") {
+		t.Fatalf("absolute DWARF changed to %q", out.DWARF)
 	}
 }
 
@@ -1174,52 +1174,6 @@ func TestWasmStandardRuntimeBackendSelection(t *testing.T) {
 		if !slices.Contains(pkg.GoFiles, want) {
 			t.Errorf("%s was not selected; GoFiles=%v", want, pkg.GoFiles)
 		}
-	}
-}
-
-func TestBaremetalRuntimeAvoidsLocalityDirectives(t *testing.T) {
-	for _, relative := range []string{
-		filepath.Join("internal", "runtime"),
-		filepath.Join("internal", "lib", "runtime"),
-	} {
-		t.Run(relative, func(t *testing.T) {
-			dir := filepath.Join(env.LLGoRuntimeDir(), relative)
-			ctx := gobuild.Default
-			ctx.BuildTags = []string{"llgo", "baremetal"}
-			pkg, err := ctx.ImportDir(dir, 0)
-			if err != nil {
-				t.Fatal(err)
-			}
-			for _, name := range append(pkg.GoFiles, pkg.CgoFiles...) {
-				content, err := os.ReadFile(filepath.Join(dir, name))
-				if err != nil {
-					t.Fatal(err)
-				}
-				if bytes.Contains(content, []byte("//llgointernal:tls")) || bytes.Contains(content, []byte("//llgointernal:gls")) {
-					t.Fatalf("bare-metal runtime selected locality directive in %s", name)
-				}
-			}
-		})
-	}
-}
-
-func TestBaremetalRuntimeKeepsSchedulerFreeLifecycleStubs(t *testing.T) {
-	runtimeDir := filepath.Join(env.LLGoRuntimeDir(), "internal", "runtime")
-	ctx := gobuild.Default
-	ctx.GOOS = "linux"
-	ctx.GOARCH = "arm"
-	ctx.BuildTags = []string{"llgo", "baremetal", "gopacabra", "nogc"}
-	pkg, err := ctx.ImportDir(runtimeDir, 0)
-	if err != nil {
-		t.Fatal(err)
-	}
-	// Після P11.5.0.2 no-op AddCleanupPtr для baremetal дає z_nogc.go, а не
-	// cleanup_baremetal.go; нативний алокатор gopacabra потребує pthread.
-	if !slices.Contains(pkg.GoFiles, "z_nogc.go") {
-		t.Fatalf("bare-metal runtime did not select lifecycle stubs; GoFiles=%v", pkg.GoFiles)
-	}
-	if slices.Contains(pkg.GoFiles, "alloc_gopacabra.go") {
-		t.Fatalf("bare-metal runtime selected the pthread allocator; GoFiles=%v", pkg.GoFiles)
 	}
 }
 
@@ -1845,46 +1799,10 @@ func TestTestOutputFileLogic(t *testing.T) {
 	}
 }
 
-func TestNamedTargetCompileOnlyUsesEmulatorPath(t *testing.T) {
-	tests := []struct {
-		name string
-		conf *Config
-		want bool
-	}{
-		{
-			name: "normal target run uses device path",
-			conf: &Config{Mode: ModeRun},
-		},
-		{
-			name: "test run without -c uses device path",
-			conf: &Config{Mode: ModeTest},
-		},
-		{
-			name: "explicit emulator uses emulator path",
-			conf: &Config{Mode: ModeRun, Emulator: true},
-			want: true,
-		},
-		{
-			name: "compile only test uses non executing emulator path",
-			conf: &Config{Mode: ModeTest, CompileOnly: true},
-			want: true,
-		},
-		{
-			name: "compile only is ignored outside test mode",
-			conf: &Config{Mode: ModeBuild, CompileOnly: true},
-		},
-	}
-	for _, test := range tests {
-		if got := namedTargetUsesEmulatorPath(test.conf); got != test.want {
-			t.Errorf("%s: namedTargetUsesEmulatorPath() = %v, want %v", test.name, got, test.want)
-		}
-	}
-}
-
 func TestExecuteInitialPackageLinkCompileOnlyNamedTargetDoesNotExecute(t *testing.T) {
 	// Exercise the production dispatch after a successful link. A named target
-	// without -emulator normally enters the flash/serial-monitor path; -c must
-	// instead stop with the linked artifact in place.
+	// normally runs in its emulator; -c must instead stop with the linked
+	// artifact in place.
 	t.Setenv("LLGO_TEST_LINKER_HELPER", "write")
 	output := filepath.Join(t.TempDir(), "wasm-test.mjs")
 	conf := &Config{
@@ -1929,7 +1847,7 @@ func TestExecuteInitialPackageLinkCompileOnlyNamedTargetDoesNotExecute(t *testin
 	// Executed emulator tests must join the same output-aware test batch as
 	// native programs. The linker helper writes an opaque artifact, so any
 	// attempt to launch it here would fail this assertion.
-	conf.CompileOnly, conf.Emulator = false, true
+	conf.CompileOnly = false
 	ctx.crossCompile.Emulator = "host-runner {}"
 	link.plan = &mainLinkPlan{outputPath: output}
 	program, err = executeInitialPackageLink(ctx, link, false, false)

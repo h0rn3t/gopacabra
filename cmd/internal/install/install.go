@@ -43,7 +43,7 @@ func init() {
 	flags.AddCommonFlags(&Cmd.Flag)
 	flags.AddCompilerVerboseFlag(&Cmd.Flag)
 	flags.AddBuildFlags(&Cmd.Flag)
-	flags.AddEmbeddedFlags(&Cmd.Flag)
+	flags.AddTargetFlag(&Cmd.Flag)
 	flags.FinalizeNativeFlags("install", &Cmd.Flag)
 }
 

@@ -63,7 +63,7 @@ func TestLoaderLoadRaw(t *testing.T) {
 		"build-tags": ["test", "embedded"],
 		"cflags": ["-Os", "-g"],
 		"ldflags": ["--gc-sections"],
-		"binary-format": "uf2"
+		"linker": "wasm-ld"
 	}`
 
 	configPath := filepath.Join(tempDir, "test-target.json")
@@ -89,8 +89,8 @@ func TestLoaderLoadRaw(t *testing.T) {
 	if len(config.BuildTags) != 2 || config.BuildTags[0] != "test" || config.BuildTags[1] != "embedded" {
 		t.Errorf("Expected build-tags [test, embedded], got %v", config.BuildTags)
 	}
-	if config.BinaryFormat != "uf2" {
-		t.Errorf("Expected binary-format 'uf2', got '%s'", config.BinaryFormat)
+	if config.Linker != "wasm-ld" {
+		t.Errorf("Expected linker 'wasm-ld', got '%s'", config.Linker)
 	}
 }
 
@@ -105,7 +105,7 @@ func TestLoaderInheritance(t *testing.T) {
 		"goarch": "arm",
 		"cflags": ["-Os"],
 		"ldflags": ["--gc-sections"],
-		"binary-format": "elf"
+		"linker": "ld.lld"
 	}`
 
 	// Create child config that inherits from parent
@@ -115,7 +115,7 @@ func TestLoaderInheritance(t *testing.T) {
 		"build-tags": ["child"],
 		"cflags": ["-O2"],
 		"ldflags": ["-g"],
-		"binary-format": "uf2"
+		"linker": "wasm-ld"
 	}`
 
 	parentPath := filepath.Join(tempDir, "parent.json")
@@ -150,9 +150,9 @@ func TestLoaderInheritance(t *testing.T) {
 		t.Errorf("Expected overridden cpu 'cortex-m4', got '%s'", config.CPU)
 	}
 
-	// Check binary-format override
-	if config.BinaryFormat != "uf2" {
-		t.Errorf("Expected overridden binary-format 'uf2', got '%s'", config.BinaryFormat)
+	// Check linker override
+	if config.Linker != "wasm-ld" {
+		t.Errorf("Expected overridden linker 'wasm-ld', got '%s'", config.Linker)
 	}
 
 	// Check merged arrays
@@ -275,7 +275,7 @@ func TestResolverWithRealTargets(t *testing.T) {
 	t.Logf("Found %d targets in %s", len(targets), targetsDir)
 
 	// Test resolving some known targets
-	knownTargets := []string{"wasi", "cortex-m", "rp2040"}
+	knownTargets := []string{"wasi", "wasip1", "emscripten"}
 	for _, targetName := range knownTargets {
 		if resolver.HasTarget(targetName) {
 			config, err := resolver.Resolve(targetName)

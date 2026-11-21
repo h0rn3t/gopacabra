@@ -10,7 +10,6 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/xgo-dev/llgo/internal/crosscompile/compile"
 	"github.com/xgo-dev/llgo/internal/env"
 	"github.com/xgo-dev/llgo/internal/lto"
 	"github.com/xgo-dev/llgo/internal/optlevel"
@@ -103,16 +102,6 @@ func TestESPClangRejectsMissingChecksum(t *testing.T) {
 	}
 	if root != "" || err == nil || err.Error() != "missing ESP Clang checksum for "+platform {
 		t.Fatalf("getESPClangRoot() = %q, %v; want missing checksum error", root, err)
-	}
-}
-
-func TestCompileWithConfigRejectsFileAsOutputDir(t *testing.T) {
-	output := filepath.Join(t.TempDir(), "output")
-	if err := os.WriteFile(output, nil, 0o644); err != nil {
-		t.Fatal(err)
-	}
-	if _, err := compileWithConfig(compile.CompileConfig{}, output, compile.CompileOptions{}); err == nil || !strings.Contains(err.Error(), "create compiled library cache") {
-		t.Fatalf("compileWithConfig error = %v", err)
 	}
 }
 
@@ -397,173 +386,6 @@ func TestEnableWasmReflectLibffi(t *testing.T) {
 	}
 	if err := EnableWasmReflectLibffi(&Export{}); err == nil {
 		t.Fatal("libffi reflection accepted a target without Asyncify")
-	}
-}
-
-// Configuration assertions do not need freshly compiled picolibc and
-// compiler-rt archives for every optimization/LTO combination. Keep real target
-// resolution and library plans; real compilation stays in TestUseTargetESPClang,
-// the compile package tests, and the ABI and embedded integration suites.
-func targetConfiguration(t *testing.T, name string, level optlevel.Level, mode lto.Mode) (Export, error) {
-	t.Helper()
-	skipDownload := needSkipDownload
-	needSkipDownload = true
-	defer func() { needSkipDownload = skipDownload }()
-	return useTarget(name, level, mode, func(cfg compile.CompileConfig, _ string, options compile.CompileOptions) ([]string, error) {
-		if len(cfg.Groups) == 0 || options.CC == "" {
-			t.Fatal("missing target library build plan")
-		}
-		return nil, nil
-	})
-}
-
-func TestUseTarget(t *testing.T) {
-	// Test cases for target-based configuration
-	testCases := []struct {
-		name        string
-		targetName  string
-		expectError bool
-		expectLLVM  string
-		expectCPU   string
-		expectMarch string
-		expectGDB   []string
-	}{
-		// FIXME(MeteorsLiu): wasi in useTarget
-		// {
-		// 	name:        "WASI Target",
-		// 	targetName:  "wasi",
-		// 	expectError: false,
-		// 	expectLLVM:  "",
-		// 	expectCPU:   "generic",
-		// },
-		{
-			name:        "RP2040 Target",
-			targetName:  "rp2040",
-			expectError: false,
-			expectLLVM:  "thumbv6m-unknown-unknown-eabi",
-			expectCPU:   "cortex-m0plus",
-			expectGDB:   []string{"gdb-multiarch", "arm-none-eabi-gdb", "gdb"},
-		},
-		{
-			name:        "Cortex-M Target",
-			targetName:  "cortex-m",
-			expectError: true,
-			expectLLVM:  "",
-			expectCPU:   "",
-		},
-		{
-			name:        "Arduino Target (with filtered flags)",
-			targetName:  "arduino",
-			expectError: false,
-			expectLLVM:  "avr",
-			expectCPU:   "atmega328p",
-		},
-		{
-			name:        "RISC-V32 Target (generic)",
-			targetName:  "riscv32",
-			expectError: false,
-			expectLLVM:  "riscv32-unknown-none",
-			expectCPU:   "generic-rv32",
-			expectMarch: "-march=rv32imac", // Generic RISC-V32 uses rv32imac (with A extension)
-		},
-		{
-			name:        "Nonexistent Target",
-			targetName:  "nonexistent-target",
-			expectError: true,
-		},
-	}
-
-	for _, tc := range testCases {
-		t.Run(tc.name, func(t *testing.T) {
-			export, err := targetConfiguration(t, tc.targetName, optlevel.Oz, lto.Thin)
-
-			if tc.expectError {
-				if err == nil {
-					t.Errorf("Expected error for target %s, but got none", tc.targetName)
-				}
-				return
-			}
-
-			if err != nil {
-				t.Fatalf("Unexpected error for target %s: %v", tc.targetName, err)
-			}
-			if !export.DebugInfo.CanRetain() {
-				t.Fatalf("target %s debug-info policy = %+v, want retainable ELF DWARF", tc.targetName, export.DebugInfo)
-			}
-			if slices.Contains(export.LDFLAGS, "-S") {
-				t.Fatalf("target %s unconditionally strips DWARF: %v", tc.targetName, export.LDFLAGS)
-			}
-			if !slices.Equal(export.DebugInfo.OmitLinkFlags, []string{"-S"}) {
-				t.Fatalf("target %s debug omission flags = %v, want [-S]", tc.targetName, export.DebugInfo.OmitLinkFlags)
-			}
-			if len(export.DebugInfo.PreserveDriverFlags) != 0 {
-				t.Fatalf("direct linker received compiler-driver flags: %v", export.DebugInfo.PreserveDriverFlags)
-			}
-			if tc.expectGDB != nil && !slices.Equal(export.GDB, tc.expectGDB) {
-				t.Fatalf("target %s GDB candidates = %v, want %v", tc.targetName, export.GDB, tc.expectGDB)
-			}
-
-			// Check if LLVM target is in CCFLAGS
-			if tc.expectLLVM != "" {
-				found := false
-				expectedFlag := "--target=" + tc.expectLLVM
-				for _, flag := range export.CCFLAGS {
-					if flag == expectedFlag {
-						found = true
-						break
-					}
-				}
-				if !found {
-					t.Errorf("Expected LLVM target %s in CCFLAGS, got %v", expectedFlag, export.CCFLAGS)
-				}
-			}
-
-			// Check if CPU is in LDFLAGS (for ld.lld linker) or CCFLAGS (for other cases)
-			if tc.expectCPU != "" {
-				found := false
-				// First check LDFLAGS for -mllvm -mcpu= pattern
-				for i, flag := range export.LDFLAGS {
-					if flag == "-mllvm" && i+1 < len(export.LDFLAGS) {
-						nextFlag := export.LDFLAGS[i+1]
-						if nextFlag == "-mcpu="+tc.expectCPU {
-							found = true
-							break
-						}
-					}
-				}
-				// If not found in LDFLAGS, check CCFLAGS for direct CPU flags
-				if !found {
-					expectedFlags := []string{"-mmcu=" + tc.expectCPU, "-mcpu=" + tc.expectCPU}
-					for _, flag := range export.CCFLAGS {
-						for _, expectedFlag := range expectedFlags {
-							if flag == expectedFlag {
-								found = true
-								break
-							}
-						}
-					}
-				}
-				if !found {
-					t.Errorf("Expected CPU %s in LDFLAGS or CCFLAGS, got LDFLAGS=%v, CCFLAGS=%v", tc.expectCPU, export.LDFLAGS, export.CCFLAGS)
-				}
-			}
-
-			// Check if -march flag is correct
-			if tc.expectMarch != "" {
-				found := false
-				for _, flag := range export.CCFLAGS {
-					if flag == tc.expectMarch {
-						found = true
-						break
-					}
-				}
-				if !found {
-					t.Errorf("Expected %s in CCFLAGS, got %v", tc.expectMarch, export.CCFLAGS)
-				}
-			}
-			t.Logf("Target %s: BuildTags=%v, CFlags=%v, CCFlags=%v, LDFlags=%v",
-				tc.targetName, export.BuildTags, export.CFLAGS, export.CCFLAGS, export.LDFLAGS)
-		})
 	}
 }
 
@@ -958,7 +780,7 @@ func TestWasmProfileValidationErrors(t *testing.T) {
 			"wasm-profile":"invalid",
 			"wasm-provider":"gojs"
 		}`)
-		_, err := UseTarget("invalid-wasm", optlevel.O2, lto.Off)
+		_, err := Use("", "", "invalid-wasm", false, optlevel.O2, lto.Off, false)
 		if err == nil || !strings.Contains(err.Error(), "unsupported WebAssembly profile/provider") {
 			t.Fatalf("invalid target profile error = %v", err)
 		}
@@ -1015,83 +837,14 @@ func TestWasmProfileValidationErrors(t *testing.T) {
 	})
 }
 
-func TestUseTargetESPClang(t *testing.T) {
-	// Use the real toolchain: UseTarget queries its version for the library
-	// cache key and builds the target libraries before returning.
-	embeddedRoot, err := getESPClangRoot(true)
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	export, err := UseTarget("rp2040", optlevel.Oz, lto.Thin)
-	if err != nil {
-		t.Fatal(err)
-	}
-	wantCC := filepath.Join(embeddedRoot, "bin", "clang++")
-	if export.CC != wantCC || export.ClangRoot != embeddedRoot {
-		t.Fatalf("RP2040 compiler = %q under %q, want %q under %q",
-			export.CC, export.ClangRoot, wantCC, embeddedRoot)
-	}
-	wantLinker := filepath.Join(embeddedRoot, "bin", "ld.lld")
-	if export.Linker != wantLinker {
-		t.Fatalf("RP2040 linker = %q, want %q", export.Linker, wantLinker)
-	}
-}
-
-func TestUseTargetESPClangDownloadError(t *testing.T) {
-	server := httptest.NewServer(http.NotFoundHandler())
-	t.Cleanup(server.Close)
-
-	llgoRoot := t.TempDir()
-	runtimeDir := filepath.Join(llgoRoot, "runtime")
-	if err := os.MkdirAll(runtimeDir, 0o755); err != nil {
-		t.Fatal(err)
-	}
-	if err := os.WriteFile(
-		filepath.Join(runtimeDir, "go.mod"),
-		[]byte("module github.com/xgo-dev/llgo/runtime\n"), 0o644,
-	); err != nil {
-		t.Fatal(err)
-	}
-	targetsDir := filepath.Join(llgoRoot, "targets")
-	if err := os.MkdirAll(targetsDir, 0o755); err != nil {
-		t.Fatal(err)
-	}
-	if err := os.WriteFile(
-		filepath.Join(targetsDir, "embedded-test.json"),
-		[]byte(`{"llvm-target":"riscv32-unknown-none","cpu":"generic-rv32"}`), 0o644,
-	); err != nil {
-		t.Fatal(err)
-	}
-	t.Setenv("LLGO_ROOT", llgoRoot)
-
-	originalCacheRoot := cacheRoot
-	originalBaseURL := espClangBaseUrl
-	cacheDir := t.TempDir()
-	cacheRoot = func() string { return cacheDir }
-	espClangBaseUrl = server.URL
-	t.Cleanup(func() {
-		cacheRoot = originalCacheRoot
-		espClangBaseUrl = originalBaseURL
-	})
-
-	_, err := UseTarget("embedded-test", optlevel.Oz, lto.Thin)
-	if err == nil || !strings.Contains(err.Error(), "404 Not Found") {
-		t.Fatalf("UseTarget(embedded-test) error = %v, want download 404", err)
-	}
-}
-
 func TestUseWithTarget(t *testing.T) {
 	// Test target-based configuration takes precedence
-	export, err := Use("linux", "amd64", "rp2040", true, optlevel.Oz, lto.Thin, false)
+	export, err := Use("linux", "amd64", "wasi", true, optlevel.Oz, lto.Thin, false)
 	if err != nil {
 		t.Fatalf("Unexpected error: %v", err)
 	}
-
-	// Check if LLVM target is in CCFLAGS
-	found := slices.Contains(export.CCFLAGS, "-mcpu=cortex-m0plus")
-	if !found {
-		t.Errorf("Expected -mcpu=cortex-m0plus in CCFLAGS, got %v", export.CCFLAGS)
+	if !hasFlagValue(export.CCFLAGS, "-target", "wasm32-wasip1-threads") {
+		t.Errorf("Use(linux, amd64, wasi) CCFLAGS = %v, want -target wasm32-wasip1-threads", export.CCFLAGS)
 	}
 
 	// Test fallback to goos/goarch when no target specified
@@ -1153,34 +906,10 @@ func TestNativeDebugInfoPolicy(t *testing.T) {
 	}
 }
 
-func TestTargetDebugInfoPolicy(t *testing.T) {
-	tests := []struct {
-		name      string
-		linker    string
-		target    string
-		canRetain bool
-		omitFlags []string
-	}{
-		{name: "ELF lld", linker: "ld.lld", target: "thumbv7em-none-unknown-eabi", canRetain: true, omitFlags: []string{"-S"}},
-		{name: "Wasm lld", linker: "wasm-ld", target: "wasm32-unknown-unknown", canRetain: true, omitFlags: []string{"-S"}},
-		{name: "mismatched ELF linker", linker: "ld.lld", target: "wasm32-unknown-unknown"},
-		{name: "mismatched Wasm linker", linker: "wasm-ld", target: "thumbv7em-none-unknown-eabi"},
-		{name: "unknown linker", linker: "custom-ld", target: "thumbv7em-none-unknown-eabi"},
-	}
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			got := targetDebugInfoPolicy(tt.linker, tt.target)
-			if got.CanRetain() != tt.canRetain || !slices.Equal(got.OmitLinkFlags, tt.omitFlags) {
-				t.Fatalf("targetDebugInfoPolicy(%q, %q) = %+v, want retain=%v flags=%v", tt.linker, tt.target, got, tt.canRetain, tt.omitFlags)
-			}
-		})
-	}
-}
-
 func TestOptimizationFlagPlacement(t *testing.T) {
-	export, err := targetConfiguration(t, "rp2040", optlevel.Oz, lto.Off)
+	export, err := Use("", "", "wasi", false, optlevel.Oz, lto.Off, false)
 	if err != nil {
-		t.Fatalf("UseTargetWithOptLevel(rp2040) failed: %v", err)
+		t.Fatalf("Use(wasi, Oz) failed: %v", err)
 	}
 	if len(export.CCFLAGS) == 0 || export.CCFLAGS[0] != "-Oz" {
 		t.Fatalf("target CCFLAGS = %v, want first flag -Oz", export.CCFLAGS)
@@ -1342,55 +1071,6 @@ func hasFlagValue(flags []string, flag, value string) bool {
 		}
 	}
 	return false
-}
-
-func TestUseTargetCodegenFlagsOnlyAddedToLDFlagsWithLTO(t *testing.T) {
-	const target = "k210"
-
-	noLTO, err := targetConfiguration(t, target, optlevel.Oz, lto.Off)
-	if err != nil {
-		t.Fatalf("UseTarget(%q, off) error: %v", target, err)
-	}
-	if hasMllvmOption(noLTO.LDFLAGS, "-code-model=medium") {
-		t.Fatalf("unexpected -mllvm -code-model=medium in LDFLAGS when LTO disabled: %v", noLTO.LDFLAGS)
-	}
-	if hasMllvmOption(noLTO.LDFLAGS, "-target-abi=lp64") {
-		t.Fatalf("unexpected -mllvm -target-abi=lp64 in LDFLAGS when LTO disabled: %v", noLTO.LDFLAGS)
-	}
-	if !slices.Contains(noLTO.CCFLAGS, "-mcmodel=medium") {
-		t.Fatalf("missing -mcmodel=medium in CCFLAGS: %v", noLTO.CCFLAGS)
-	}
-	if !slices.Contains(noLTO.CCFLAGS, "-mabi=lp64") {
-		t.Fatalf("missing -mabi=lp64 in CCFLAGS: %v", noLTO.CCFLAGS)
-	}
-
-	withLTO, err := targetConfiguration(t, target, optlevel.Oz, lto.Thin)
-	if err != nil {
-		t.Fatalf("UseTarget(%q, thin) error: %v", target, err)
-	}
-	if !slices.Contains(withLTO.CCFLAGS, "-flto=thin") {
-		t.Fatalf("missing thin LTO ccflag: %v", withLTO.CCFLAGS)
-	}
-	if !slices.Contains(withLTO.LDFLAGS, "--lto-O2") {
-		t.Fatalf("missing numeric thin LTO linker opt flag for Oz: %v", withLTO.LDFLAGS)
-	}
-	if slices.Contains(withLTO.LDFLAGS, "--lto-Oz") {
-		t.Fatalf("invalid size-valued thin LTO linker opt flag: %v", withLTO.LDFLAGS)
-	}
-	if !hasMllvmOption(withLTO.LDFLAGS, "-code-model=medium") {
-		t.Fatalf("missing -mllvm -code-model=medium in LDFLAGS when LTO enabled: %v", withLTO.LDFLAGS)
-	}
-	if !hasMllvmOption(withLTO.LDFLAGS, "-target-abi=lp64") {
-		t.Fatalf("missing -mllvm -target-abi=lp64 in LDFLAGS when LTO enabled: %v", withLTO.LDFLAGS)
-	}
-
-	fullLTO, err := targetConfiguration(t, target, optlevel.Oz, lto.Full)
-	if err != nil {
-		t.Fatalf("UseTarget(%q, full) error: %v", target, err)
-	}
-	if !slices.Contains(fullLTO.CCFLAGS, "-flto=full") {
-		t.Fatalf("missing full LTO ccflag: %v", fullLTO.CCFLAGS)
-	}
 }
 
 func TestEmscriptenLTOFlags(t *testing.T) {

@@ -42,9 +42,9 @@ not devirtualize a plain entry into the hidden-env call edge. The barrier emits
 no machine instruction.
 
 The backend selects this ABI from the resolved LLVM target triple, not from
-`GOARCH`. `GOOS/GOARCH` select Go source files and type sizes, but named embedded
-targets such as AVR and some RISC-V targets may intentionally reuse a
-compatible Go architecture while emitting a different physical architecture.
+`GOARCH`. `GOOS/GOARCH` select Go source files and type sizes, but a named
+target profile may intentionally reuse a compatible Go architecture while
+emitting a different physical architecture.
 The triple is what LLVM uses to assign `nest`/`swiftself` registers.
 
 ## Physical entry ABI

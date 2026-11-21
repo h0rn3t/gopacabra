@@ -62,7 +62,7 @@ func init() {
 	flags.AddCompilerVerboseFlag(&Cmd.Flag)
 	flags.AddBuildFlags(&Cmd.Flag)
 	flags.AddEmulatorFlags(&Cmd.Flag)
-	flags.AddEmbeddedFlags(&Cmd.Flag) // for -target support
+	flags.AddTargetFlag(&Cmd.Flag)
 	Cmd.Flag.DurationVar(&runTimeout, "timeout", 0, "Timeout for the executed program (0 disables)")
 	runExec = flags.AddExecFlag(&Cmd.Flag)
 
@@ -70,7 +70,7 @@ func init() {
 	flags.AddCommonFlags(&CmpTestCmd.Flag)
 	flags.AddBuildFlags(&CmpTestCmd.Flag)
 	flags.AddEmulatorFlags(&CmpTestCmd.Flag)
-	flags.AddEmbeddedFlags(&CmpTestCmd.Flag) // for -target support
+	flags.AddTargetFlag(&CmpTestCmd.Flag)
 	flags.AddCmpTestFlags(&CmpTestCmd.Flag)
 	flags.FinalizeNativeFlags("run", &Cmd.Flag)
 	flags.FinalizeNativeFlags("run", &CmpTestCmd.Flag)

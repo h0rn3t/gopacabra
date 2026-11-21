@@ -1,5 +1,3 @@
-//go:build !baremetal
-
 package main
 
 func checkGoCall() {

@@ -55,7 +55,7 @@ Usage in llgo project
 ======================
 
 These target configuration files have been adapted for use in the llgo project
-to provide cross-compilation support for embedded platforms. The files maintain
+to provide cross-compilation support for WebAssembly platforms. The files maintain
 their original structure and content while being integrated into llgo's build
 system.
 

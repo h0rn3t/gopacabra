@@ -17,7 +17,6 @@
 package build
 
 import (
-	"bytes"
 	"debug/elf"
 	"os"
 	"os/exec"
@@ -28,9 +27,6 @@ import (
 	"testing"
 
 	"github.com/xgo-dev/llgo/internal/crosscompile"
-	"github.com/xgo-dev/llgo/internal/firmware"
-	"github.com/xgo-dev/llgo/internal/lto"
-	"github.com/xgo-dev/llgo/internal/optlevel"
 	"github.com/xgo-dev/llgo/xtool/env/llvm"
 )
 
@@ -208,74 +204,6 @@ func TestDwarfLinkerArgsSuppressNativeInputDWARF(t *testing.T) {
 	}
 	if out, err := exec.Command(bin).CombinedOutput(); err != nil {
 		t.Fatalf("run linked fixture: %v\n%s", err, out)
-	}
-}
-
-func TestTargetDWARFDoesNotChangeLoadableELF(t *testing.T) {
-
-	target, err := crosscompile.UseTarget("cortex-m-qemu", optlevel.O0, lto.Off)
-	if err != nil {
-		t.Fatal(err)
-	}
-	dir := filepath.Join(t.TempDir(), "Cortex-M fixture")
-	if err := os.Mkdir(dir, 0o755); err != nil {
-		t.Fatal(err)
-	}
-	source := filepath.Join(dir, "main.c")
-	object := filepath.Join(dir, "main.o")
-	debugELF := filepath.Join(dir, "debug.elf")
-	strippedELF := filepath.Join(dir, "stripped.elf")
-	debugBin := filepath.Join(dir, "debug.bin")
-	strippedBin := filepath.Join(dir, "stripped.bin")
-	if err := os.WriteFile(source, []byte("volatile int value = 41; void Reset_Handler(void) { value++; for (;;) {} }\n"), 0o644); err != nil {
-		t.Fatal(err)
-	}
-	compileArgs := append([]string{}, target.CCFLAGS...)
-	compileArgs = append(compileArgs, target.CFLAGS...)
-	compileArgs = append(compileArgs, "-x", "c", "-g", "-ffreestanding", "-c", "-o", object, source)
-	if out, err := exec.Command(target.CC, compileArgs...).CombinedOutput(); err != nil {
-		t.Fatalf("compile Cortex-M DWARF fixture: %v\n%s", err, out)
-	}
-	repoRoot, err := filepath.Abs(filepath.Join("..", ".."))
-	if err != nil {
-		t.Fatal(err)
-	}
-	link := func(path string, opts LinkOptions) {
-		t.Helper()
-		conf := &Config{Target: "cortex-m-qemu", BuildMode: BuildModeExe, LinkOptions: opts}
-		args := append([]string{}, target.LDFLAGS...)
-		args = append(args, debugInfoLinkerArgs(conf, &target)...)
-		args = append(args, "-o", path, object)
-		cmd := exec.Command(target.Linker, args...)
-		cmd.Dir = repoRoot
-		if out, err := cmd.CombinedOutput(); err != nil {
-			t.Fatalf("link Cortex-M fixture: %v\n%s", err, out)
-		}
-	}
-	link(debugELF, LinkOptions{DWARF: DWARFPreserve})
-	link(strippedELF, LinkOptions{DWARF: DWARFOmit})
-	if !elfHasDebugInfo(t, debugELF) {
-		t.Fatal("preserved Cortex-M ELF has no debug information")
-	}
-	if elfHasDebugInfo(t, strippedELF) {
-		t.Fatal("omitted Cortex-M ELF still has debug information")
-	}
-	if err := firmware.ConvertFormats("", "", map[string]string{"out": debugELF, "bin": debugBin}); err != nil {
-		t.Fatal(err)
-	}
-	if err := firmware.ConvertFormats("", "", map[string]string{"out": strippedELF, "bin": strippedBin}); err != nil {
-		t.Fatal(err)
-	}
-	debugImage, err := os.ReadFile(debugBin)
-	if err != nil {
-		t.Fatal(err)
-	}
-	strippedImage, err := os.ReadFile(strippedBin)
-	if err != nil {
-		t.Fatal(err)
-	}
-	if len(debugImage) == 0 || !bytes.Equal(debugImage, strippedImage) {
-		t.Fatal("DWARF changed Cortex-M flashed bytes")
 	}
 }
 

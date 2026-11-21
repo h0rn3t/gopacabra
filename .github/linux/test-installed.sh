@@ -13,7 +13,7 @@ test "$root" = /usr/lib/llgo
 test "$(readlink /usr/bin/llgo)" = /usr/lib/llgo/bin/llgo
 [[ "$(llgo env LLGO_LLVM_VERSION)" == 23.* ]]
 test -f "$root/runtime/go.mod"
-test -f "$root/targets/riscv-qemu.json"
+test -f "$root/targets/wasi.json"
 test -x "$root/crosscompile/clang/bin/clang"
 test -f "$root/crosscompile/clang/LICENSE-LLVM.txt"
 llgo version

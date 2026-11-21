@@ -25,7 +25,6 @@ import (
 	"github.com/xgo-dev/llgo/cmd/internal/clean"
 	"github.com/xgo-dev/llgo/cmd/internal/compat"
 	"github.com/xgo-dev/llgo/cmd/internal/install"
-	"github.com/xgo-dev/llgo/cmd/internal/monitor"
 	"github.com/xgo-dev/llgo/cmd/internal/run"
 	testcmd "github.com/xgo-dev/llgo/cmd/internal/test"
 )
@@ -78,7 +77,7 @@ func TestManifestNamesOwnersAndRegistration(t *testing.T) {
 			}
 		}
 	}
-	for _, cmd := range []*base.Command{buildcmd.Cmd, install.Cmd, clean.Cmd, run.Cmd, run.CmpTestCmd, testcmd.Cmd, monitor.Cmd} {
+	for _, cmd := range []*base.Command{buildcmd.Cmd, install.Cmd, clean.Cmd, run.Cmd, run.CmpTestCmd, testcmd.Cmd} {
 		name := cmd.Name()
 		goName := name
 		if name == "cmptest" {
@@ -99,9 +98,6 @@ func TestManifestNamesOwnersAndRegistration(t *testing.T) {
 				t.Errorf("%s -%s has no manifest entry", name, f.Name)
 			}
 		})
-		if name == "monitor" {
-			continue
-		}
 		for _, f := range surface.Commands[goName] {
 			record := compat.Flag(name, f)
 			if record.Status != "rejected" && f != "args" && cmd.Flag.Lookup(f) == nil {

@@ -228,7 +228,7 @@ func TestInvalidDefaultsAndDirectory(t *testing.T) {
 
 func TestDefaultsApplyOnlyToRelevantCommands(t *testing.T) {
 	t.Setenv("GOENV", "off")
-	t.Setenv("GOFLAGS", "-run=Selected -port=device -tags=default")
+	t.Setenv("GOFLAGS", "-run=Selected -testlogfile=log -tags=default")
 	fs := flag.NewFlagSet("build", flag.ContinueOnError)
 	fs.SetOutput(new(bytes.Buffer))
 	tags := fs.String("tags", "", "tags")

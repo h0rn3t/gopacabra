@@ -17,8 +17,6 @@ import (
 	"time"
 	"unicode"
 
-	"github.com/xgo-dev/llgo/internal/crosscompile/compile/libc"
-	"github.com/xgo-dev/llgo/internal/crosscompile/compile/rtlib"
 	internalenv "github.com/xgo-dev/llgo/internal/env"
 	"github.com/xgo-dev/llgo/internal/targets"
 	llvmenv "github.com/xgo-dev/llgo/xtool/env/llvm"
@@ -197,8 +195,6 @@ func llgoVariables(targetName string) (map[string]func() string, error) {
 		name := name
 		variables[name] = func() string { return os.Getenv(name) }
 	}
-	variables["LLGO_PICOLIBC_SOURCE_DIR"] = value(librarySourceDir(cacheDir, libc.GetPicolibcConfig().String()))
-	variables["LLGO_COMPILER_RT_SOURCE_DIR"] = value(librarySourceDir(cacheDir, rtlib.GetCompilerRTConfig().String()))
 
 	llvm := newLLVMInfo()
 	variables["LLGO_LLVM_CONFIG"] = value(llvm.config)
@@ -241,31 +237,19 @@ func addTargetVariables(variables map[string]func() string, config *targets.Conf
 		"LLGO_TARGET_CPU":           config.CPU,
 		"LLGO_TARGET_FEATURES":      config.Features,
 		"LLGO_TARGET_BUILD_TAGS":    strings.Join(config.BuildTags, " "),
-		"LLGO_TARGET_LIBC":          config.Libc,
-		"LLGO_TARGET_RTLIB":         config.RTLib,
 		"LLGO_TARGET_LINKER":        config.Linker,
-		"LLGO_TARGET_LINKER_SCRIPT": config.LinkerScript,
 		"LLGO_TARGET_CFLAGS":        strings.Join(config.CFlags, " "),
 		"LLGO_TARGET_LDFLAGS":       strings.Join(config.LDFlags, " "),
 		"LLGO_TARGET_EXTRA_FILES":   strings.Join(config.ExtraFiles, " "),
 		"LLGO_TARGET_EMULATOR":      config.Emulator,
 		"LLGO_TARGET_GDB":           strings.Join(config.GDB, " "),
-		"LLGO_TARGET_FLASH_METHOD":  config.FlashMethod,
-		"LLGO_TARGET_FLASH_COMMAND": config.FlashCommand,
-		"LLGO_TARGET_SERIAL":        config.Serial,
-		"LLGO_TARGET_SERIAL_PORTS":  strings.Join(config.SerialPort, " "),
 		"LLGO_TARGET_LINKER_PATH":   resolveTool(firstWord(config.Linker), extraBin),
 		"LLGO_TARGET_EMULATOR_PATH": resolveTool(firstWord(config.Emulator), extraBin),
 		"LLGO_TARGET_GDB_PATH":      resolveFirstTool(config.GDB, extraBin),
-		"LLGO_TARGET_FLASH_TOOL":    resolveTool(firstWord(config.FlashCommand), extraBin),
 	}
 	for name, field := range fields {
 		variables[name] = value(field)
 	}
-}
-
-func librarySourceDir(cacheDir, name string) string {
-	return joinIfSet(cacheDir, "crosscompile", name)
 }
 
 func firstWord(command string) string {

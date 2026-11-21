@@ -1,4 +1,4 @@
-//go:build llgo && !baremetal
+//go:build llgo
 
 package tls
 

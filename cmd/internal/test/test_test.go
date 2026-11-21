@@ -389,7 +389,7 @@ func TestProfileTargetQualification(t *testing.T) {
 			t.Errorf("%+v: %v", tc, err)
 		}
 	}
-	for _, tag := range []string{"baremetal", "wasm", "llgo,baremetal", "llgo wasm"} {
+	for _, tag := range []string{"wasm", "llgo,wasm", "llgo wasm"} {
 		conf := &build.Config{Goos: "linux", Goarch: "amd64", Tags: tag}
 		if err := validateProfileTarget(conf, []string{"-test.memprofile=mem"}); err == nil {
 			t.Errorf("freestanding tag %q was accepted", tag)

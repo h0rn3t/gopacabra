@@ -1,4 +1,4 @@
-//go:build (amd64 || arm64 || wasm) && !baremetal
+//go:build amd64 || arm64 || wasm
 
 package cpu
 

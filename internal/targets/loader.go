@@ -149,17 +149,8 @@ func (l *Loader) mergeConfig(dst, src *Config) {
 	if src.WasmStackSize != 0 {
 		dst.WasmStackSize = src.WasmStackSize
 	}
-	if src.Libc != "" {
-		dst.Libc = src.Libc
-	}
-	if src.RTLib != "" {
-		dst.RTLib = src.RTLib
-	}
 	if src.Linker != "" {
 		dst.Linker = src.Linker
-	}
-	if src.LinkerScript != "" {
-		dst.LinkerScript = src.LinkerScript
 	}
 	if src.CodeModel != "" {
 		dst.CodeModel = src.CodeModel
@@ -170,44 +161,11 @@ func (l *Loader) mergeConfig(dst, src *Config) {
 	if src.RelocationModel != "" {
 		dst.RelocationModel = src.RelocationModel
 	}
-	if src.BinaryFormat != "" {
-		dst.BinaryFormat = src.BinaryFormat
-	}
-	if src.FlashCommand != "" {
-		dst.FlashCommand = src.FlashCommand
-	}
-	if src.FlashMethod != "" {
-		dst.FlashMethod = src.FlashMethod
-	}
-	if src.Flash1200BpsReset != "" {
-		dst.Flash1200BpsReset = src.Flash1200BpsReset
-	}
-	if src.Serial != "" {
-		dst.Serial = src.Serial
-	}
-	if src.MSDFirmwareName != "" {
-		dst.MSDFirmwareName = src.MSDFirmwareName
-	}
-	if src.UF2FamilyID != "" {
-		dst.UF2FamilyID = src.UF2FamilyID
-	}
-	if src.RP2040BootPatch {
-		dst.RP2040BootPatch = src.RP2040BootPatch
-	}
 	if src.Emulator != "" {
 		dst.Emulator = src.Emulator
 	}
 	if src.DebugServer != "" {
 		dst.DebugServer = src.DebugServer
-	}
-	if src.OpenOCDInterface != "" {
-		dst.OpenOCDInterface = src.OpenOCDInterface
-	}
-	if src.OpenOCDTransport != "" {
-		dst.OpenOCDTransport = src.OpenOCDTransport
-	}
-	if src.OpenOCDTarget != "" {
-		dst.OpenOCDTarget = src.OpenOCDTarget
 	}
 
 	// Merge slices (append, don't replace)
@@ -222,12 +180,6 @@ func (l *Loader) mergeConfig(dst, src *Config) {
 	}
 	if len(src.ExtraFiles) > 0 {
 		dst.ExtraFiles = append(dst.ExtraFiles, src.ExtraFiles...)
-	}
-	if len(src.SerialPort) > 0 {
-		dst.SerialPort = append(dst.SerialPort, src.SerialPort...)
-	}
-	if len(src.MSDVolumeName) > 0 {
-		dst.MSDVolumeName = append(dst.MSDVolumeName, src.MSDVolumeName...)
 	}
 	if len(src.GDB) > 0 {
 		dst.GDB = append(dst.GDB, src.GDB...)

@@ -2,7 +2,7 @@ name: Gopacabra
 
 # Перевірки моделі пам'яті gopacabra: Go-тести проходу й рантайму, програми
 # прийняття gopacabra/* і GOROOT/test із тегом gopacabra. Upstream-перевірки llgo
-# (embedded, wasm, релізи) у форку вимкнено; заміри швидкодії —
+# (wasm, релізи) у форку вимкнено; заміри швидкодії —
 # gopacabra-binarytrees.yml.
 
 on:

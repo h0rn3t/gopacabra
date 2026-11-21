@@ -22,7 +22,6 @@ import (
 	"net"
 	"os"
 	"os/exec"
-	"path/filepath"
 	"strings"
 	"sync"
 	"time"
@@ -123,11 +122,6 @@ func startServer(plan serverPlan) (_ *debugServer, err error) {
 	}
 	server.relay, server.address = relay, relay.listener.Addr().String()
 	args := append([]string(nil), plan.command[1:]...)
-	if plan.openOCD {
-		// Redirect OpenOCD logs so they cannot corrupt its RSP pipe.
-		path := strings.NewReplacer("\\", "\\\\", "\"", "\\\"", "$", "\\$", "[", "\\[", "]", "\\]").Replace(filepath.ToSlash(log.Name()))
-		args = append([]string{"-c", "log_output \"" + path + "\""}, args...)
-	}
 	command := exec.Command(plan.command[0], args...)
 	server.cmd = command
 	command.Stderr = log

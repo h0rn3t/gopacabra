@@ -52,8 +52,6 @@ import (
 	"github.com/xgo-dev/llgo/internal/deadcode"
 	"github.com/xgo-dev/llgo/internal/debugabi"
 	"github.com/xgo-dev/llgo/internal/env"
-	"github.com/xgo-dev/llgo/internal/firmware"
-	"github.com/xgo-dev/llgo/internal/flash"
 	"github.com/xgo-dev/llgo/internal/goarch"
 	"github.com/xgo-dev/llgo/internal/goembed"
 	"github.com/xgo-dev/llgo/internal/header"
@@ -61,7 +59,6 @@ import (
 	"github.com/xgo-dev/llgo/internal/lto"
 	"github.com/xgo-dev/llgo/internal/meta"
 	"github.com/xgo-dev/llgo/internal/mockable"
-	"github.com/xgo-dev/llgo/internal/monitor"
 	"github.com/xgo-dev/llgo/internal/optlevel"
 	"github.com/xgo-dev/llgo/internal/packages"
 	"github.com/xgo-dev/llgo/internal/pclnmap"
@@ -111,26 +108,12 @@ const (
 	debugBuild = packages.DebugPackagesLoad
 )
 
-// OutFmts contains output format specifications for embedded targets
-type OutFmts struct {
-	Bin bool // Generate binary output (.bin)
-	Hex bool // Generate Intel hex output (.hex)
-	Img bool // Generate image output (.img)
-	Uf2 bool // Generate UF2 output (.uf2)
-	Zip bool // Generate ZIP/DFU output (.zip)
-}
-
 // OutFmtDetails contains detailed output file paths for each format
 type OutFmtDetails struct {
 	Out   string // Base output file path
 	DWARF string // External debugger-owned DWARF container (.debug.wasm)
 	DSYM  string // Native Darwin debugger-owned .dSYM bundle
 	PCLN  string // PCLN sidecar output file path (.pclntab)
-	Bin   string // Binary output file path (.bin)
-	Hex   string // Intel hex output file path (.hex)
-	Img   string // Image output file path (.img)
-	Uf2   string // UF2 output file path (.uf2)
-	Zip   string // ZIP/DFU output file path (.zip)
 
 	WasmManifest string // Final Wasm artifact manifest
 
@@ -152,7 +135,7 @@ type Config struct {
 	GOARM        string // arm architecture and floating-point implementation
 	GOARM64      string // arm64 ISA version and optional lse/crypto extensions
 	GOEXPERIMENT string // Go experiments; empty inherits cmd/go configuration, "none" disables defaults
-	Target       string // target name (e.g., "rp2040", "wasi") - takes precedence over Goos/Goarch
+	Target       string // target name (e.g., "wasi", "wasip1") - takes precedence over Goos/Goarch
 	OptLevel     optlevel.Level
 	// ASan вмикає LLVM AddressSanitizer для нативної збірки хоста.
 	ASan               bool
@@ -162,14 +145,10 @@ type Config struct {
 	LTOPlugin          lto.PassPlugin
 	MLLVM              []string // опції LLVM (-mllvm): у процесі llgo і, з LTO, у компонувальнику
 	BinPath            string
-	AppExt             string  // output file extension (".wasm", ".mjs", ".a", ".so", ".dylib"); empty for native executables
-	OutFile            string  // output file, or directory for ModeBuild package executables
-	OutFmts            OutFmts // Output format specifications (only for Target != "")
-	CompileOnly        bool    // compile test binary but do not run it (only valid for ModeTest)
-	RetainTestBinary   bool    // profiling keeps the test executable in the invocation directory
-	Emulator           bool    // run in emulator mode
-	Port               string  // target port for flashing
-	BaudRate           int     // baudrate for serial communication
+	AppExt             string // output file extension (".wasm", ".mjs", ".a", ".so", ".dylib"); empty for native executables
+	OutFile            string // output file, or directory for ModeBuild package executables
+	CompileOnly        bool   // compile test binary but do not run it (only valid for ModeTest)
+	RetainTestBinary   bool   // profiling keeps the test executable in the invocation directory
 	RunArgs            []string
 	Exec               []string      // Explicit execution wrapper, before the artifact and RunArgs.
 	RunnerTimeout      time.Duration // Host execution limit; zero disables it.
@@ -1354,19 +1333,10 @@ func executeInitialPackageLink(ctx *context, link *initialPackageLink, verbose, 
 	}
 
 	envMap := link.outFmts.ToEnvMap()
-	if link.conf.Target != "" {
-		if err := firmware.ConvertFormats(linkCtx.crossCompile.BinaryFormat, linkCtx.crossCompile.FormatDetail, envMap); err != nil {
-			return nil, err
-		}
-	}
 	if err := reportBuildOutputs(link.conf, link.outFmts, link.allPkgs, os.Stdout, os.Stderr); err != nil {
 		return nil, err
 	}
 	switch link.conf.Mode {
-	case ModeInstall:
-		if link.conf.Target != "" {
-			return nil, flash.FlashDevice(linkCtx.crossCompile.Device, envMap, linkCtx.buildConf.Port, verbose)
-		}
 	case ModeRun, ModeTest, ModeCmpTest:
 		if link.conf.Mode == ModeCmpTest && link.pkg.PkgPath == "command-line-arguments" {
 			// The reference must compile the same selected files. The synthetic
@@ -1375,7 +1345,7 @@ func executeInitialPackageLink(ctx *context, link *initialPackageLink, verbose, 
 			cmpTest(linkCtx.commands, link.pkg.Dir, link.pkg.PkgPath, link.outFmts.Out, link.conf.GenExpect, link.conf.RunArgs, link.pkg.GoFiles...)
 			return nil, nil
 		}
-		if link.conf.Mode == ModeTest && (len(link.conf.Exec) != 0 || link.conf.Target == "" || namedTargetUsesEmulatorPath(link.conf) && !link.conf.CompileOnly) {
+		if link.conf.Mode == ModeTest && (len(link.conf.Exec) != 0 || link.conf.Target == "" || !link.conf.CompileOnly) {
 			runner := goCompatibleWasmRunner(link.conf)
 			if link.conf.Target != "" {
 				runner = linkCtx.crossCompile.Emulator
@@ -1407,16 +1377,9 @@ func executeInitialPackageLink(ctx *context, link *initialPackageLink, verbose, 
 			}
 			return nil, runNative(linkCtx, link.outFmts.Out, link.pkg.Dir, link.pkg.PkgPath, link.conf, link.conf.Mode)
 		}
-		if namedTargetUsesEmulatorPath(link.conf) {
-			return nil, runInEmulator(linkCtx.commands, linkCtx.crossCompile.Emulator, string(linkCtx.crossCompile.WasmProfile), envMap, link.pkg.Dir, link.pkg.PkgPath, link.conf, link.conf.Mode, verbose)
-		}
-		if err := flash.FlashDevice(linkCtx.crossCompile.Device, envMap, linkCtx.buildConf.Port, verbose); err != nil {
-			return nil, err
-		}
-		return nil, monitor.Monitor(monitor.MonitorConfig{
-			Port: linkCtx.buildConf.Port, Target: link.conf.Target, Executable: link.outFmts.Out,
-			BaudRate: link.conf.BaudRate, SerialPort: linkCtx.crossCompile.Device.SerialPort,
-		}, verbose)
+		// Named targets are WebAssembly only; they always run in the
+		// target's emulator.
+		return nil, runInEmulator(linkCtx.commands, linkCtx.crossCompile.Emulator, string(linkCtx.crossCompile.WasmProfile), envMap, link.pkg.Dir, link.pkg.PkgPath, link.conf, link.conf.Mode, verbose)
 	}
 	return nil, nil
 }
@@ -1452,15 +1415,6 @@ func newLinkExecutionContext(ctx *context, plan *mainLinkPlan) *context {
 	}
 }
 
-func namedTargetUsesEmulatorPath(conf *Config) bool {
-	if conf.Emulator {
-		return true
-	}
-	// runInEmulator returns before inspecting the emulator when -c is set.
-	// Route compile-only tests there instead of treating the target as a device.
-	return conf.Mode == ModeTest && conf.CompileOnly
-}
-
 func removeOutFmts(outFmts *OutFmtDetails) {
 	if outFmts == nil {
 		return
@@ -1478,8 +1432,7 @@ func removeOutFmts(outFmts *OutFmtDetails) {
 		_ = os.RemoveAll(outFmts.DSYM)
 	}
 	for _, output := range []string{
-		outFmts.Out, outFmts.PCLN, outFmts.Bin, outFmts.Hex, outFmts.WasmManifest,
-		outFmts.Img, outFmts.Uf2, outFmts.Zip,
+		outFmts.Out, outFmts.PCLN, outFmts.WasmManifest,
 	} {
 		if output != "" {
 			_ = os.Remove(output)

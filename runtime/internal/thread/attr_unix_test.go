@@ -1,4 +1,4 @@
-//go:build llgo && !windows && !baremetal && !wasm
+//go:build llgo && !windows && !wasm
 
 package thread
 

@@ -66,7 +66,7 @@ func validateWasmFinalOptions(conf *Config, target *crosscompile.Export) error {
 		return fmt.Errorf("invalid wasm-strip mode %q", conf.WasmStrip)
 	}
 	hostedExe := conf.BuildMode == BuildModeExe && conf.Mode != ModeGen &&
-		target.WasmProfile != crosscompile.WasmProfileNone && conf.OutFmts == (OutFmts{})
+		target.WasmProfile != crosscompile.WasmProfileNone
 	if hostedExe {
 		// The aggressive cross-platform size level also optimizes the final
 		// Wasm executable. -Os and inferred target defaults retain their
@@ -94,9 +94,6 @@ func validateWasmFinalOptions(conf *Config, target *crosscompile.Export) error {
 	}
 	if (conf.WasmStrip == WasmStripDebug || conf.WasmStrip == WasmStripAll) && conf.DebugArtifactMode == DebugArtifactEmbedded {
 		return fmt.Errorf("wasm-strip conflicts with embedded DWARF; use -debug-artifact=external or none")
-	}
-	if conf.OutFmts != (OutFmts{}) {
-		return fmt.Errorf("final optimization and wasm-strip do not support firmware output conversion")
 	}
 	return nil
 }

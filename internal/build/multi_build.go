@@ -157,10 +157,5 @@ func (fallback *multiBuildFallback) run() ([]Package, error) {
 }
 
 func removeTemporaryBuildOutputs(output string) {
-	base := strings.TrimSuffix(output, filepath.Ext(output))
-	removeOutFmts(&OutFmtDetails{
-		Out: output, PCLN: pclnSidecarPath(output),
-		Bin: base + ".bin", Hex: base + ".hex", Img: base + ".img",
-		Uf2: base + ".uf2", Zip: base + ".zip",
-	})
+	removeOutFmts(&OutFmtDetails{Out: output, PCLN: pclnSidecarPath(output)})
 }

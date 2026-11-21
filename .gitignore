@@ -54,11 +54,10 @@ go.work*
 .sysroot/
 .windows-dist/
 
-# Embedded firmware files
+# Binary build outputs
 *.bin
 *.hex
 *.elf
-*.uf2
 *.img
 *.zip
 

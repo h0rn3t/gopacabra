@@ -45,7 +45,6 @@ func TestWasmFinalOptions(t *testing.T) {
 		{"library", func(c *Config) { c.BuildMode = BuildModeCArchive }, true},
 		{"generation", func(c *Config) { c.Mode = ModeGen }, true},
 		{"embedded debug", func(c *Config) { c.DebugArtifactMode = DebugArtifactEmbedded; c.WasmStrip = WasmStripDebug }, true},
-		{"firmware", func(c *Config) { c.OutFmts.Bin = true }, true},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			c := good

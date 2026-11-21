@@ -16,7 +16,6 @@ LLGo aims to expand the boundaries of Go/XGo, providing limitless possibilities 
 * Game development
 * AI and data science
 * WebAssembly
-* Embedded development
 * ...
 
 How can these be achieved?
@@ -56,7 +55,6 @@ Other targets may not provide every OS service or implementation-specific runtim
 | --- | --- |
 | Native | Linux amd64/arm64 and macOS amd64/arm64 release builds; primary CI on Linux amd64 and macOS arm64 |
 | WebAssembly | `js/wasm` and `wasip1/wasm` builds; WASI and Emscripten CI coverage |
-| Embedded | [`-target`](doc/Embedded_Cmd.md) configurations for supported boards and MCUs, with selected QEMU/emulator smoke tests |
 
 The supported WebAssembly profiles combine a memory ABI with a host ABI.
 `-target emscripten` emits a Memory32 ES module and its sibling wasm module,

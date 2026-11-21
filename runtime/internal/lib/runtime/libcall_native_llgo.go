@@ -1,4 +1,4 @@
-//go:build (darwin || linux) && !baremetal && !wasm
+//go:build (darwin || linux) && !wasm
 
 package runtime
 

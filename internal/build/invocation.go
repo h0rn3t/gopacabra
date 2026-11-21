@@ -62,11 +62,6 @@ func resolveOutputs(dir string, out *OutFmtDetails) {
 	out.PCLN = resolvePath(dir, out.PCLN)
 	out.DWARF = resolvePath(dir, out.DWARF)
 	out.DSYM = resolvePath(dir, out.DSYM)
-	out.Bin = resolvePath(dir, out.Bin)
-	out.Hex = resolvePath(dir, out.Hex)
-	out.Img = resolvePath(dir, out.Img)
-	out.Uf2 = resolvePath(dir, out.Uf2)
-	out.Zip = resolvePath(dir, out.Zip)
 }
 
 func resolvePath(dir, path string) string {

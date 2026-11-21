@@ -18,7 +18,6 @@ import (
 	"github.com/xgo-dev/llgo/cmd/internal/list"
 	"github.com/xgo-dev/llgo/cmd/internal/lldb"
 	"github.com/xgo-dev/llgo/cmd/internal/mod"
-	"github.com/xgo-dev/llgo/cmd/internal/monitor"
 	"github.com/xgo-dev/llgo/cmd/internal/run"
 	"github.com/xgo-dev/llgo/cmd/internal/test"
 	"github.com/xgo-dev/llgo/cmd/internal/version"
@@ -93,10 +92,6 @@ type Cmd_mod struct {
 	xcmd.Command
 	*App
 }
-type Cmd_monitor struct {
-	xcmd.Command
-	*App
-}
 type Cmd_run struct {
 	xcmd.Command
 	*App
@@ -147,15 +142,14 @@ func (this *App) Main() {
 	_xgo_obj13 := &Cmd_list{App: this}
 	_xgo_obj14 := &Cmd_lldb{App: this}
 	_xgo_obj15 := &Cmd_mod{App: this}
-	_xgo_obj16 := &Cmd_monitor{App: this}
-	_xgo_obj17 := &Cmd_run{App: this}
-	_xgo_obj18 := &Cmd_test{App: this}
-	_xgo_obj19 := &Cmd_tool{App: this}
-	_xgo_obj20 := &Cmd_tool_compile{App: this}
-	_xgo_obj21 := &Cmd_version{App: this}
-	_xgo_obj22 := &Cmd_vet{App: this}
-	_xgo_obj23 := &Cmd_work{App: this}
-	xcmd.Gopt_App_Main(this, _xgo_obj0, _xgo_obj1, _xgo_obj2, _xgo_obj3, _xgo_obj4, _xgo_obj5, _xgo_obj6, _xgo_obj7, _xgo_obj8, _xgo_obj9, _xgo_obj10, _xgo_obj11, _xgo_obj12, _xgo_obj13, _xgo_obj14, _xgo_obj15, _xgo_obj16, _xgo_obj17, _xgo_obj18, _xgo_obj19, _xgo_obj20, _xgo_obj21, _xgo_obj22, _xgo_obj23)
+	_xgo_obj16 := &Cmd_run{App: this}
+	_xgo_obj17 := &Cmd_test{App: this}
+	_xgo_obj18 := &Cmd_tool{App: this}
+	_xgo_obj19 := &Cmd_tool_compile{App: this}
+	_xgo_obj20 := &Cmd_version{App: this}
+	_xgo_obj21 := &Cmd_vet{App: this}
+	_xgo_obj22 := &Cmd_work{App: this}
+	xcmd.Gopt_App_Main(this, _xgo_obj0, _xgo_obj1, _xgo_obj2, _xgo_obj3, _xgo_obj4, _xgo_obj5, _xgo_obj6, _xgo_obj7, _xgo_obj8, _xgo_obj9, _xgo_obj10, _xgo_obj11, _xgo_obj12, _xgo_obj13, _xgo_obj14, _xgo_obj15, _xgo_obj16, _xgo_obj17, _xgo_obj18, _xgo_obj19, _xgo_obj20, _xgo_obj21, _xgo_obj22)
 }
 //line cmd/llgo/bug_cmd.gox:16
 func (this *Cmd_bug) Main(_xgo_arg0 string) {
@@ -444,24 +438,6 @@ func (this *Cmd_mod) Main(_xgo_arg0 string) {
 }
 func (this *Cmd_mod) Classfname() string {
 	return "mod"
-}
-//line cmd/llgo/monitor_cmd.gox:21
-func (this *Cmd_monitor) Main(_xgo_arg0 string) {
-	this.Command.Main(_xgo_arg0)
-//line cmd/llgo/monitor_cmd.gox:21:1
-	this.Use("monitor [flags] [executable]")
-//line cmd/llgo/monitor_cmd.gox:23:1
-	this.Short("Monitor serial output from device")
-//line cmd/llgo/monitor_cmd.gox:25:1
-	this.FlagOff()
-//line cmd/llgo/monitor_cmd.gox:27:1
-	this.Run__1(func(args []string) {
-//line cmd/llgo/monitor_cmd.gox:28:1
-		monitor.Cmd.Run(monitor.Cmd, args)
-	})
-}
-func (this *Cmd_monitor) Classfname() string {
-	return "monitor"
 }
 //line cmd/llgo/run_cmd.gox:20
 func (this *Cmd_run) Main(_xgo_arg0 string) {

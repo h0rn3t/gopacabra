@@ -49,7 +49,6 @@ type targetKind uint8
 
 const (
 	targetNative targetKind = iota
-	targetEmbedded
 	targetWASI
 	targetBrowser
 )
@@ -90,9 +89,6 @@ func classifyTarget(conf *build.Config, target *targets.Config) targetKind {
 		}
 		return targetWASI
 	}
-	if target != nil {
-		return targetEmbedded
-	}
 	return targetNative
 }
 
@@ -115,8 +111,6 @@ func selectBackend(requested backend, kind targetKind) (backend, error) {
 		return requested, nil
 	}
 	switch kind {
-	case targetEmbedded:
-		return backendGDB, nil
 	case targetWASI:
 		return backendWasmtime, nil
 	case targetBrowser:
@@ -207,7 +201,7 @@ func validateBackendOptions(selected backend, opts options) error {
 		return wasiDebuggerUnavailable()
 	}
 	if selected == backendBrowser && (opts.remote != "" || opts.server != "" || opts.load) {
-		return errors.New("llgo debug: browser sessions use their own loopback HTTP server; -remote, -server and -load apply to native/embedded debugger transports")
+		return errors.New("llgo debug: browser sessions use their own loopback HTTP server; -remote, -server and -load apply to native debugger transports")
 	}
 	return nil
 }
@@ -217,7 +211,6 @@ type serverPlan struct {
 	address string
 	load    bool
 	stdio   bool
-	openOCD bool
 }
 
 func makeServerPlan(target *targets.Config, artifact string, opts options) (*serverPlan, error) {
@@ -260,25 +253,7 @@ func makeServerPlan(target *targets.Config, artifact string, opts options) (*ser
 		}
 		return &serverPlan{command: command, address: net.JoinHostPort("127.0.0.1", strconv.Itoa(port)), load: opts.load, stdio: stdio}, nil
 	}
-	if target.OpenOCDInterface == "" && target.OpenOCDTarget == "" {
-		return nil, fmt.Errorf("llgo debug: target %s has no debug server; use -remote or -server", target.Name)
-	}
-	command := []string{"openocd", "-c", "gdb_port pipe", "-c", "tcl_port disabled", "-c", "telnet_port disabled"}
-	if target.OpenOCDInterface != "" {
-		command = append(command, "-f", "interface/"+target.OpenOCDInterface+".cfg")
-	}
-	if target.OpenOCDTransport != "" {
-		command = append(command, "-c", "transport select "+target.OpenOCDTransport)
-	}
-	if target.OpenOCDTarget != "" {
-		command = append(command, "-f", "target/"+target.OpenOCDTarget+".cfg")
-	}
-	return &serverPlan{
-		command: command,
-		load:    true,
-		stdio:   true,
-		openOCD: true,
-	}, nil
+	return nil, fmt.Errorf("llgo debug: target %s has no debug server; use -remote or -server", target.Name)
 }
 
 func normalizeRemoteAddress(address string) string {

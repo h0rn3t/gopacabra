@@ -1,4 +1,4 @@
-//go:build llgo && !baremetal
+//go:build llgo
 
 /*
  * Copyright (c) 2025 The XGo Authors (xgo.dev). All rights reserved.
@@ -19,8 +19,7 @@
 // Package tls provides generic storage backed by the host thread-local
 // storage API. Linear-memory wasm GC builds use explicit TinyGo GC roots that
 // keep Go pointers in host TLS visible until the thread-local destructor runs.
-// Builds without GC use calloc/free. Baremetal builds and builds without llgo
-// use no-op handles.
+// Builds without GC use calloc/free. Builds without llgo use no-op handles.
 //
 // Basic usage:
 //
@@ -37,8 +36,8 @@
 //	})
 //
 // Build tags:
-//   - llgo && !baremetal: calloc/free
-//   - !llgo || baremetal: No-op handles
+//   - llgo: calloc/free
+//   - !llgo: No-op handles
 package tls
 
 import (

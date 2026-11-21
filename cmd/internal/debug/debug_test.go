@@ -20,8 +20,6 @@ package debug
 
 import (
 	"bytes"
-	"debug/dwarf"
-	"debug/elf"
 	"fmt"
 	"net"
 	"os"
@@ -47,7 +45,6 @@ func TestBackendRouting(t *testing.T) {
 		want   backend
 	}{
 		{name: "native", conf: build.Config{Goos: runtime.GOOS, Goarch: runtime.GOARCH}, want: backendLLDB},
-		{name: "embedded", conf: build.Config{Target: "board"}, target: &targets.Config{LLVMTarget: "thumbv7m-none-eabi"}, want: backendGDB},
 		{name: "WASI", conf: build.Config{Target: "wasip1"}, target: &targets.Config{GOOS: "wasip1", GOARCH: "wasm", LLVMTarget: "wasm32-unknown-wasi"}, want: backendWasmtime},
 		{name: "browser", conf: build.Config{Target: "wasm"}, target: &targets.Config{GOOS: "js", GOARCH: "wasm", LLVMTarget: "wasm32-unknown-wasi"}, want: backendBrowser},
 		{name: "Wasm name with WASI ABI", conf: build.Config{Target: "wasm-custom"}, target: &targets.Config{GOOS: "wasip1", GOARCH: "wasm", LLVMTarget: "wasm32-unknown-wasip1"}, want: backendWasmtime},
@@ -144,35 +141,19 @@ func TestSessionPlanning(t *testing.T) {
 		t.Fatalf("remote plan = (%+v, %v)", remote, err)
 	}
 
-	openocd, err := makeServerPlan(&targets.Config{
-		Name:             "board",
-		OpenOCDInterface: "cmsis-dap",
-		OpenOCDTransport: "swd",
-		OpenOCDTarget:    "stm32f4x",
-	}, "program.elf", options{})
-	if err != nil {
-		t.Fatal(err)
+	loaded, err := makeServerPlan(nil, "program.elf", options{remote: ":1234", load: true})
+	if err != nil || !loaded.load || loaded.address != "127.0.0.1:1234" {
+		t.Fatalf("remote load plan = (%+v, %v)", loaded, err)
 	}
-	joined := strings.Join(openocd.command, " ")
-	for _, want := range []string{"openocd", "gdb_port", "interface/cmsis-dap.cfg", "transport select swd", "target/stm32f4x.cfg"} {
-		if !strings.Contains(joined, want) {
-			t.Fatalf("OpenOCD command %q does not contain %q", joined, want)
-		}
+	if _, err := makeServerPlan(&targets.Config{Name: "board"}, "program.elf", options{}); err == nil || !strings.Contains(err.Error(), "has no debug server") {
+		t.Fatalf("target without debug server: %v", err)
 	}
-	if !openocd.load {
-		t.Fatal("OpenOCD plan does not request image loading")
-	}
-	if !openocd.stdio || !strings.Contains(joined, "gdb_port pipe") {
-		t.Fatalf("OpenOCD must use pipes instead of reserving a TCP port: %+v", openocd)
-	}
-	// The loopback address is assigned by the owned relay at startup.
-	openocd.address = "127.0.0.1:1234"
 
-	gdbArgs, err := debuggerArguments(backendGDB, "program.elf", []string{"--batch"}, openocd)
+	gdbArgs, err := debuggerArguments(backendGDB, "program.elf", []string{"--batch"}, loaded)
 	if err != nil {
 		t.Fatal(err)
 	}
-	joined = strings.Join(gdbArgs, " ")
+	joined := strings.Join(gdbArgs, " ")
 	for _, want := range []string{"target extended-remote", "monitor reset halt", " load ", "--batch"} {
 		if !strings.Contains(" "+joined+" ", want) {
 			t.Fatalf("GDB arguments %q do not contain %q", joined, want)
@@ -181,9 +162,9 @@ func TestSessionPlanning(t *testing.T) {
 	if remote.load {
 		t.Fatal("connecting to an existing server must not implicitly load an image")
 	}
-	loadArgs, err := debuggerArguments(backendLLDB, "dir with space/program.elf", []string{"--batch"}, openocd)
+	loadArgs, err := debuggerArguments(backendLLDB, "dir with space/program.elf", []string{"--batch"}, loaded)
 	wantLoadArgs := []string{
-		"dir with space/program.elf", "-o", "gdb-remote " + openocd.address,
+		"dir with space/program.elf", "-o", "gdb-remote " + loaded.address,
 		"-o", "process plugin packet monitor reset halt",
 		"-o", `target modules load --file "dir with space/program.elf" --slide 0 --load`,
 		"-o", "process plugin packet monitor reset halt", "--batch",
@@ -323,13 +304,13 @@ func TestArtifactAndArgumentHandling(t *testing.T) {
 		t.Fatalf("splitDebuggerArgs() = (%v, %v)", command, debugger)
 	}
 
-	conf := &build.Config{Target: "cortex-m-qemu", OutFile: filepath.Join(t.TempDir(), "firmware")}
+	conf := &build.Config{Target: "wasi", OutFile: filepath.Join(t.TempDir(), "program")}
 	cleanup, artifact, err := prepareArtifact(conf)
 	if err != nil {
 		t.Fatal(err)
 	}
 	defer cleanup()
-	if !strings.HasSuffix(artifact, "firmware.elf") || conf.OutFile != artifact || conf.AppExt != ".elf" {
+	if !strings.HasSuffix(artifact, "program.wasm") || conf.OutFile != artifact || conf.AppExt != ".wasm" {
 		t.Fatalf("prepareArtifact() = %q, config=(%q, %q)", artifact, conf.OutFile, conf.AppExt)
 	}
 	for _, test := range []struct {
@@ -343,8 +324,8 @@ func TestArtifactAndArgumentHandling(t *testing.T) {
 			t.Errorf("debugArtifactExtension(%+v) = %q, want %q", test.conf, got, test.want)
 		}
 	}
-	if target, err := resolveTarget("cortex-m-qemu"); err != nil || target.DebugServer == "" {
-		t.Fatalf("resolveTarget(cortex-m-qemu) = (%+v, %v)", target, err)
+	if target, err := resolveTarget("wasi"); err != nil || target.GOARCH != "wasm" {
+		t.Fatalf("resolveTarget(wasi) = (%+v, %v)", target, err)
 	}
 }
 
@@ -415,76 +396,6 @@ func TestRunBuildsAndLaunchesNativeDebugger(t *testing.T) {
 		t.Fatalf("run(-ldflags=-s) error = %v", err)
 	}
 	goBuildFlags.Args = nil
-}
-
-func TestRunBuildsEmbeddedDWARF(t *testing.T) {
-	if runtime.GOOS == "windows" {
-		t.Skip("test helper uses a POSIX shell")
-	}
-	repoRoot, err := filepath.Abs(filepath.Join("..", "..", ".."))
-	if err != nil {
-		t.Fatal(err)
-	}
-	t.Setenv("LLGO_ROOT", repoRoot)
-	t.Setenv("LLGO_DEBUG_GDB_CAPTURE", filepath.Join(t.TempDir(), "gdb-arguments"))
-	oldTarget, oldOutput, oldOpt, oldBuildFlags := flags.Target, flags.OutputFile, flags.OptLevel, goBuildFlags.Args
-	t.Cleanup(func() {
-		flags.Target, flags.OutputFile, flags.OptLevel, goBuildFlags.Args = oldTarget, oldOutput, oldOpt, oldBuildFlags
-	})
-	flags.Target = "cortex-m-qemu"
-	flags.OutputFile = filepath.Join(t.TempDir(), "embedded-debug.elf")
-	flags.OptLevel = optlevel.Unset
-	goBuildFlags.Args = nil
-	var stdout, stderr bytes.Buffer
-	fixture := filepath.Join(repoRoot, "test", "debug", "embedded")
-	oldDir, err := os.Getwd()
-	if err != nil {
-		t.Fatal(err)
-	}
-	if err := os.Chdir(fixture); err != nil {
-		t.Fatal(err)
-	}
-	t.Cleanup(func() { os.Chdir(oldDir) })
-	if err := run([]string{"."}, []string{"--batch"}, options{
-		backend: backendGDB, gdb: writeFakeGDB(t), remote: "127.0.0.1:1234",
-	}, strings.NewReader(""), &stdout, &stderr); err != nil {
-		t.Fatalf("run() error: %v; stderr=%s", err, stderr.String())
-	}
-	image, err := elf.Open(flags.OutputFile)
-	if err != nil {
-		t.Fatal(err)
-	}
-	defer image.Close()
-	info, err := image.DWARF()
-	if err != nil {
-		t.Fatalf("embedded debug image has no DWARF: %v", err)
-	}
-	reader := info.Reader()
-	for {
-		entry, err := reader.Next()
-		if err != nil {
-			t.Fatal(err)
-		}
-		if entry == nil {
-			break
-		}
-		if entry.Tag != dwarf.TagCompileUnit {
-			continue
-		}
-		lines, err := info.LineReader(entry)
-		if err != nil {
-			t.Fatal(err)
-		}
-		if lines == nil {
-			continue
-		}
-		for _, file := range lines.Files() {
-			if file != nil && filepath.Base(file.Name) == "c.go" {
-				return
-			}
-		}
-	}
-	t.Fatal("embedded debug image has no fixture source line table")
 }
 
 func writeFakeGDB(t *testing.T) string {

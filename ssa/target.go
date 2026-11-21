@@ -35,7 +35,7 @@ type Target struct {
 	GOAMD64              string // "v1" (default), "v2", "v3", or "v4"
 	GOARM                string // "5", "6", "7" (default), with optional float mode
 	GOARM64              string // "v8.0" (default) through "v9.5", with optional extensions
-	Target               string // target name from -target flag (e.g., "rp2040", "arm7tdmi", "wasi")
+	Target               string // target name from -target flag (e.g., "wasi", "emscripten")
 	LLVMTarget           string // physical LLVM target selected by a target configuration
 	WasmProfile          string // logical hosted WebAssembly profile (j32, j64, or w32)
 	WasmProvider         string // hosted WebAssembly provider (gojs, emscripten, or wasi)

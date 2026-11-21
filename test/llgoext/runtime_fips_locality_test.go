@@ -1,4 +1,4 @@
-//go:build llgo && go1.26 && !baremetal
+//go:build llgo && go1.26
 
 /*
  * Copyright (c) 2026 The XGo Authors (xgo.dev). All rights reserved.

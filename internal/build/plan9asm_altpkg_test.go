@@ -85,10 +85,10 @@ func TestPlan9AsmDefaultsSupportWasm(t *testing.T) {
 	}
 }
 
-func TestInternalRuntimeAtomicUsesSourcePatchOnArm(t *testing.T) {
+func TestInternalRuntimeAtomicIsNotAltPkg(t *testing.T) {
 	conf := &Config{Goarch: "arm"}
 	if hasAltPkgForTarget(conf, "internal/runtime/atomic") {
-		t.Fatal("internal/runtime/atomic should use its source patch on arm")
+		t.Fatal("internal/runtime/atomic should not be an alt package on arm")
 	}
 
 	conf = &Config{Goarch: "arm64"}
