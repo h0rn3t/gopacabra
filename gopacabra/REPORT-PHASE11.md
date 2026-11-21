@@ -487,3 +487,30 @@ func main() {
 - Реалізація (`a58ebf288`): `llgo cmptest ./_cmptest/ccgofp` — вивід як `go run` (`5`, `9`, `42`, `56`); FileCheck у `cl/_testgo/ccgofp` — чотири пари `load ptr` → `load { ptr, ptr }` з цього слова.
 - `go test -count=1 -timeout 90m ./cl/` з чистим кешем — `ok` (707 с), падінь немає. `gofmt`, `go vet ./cl/` — чисто.
 - Не перевірено: darwin, повний CI, `modernc.org/sqlite` (блокує P11.5.4).
+
+## P11.5.4 Статична функція в інтерфейсі — сталий глобал (2026-11-21)
+
+**Проблема.** `__ccgo_fp(f interface{}) uintptr` бере слово даних інтерфейсу, а ccgo тримає його лише як `uintptr` у пам'яті libc і порівнює на тотожність (sqlite: `*(*uintptr)(unsafe.Add(pMem, 48)) == __ccgo_fp(Xsqlite3_free)`). llgo клав статичну функцію в інтерфейс як коробку `AllocU(16)` з `{fn, nil}`. Кожен виклик давав нову коробку, тож тотожність не трималась, а під `gopacabra` census коробку не враховував: `directIface` вважає `*types.Signature` прямим типом, тому `MakeInterface` функції не був місцем census. Отже, це був невидимий витік, а не звільнення. Пункт 5 розвідки записано до P11.5.3. Крім того, сам `__ccgo_fp` закріплював копію інтерфейсу: `&f` читається через `(*[2]uintptr)(unsafe.Pointer(&f))[1]`, а аналіз каламбурів не приймав `IndexAddr`/`FieldAddr`, тож кожен виклик лишав 16 байтів `pinned`.
+
+**Рішення.**
+
+- `ssa/interface.go` `MakeInterfaceFunc`: слово даних інтерфейсу статичної функції — сталий глобал `<fn>$funcval` = `{fn, null}`, без алокації. Для `internal`/`private` функції він `private`, інакше `linkonce_odr`: пакети компілюються окремими модулями, і компоновник лишає одну копію, тож слово однакове в усіх пакетах, як funcval статичної функції в `gc`. Замикання з прив'язками і нестале значення функції йдуть, як і раніше, через `MakeInterface`.
+- `cl/compile.go`: `MakeInterface` з `*ssa.Function` викликає `MakeInterfaceFunc`. Це безумовно, не лише під `gopacabra`, і нейтрально для upstream.
+- `cl/gopacabra_free.go` `gopacabraAccessOnly`: `IndexAddr` і `FieldAddr` від перетвореної адреси, яку лише читають і пишуть (`gopacabraElemAccessOnly`), лишають об'єкт на стеку. Індекс масиву перевіряється на межі, тож адреса не виходить з об'єкта.
+
+**Прийняття.**
+
+- Тести спершу:
+  - `64eacf494`: `TestGopacabraFuncIface` — один сталий глобал `{foo.add, null}`. У `local`/`escape`/`global`/`static` немає `runtime.Alloc`/`NoteAlloc`, є посилання на глобал; `closure` лишає `AllocU`.
+  - Там само фікстура `gopacabra/asan/ccgofp`: `__ccgo_fp` у масиві поза купою, виклик після 256 алокацій, тотожність у пакеті й між пакетами (`fp.Mul`). На HEAD — код 3.
+  - `1384af773`: `gopacabra/bytes/typepun`, випадок `ccgofp` — каламбури через індекс і через поле, приріст `pinned` 0. На HEAD тест падав.
+- Реалізація (`d5ddaca7c`):
+  - `llgo run -O0 -asan ./gopacabra/asan/ccgofp` — `asan-ccgofp-ok 2016`, код 0, без звіту ASan; без ASan і `go run -tags gopacabra` — те саме. `llgo cmptest ./_cmptest/ccgofp` — код 0.
+  - `gopacabra live` не росте: програма з N викликами `__ccgo_fp` до виправлення — `live pinned` 160 (N=10) і 16 000 (N=1000). Після — рядка `pinned` немає, `rc-local` 1 104 для обох N, попередження P10.2 зникло.
+  - IR-перевірки `reflectconv`, `eface`, `funcdecl`, `methodthunk` (`litgen -u`), `reflectclosureenv` тепер чекають сталого слова даних замість `AllocU`. `funcdecl` `closurePtr` — копія інтерфейсу на стеку (`alloca`).
+- `go test -count=1 -timeout 90m ./cl/ ./ssa/` з чистим кешем: `ssa` — `ok`; у `cl` упали ці п'ять IR-перевірок і більше нічого. Після правки всі п'ять зелені з чистим кешем. `gofmt`, `go vet ./cl/ ./ssa/` — чисто.
+- `gopacabra/fixtures.sh` — `0 of 89 fixtures failed` (відомі `counted`, `runtimefree`).
+
+Смоук сервісу (не прийняття P11.5): `gopacabra/stand/rest` з llgo на `d5ddaca7c` (`CGO_ENABLED=0`, `gopacabra` типово) збирається з кодом 0. Перший запит до бази відповідає, а сценарій `-c 64 -n 20000` на порожній базі дає `errors=0`, 8 658 rps (одиничний прогін, не замір). Зупинка за SIGINT — код 0.
+
+Обмеження: замикання з прив'язками в інтерфейсі досі йде через неврахований census `AllocU` (`directIface`): з `__ccgo_fp` ccgo так не робить. Не перевірено: darwin, повний CI, сценарій сервісу (P11.5).
