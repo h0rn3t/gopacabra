@@ -195,3 +195,66 @@ func retConst() error { return EINTR }
 		t.Errorf("GopacabraStack false: foo.isEINTR lost AllocU:\n%s", ir)
 	}
 }
+
+// TestGopacabraFuncIface — P11.5.4: статична функція в інтерфейсі бере слово
+// даних з незмінної глобальної змінної {fn, nil}, однієї на функцію, як
+// funcval у gc: без алокації в будь-якій категорії census, і однакові слова
+// даних для однієї функції (__ccgo_fp з modernc.org/libc їх порівнює).
+// Замикання з прив'язками лишається в купі.
+func TestGopacabraFuncIface(t *testing.T) {
+	const src = `package foo
+
+import "unsafe"
+
+func add(a, b int32) int32 { return a + b }
+
+func ccgoFP(f interface{}) uintptr {
+	type iface [2]uintptr
+	return (*iface)(unsafe.Pointer(&f))[1]
+}
+
+var sink any
+
+func local() uintptr { return ccgoFP(add) }
+
+func escape() any { return add }
+
+func global() { sink = add }
+
+func static() bool { var x any = add; return x != nil }
+
+func closure(k int32) any { return func(a int32) int32 { return a * k } }
+`
+	mod := compileGopacabraStack(t, src, true)
+	if err := llvm.VerifyModule(mod, llvm.ReturnStatusAction); err != nil {
+		t.Fatal(err)
+	}
+	add := mustNamedFunction(t, mod, "foo.add")
+	var funcvals []llvm.Value
+	for g := mod.FirstGlobal(); !g.IsNil(); g = llvm.NextGlobal(g) {
+		init := g.Initializer()
+		if g.IsGlobalConstant() && !init.IsNil() && init.Type().TypeKind() == llvm.StructTypeKind &&
+			init.OperandsCount() == 2 && init.Operand(0) == add && init.Operand(1).IsNull() {
+			funcvals = append(funcvals, g)
+		}
+	}
+	if len(funcvals) != 1 {
+		t.Fatalf("got %d constant {foo.add, null} globals, want 1:\n%s", len(funcvals), mod.String())
+	}
+	ref := "@" + funcvals[0].Name()
+	if strings.ContainsAny(funcvals[0].Name(), "$.") {
+		ref = `@"` + funcvals[0].Name() + `"`
+	}
+	for _, name := range []string{"foo.local", "foo.escape", "foo.global", "foo.static"} {
+		ir := mustNamedFunction(t, mod, name).String()
+		if strings.Contains(ir, "runtime.Alloc") || strings.Contains(ir, "runtime.NoteAlloc") {
+			t.Errorf("%s allocates, want the data word of foo.add from %s:\n%s", name, ref, ir)
+		}
+		if !strings.Contains(ir, ref) {
+			t.Errorf("%s does not reference %s:\n%s", name, ref, ir)
+		}
+	}
+	if ir := mustNamedFunction(t, mod, "foo.closure").String(); !strings.Contains(ir, "runtime.AllocU") {
+		t.Errorf("foo.closure lost AllocU of the closure box:\n%s", ir)
+	}
+}
