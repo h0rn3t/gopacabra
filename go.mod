@@ -27,3 +27,6 @@ replace golang.org/x/tools => github.com/xgo-dev/tools v0.51.1
 
 // v0.10.1 ported to LLVM 23 (see gopacabra/third_party/llvm/GOPACABRA.md); remove when upstream supports it.
 replace github.com/xgo-dev/llvm => ./gopacabra/third_party/llvm
+
+// v0.6.2 plus the amd64 ABI0 stack frame (see gopacabra/third_party/plan9asm/GOPACABRA.md).
+replace github.com/xgo-dev/plan9asm => ./gopacabra/third_party/plan9asm
