@@ -115,8 +115,7 @@ type eface struct {
 // CHECK: call void @main.dump(%"{{.*}}eface" [[FLOAT64_BOX]])
 // CHECK: [[ARRAY_BOX:%.*]] = insertvalue %"{{.*}}eface" { ptr @"[10]_llgo_int", ptr undef }, ptr %{{.*}}, 1
 // CHECK: call void @main.dump(%"{{.*}}eface" [[ARRAY_BOX]])
-// CHECK: [[CLOSURE_BOX:%.*]] = insertvalue %"{{.*}}eface" { ptr @"_llgo_closure${{[-A-Za-z0-9_]+}}", ptr undef }, ptr %{{.*}}, 1
-// CHECK: call void @main.dump(%"{{.*}}eface" [[CLOSURE_BOX]])
+// CHECK: call void @main.dump(%"{{.*}}eface" { ptr @"_llgo_closure${{[-A-Za-z0-9_]+}}", ptr @"main.main$1$funcval" })
 // CHECK: call void @main.dump(%"{{.*}}eface" { ptr @"*_llgo_int", ptr null })
 // CHECK: [[SLICE_BOX:%.*]] = insertvalue %"{{.*}}eface" { ptr @"[]_llgo_int", ptr undef }, ptr %{{.*}}, 1
 // CHECK: call void @main.dump(%"{{.*}}eface" [[SLICE_BOX]])

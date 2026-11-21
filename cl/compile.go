@@ -2005,6 +2005,10 @@ func (p *context) compileInstrOrValue(b llssa.Builder, iv instrOrValue, asValue 
 			ret = p.prog.Nil(t)
 			break
 		}
+		if fn, ok := v.X.(*ssa.Function); ok {
+			ret = b.MakeInterfaceFunc(t, p.compileValue(b, fn))
+			break
+		}
 		if p.gopacabraLabel[v] == gopacabraConstLabel {
 			ret = b.MakeInterfaceConst(t, p.compileValue(b, v.X))
 			break

@@ -328,6 +328,43 @@ func (b Builder) MakeInterfaceConst(tinter Type, x Expr) Expr {
 	return Expr{b.unsafeInterface(rawIntf, typ.raw.Type, b.abiType(typ.raw.Type), global), tinter}
 }
 
+// MakeInterfaceFunc builds an interface from the static function fn. Its data
+// word is the constant global {fn, nil}, one per function across packages, like
+// the funcval of a static function in gc: no allocation, and the same data word
+// for the same function. A function value that is not a constant falls back to
+// MakeInterface.
+func (b Builder) MakeInterfaceFunc(tinter Type, fn Expr) Expr {
+	prog := b.Prog
+	typ := prog.Type(fn.raw.Type, GoDecl)
+	x := checkExpr(fn, typ.raw.Type, b)
+	if !x.impl.IsConstant() || x.impl.OperandsCount() != 2 {
+		return b.MakeInterface(tinter, fn)
+	}
+	target := x.impl.Operand(0)
+	if target.IsAFunction().IsNil() || !x.impl.Operand(1).IsNull() {
+		return b.MakeInterface(tinter, fn)
+	}
+	name := target.Name() + "$funcval"
+	global := b.Pkg.mod.NamedGlobal(name)
+	if global.IsNil() {
+		global = llvm.AddGlobal(b.Pkg.mod, prog.storageType(typ), name)
+		global.SetInitializer(prog.toStorageConstant(typ, x.impl))
+		global.SetGlobalConstant(true)
+		global.SetAlignment(int(prog.AlignOf(typ)))
+		switch target.Linkage() {
+		case llvm.InternalLinkage, llvm.PrivateLinkage:
+			global.SetLinkage(llvm.PrivateLinkage)
+		default:
+			// Пакети компілюються окремо: компоновник лишає одну копію, тож
+			// слово даних однакове в усіх пакетах.
+			global.SetLinkage(llvm.LinkOnceODRLinkage)
+		}
+	}
+	b.recordUseIface(typ)
+	rawIntf := tinter.raw.Type.Underlying().(*types.Interface)
+	return Expr{b.unsafeInterface(rawIntf, typ.raw.Type, b.abiType(typ.raw.Type), global), tinter}
+}
+
 func (b Builder) MakeInterfaceFromPtr(tinter Type, ptr Expr) (ret Expr) {
 	rawIntf := tinter.raw.Type.Underlying().(*types.Interface)
 	prog := b.Prog

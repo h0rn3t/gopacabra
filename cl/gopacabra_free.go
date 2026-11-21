@@ -187,8 +187,24 @@ func gopacabraAccessOnly(addr ssa.Value, instr ssa.Instruction) bool {
 		return instr.Op == token.MUL && instr.X == addr
 	case *ssa.DebugRef:
 		return true
+	case *ssa.IndexAddr:
+		// Індекс масиву перевіряється на межі: адреса лишається в тому ж
+		// об'єкті, як (*[2]uintptr)(unsafe.Pointer(&f))[1] у __ccgo_fp.
+		return instr.X == addr && gopacabraElemAccessOnly(instr)
+	case *ssa.FieldAddr:
+		return instr.X == addr && gopacabraElemAccessOnly(instr)
 	}
 	return false
+}
+
+// gopacabraElemAccessOnly: адресу елемента чи поля лише читають і пишуть.
+func gopacabraElemAccessOnly(elem ssa.Value) bool {
+	for _, ref := range *elem.Referrers() {
+		if !gopacabraAccessOnly(elem, ref) {
+			return false
+		}
+	}
+	return true
 }
 
 func gopacabraCategory(label string) (uint64, bool) {
