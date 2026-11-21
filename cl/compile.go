@@ -1817,6 +1817,17 @@ func (p *context) compileInstrOrValue(b llssa.Builder, iv instrOrValue, asValue 
 					}
 				}
 			}
+			if src, ok := p.wordFuncValueSource(v); ok {
+				// Слово w під об'єктом — вказівник на {fn, ctx}: так llgo
+				// кладе func у слово даних інтерфейсу (__ccgo_fp у libc).
+				addr := p.compileValue(b, src)
+				p.recordPanicSite(b, v.Pos())
+				slot := b.Convert(p.type_(types.NewPointer(types.Typ[types.UnsafePointer]), llssa.GoDecl), addr)
+				w := b.UnOp(token.MUL, slot)
+				ret = b.UnOp(token.MUL, b.Convert(p.type_(v.X.Type(), llssa.GoDecl), w))
+				p.bvals[iv] = ret
+				return ret
+			}
 			// "libc_XXX_trampoline_addr" -> "XXX"
 			if strings.HasSuffix(v.X.Name(), "_trampoline_addr") {
 				name := v.X.Name()
@@ -2089,6 +2100,33 @@ func (p *context) compileInstrOrValue(b llssa.Builder, iv instrOrValue, asValue 
 // must be evaluated even though range, len, or cap only needs the static array
 // length. The language specification requires evaluation when the operand
 // contains a function call or channel receive. See Go issue 72844.
+// wordFuncValueSource повертає unsafe.Pointer, через який *v читає значення
+// функції з об'єкта розміру слова: *(*func(...))(unsafe.Pointer(&obj)).
+// У Go значення функції займає слово, у llgo — два, тож пряме читання
+// виходить за межі obj.
+func (p *context) wordFuncValueSource(v *ssa.UnOp) (ssa.Value, bool) {
+	if _, ok := v.Type().Underlying().(*types.Signature); !ok {
+		return nil, false
+	}
+	toFunc, ok := v.X.(*ssa.Convert)
+	if !ok {
+		return nil, false
+	}
+	fromObj, ok := toFunc.X.(*ssa.Convert)
+	if !ok {
+		return nil, false
+	}
+	obj, ok := fromObj.X.Type().Underlying().(*types.Pointer)
+	if !ok {
+		return nil, false
+	}
+	t := p.type_(obj.Elem(), llssa.GoDecl)
+	if t.RawType() == nil || p.prog.SizeOf(t) != uint64(p.prog.PointerSize()) {
+		return nil, false
+	}
+	return toFunc.X, true
+}
+
 func isEffectfulArrayPointerDeref(v *ssa.UnOp) bool {
 	if v == nil || v.Op != token.MUL {
 		return false
