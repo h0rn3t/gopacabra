@@ -386,3 +386,39 @@ func main() {
 - `go test ./internal/... ./cl/ ./cmd/...` — 93 пакети ok. Падіння лише відомі: `TestBuildDo_DepFingerprintAndVersion`, `TestSIMDFMVLLVM`, `TestSIMDFMVAggregatesLLVM`, `TestSIMDMidwayFMVLLVM`, `TestRunCmdPassesGoBuildFlags` (`GOFLAGS` оточення).
 - Python-тести `.github/scripts` — ok.
 - Не перевірено: повний CI (кроки вбудованих цілей змінено); запуск будь-якої baremetal-цілі; darwin.
+
+## P11.5.0.6 Видалення baremetal (2026-11-20)
+
+Рішення розробника: cortex-m, riscv, rp2040 та решта baremetal не потрібні. Лишились лише WebAssembly-цілі: wasm, wasi, wasip1, emscripten, emscripten-memory64.
+
+**Що видалено** (`c9ff172c7`, 1247 файлів, −99,7 тис. рядків):
+
+- усі не-wasm цілі й плати в `targets/*.json`, linker-скрипти, `targets/device` (738 файлів);
+- збірка picolibc і compiler-rt (`internal/crosscompile/compile`, `libc.go`);
+- образи прошивки (`internal/firmware`: bin/hex/img/uf2/zip) і пакети `internal/gohex`, `internal/crc16`;
+- прошивка і монітор порту: `internal/flash`, `internal/monitor`, команда `llgo monitor`, прапорці `-obin`/`-ohex`/`-oimg`/`-ouf2`/`-ozip`/`-port`/`-baudrate`; залежності `go.bug.st/serial`, `mattn/go-tty`, `creack/goselect`, `mattn/go-isatty`;
+- baremetal-файли рантайму (setjmp для arm/avr/cortex-m/riscv, `stdio_baremetal.go`, `z_baremetal.go`, `proc_baremetal.go`, час, poll, unwind тощо) і умови збірки `baremetal` у решті файлів;
+- патч `atomic_llgo_arm.go`, демо `_demo/embed`, workflow `targets.yml`, дія `setup-gdb`, `doc/Embedded_Cmd.md`, ліцензії видаленого коду в `LICENSES/`;
+- `Config.Emulator`, `Config.OutFmts`, поля Bin/Hex/Img/Uf2/Zip в `OutFmtDetails`. Іменовані цілі завжди запускаються через емулятор цілі.
+
+Тести, що перевіряли лише видалене (образи, `-port`, вибір baremetal-файлів рантайму, `llgo monitor`), видалено. Тести, де baremetal-ціль була прикладом іменованої цілі, тепер беруть `wasi`.
+
+**Що лишилось і чому.**
+
+| Залишок | Причина |
+| --- | --- |
+| ESP Clang (`getESPClangRoot`, `-force-espclang`, `TestESPClang*`) | потрібен для крос-компіляції під інші ОС |
+| `-emulator` | прапорець з upstream, тепер no-op |
+| `llgo debug -remote/-server/-load`, поля `Linker`, `LinkerArgs`, `ExtraFiles`, `GDB`, `TargetABI`, `ClangRoot` в `Export` | загальні механізми, не прив'язані до baremetal; мінімальний diff з upstream |
+| шляхи `cabi`/`ssa` для riscv32, avr, thumb | загальні для LLVM-цілей; їх тести беруть імена цілей як рядки |
+| імена цілей `rp2040`, `riscv-qemu` у тестах `cl` і `internal/build` | рядки без резолву цілі; тести перевіряють логіку для довільної іменованої цілі |
+| неперейменовані `runtime_baremetal.go`, `signal_baremetal_llgo.go`, `local_context_baremetal.go` | файли й далі потрібні wasm; перейменування — зайвий diff |
+
+**Уточнення до P11.5.0.5.** Фраза «не-ESP baremetal-цілі не компонуються» стосувалась перевірених цілей: `cortex-m-qemu`, `riscv-qemu` і `rp2040`. Інші цілі не перевірялись.
+
+### Прийняття
+
+- Тест спершу (`cd81fe952`): `TestNoBaremetalTargets` — у `internal/targets` лише WebAssembly-цілі. До реалізації — червоний, після — ok.
+- `go build ./...`, `gofmt` (крім згенерованого `xgo_autogen.go`), `go vet ./cmd/... ./internal/... ./ssa/... ./cl/` — чисто.
+- `go test ./internal/... ./cmd/... ./ssa/... ./cl/` з чистим кешем llgo: падіння лише відомі: `TestBuildDo_DepFingerprintAndVersion`, `TestSIMDFMVLLVM`, `TestSIMDFMVAggregatesLLVM`, `TestSIMDMidwayFMVLLVM`, `TestRunCmdPassesGoBuildFlags` (`GOFLAGS` оточення). Шість нових падінь першого прогону (тести видаленого: вибір baremetal-файлів рантайму, артефакти bin/hex/uf2, розширення `.elf`, `llgo monitor`) виправлено в коміті реалізації; `internal/build` для них і `cmd/llgo` повністю — ok.
+- Не перевірено: модуль `runtime` окремо (`go test` у ньому не запускався), повний CI, darwin.

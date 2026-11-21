@@ -228,7 +228,8 @@ session did.
   `cltest`, `_cmptest`, the `GOROOT/test` runner) gets the tag, and nothing
   turns it off (`applyGopacabraTag` in `resolveBuildConfig`, `internal/build`).
   BDWGC (P11.5.0.1) and `tinygogc` with `llgo.wasm.gc.linear` (P11.5.0.2)
-  are removed; wasm and baremetal use the gopacabra runtime too.
+  are removed; wasm uses the gopacabra runtime too. Baremetal targets are
+  removed (P11.5.0.6): only WebAssembly named targets remain.
   `-tags gopacabra` in commands is redundant.
 - `gopacabra` adds `nogc` and, on a native linux/amd64, linux/arm64 or
   darwin executable build, `gopacabramn` (M:N goroutines); `c-shared` and

@@ -1962,3 +1962,13 @@
 - Перевірки: `go build ./...`, `gofmt`, `go vet` — чисто; `go test ./internal/... ./cl/ ./cmd/...` — 93 пакети ok, падіння лише відомі: `TestBuildDo_DepFingerprintAndVersion`, три `TestSIMDFMV*`, `TestRunCmdPassesGoBuildFlags` (`GOFLAGS` оточення); `cl` — ok; Python-тести CI — ok.
 - Не перевірено: повний CI; запуск будь-якої baremetal-цілі; darwin.
 - Наступне: P11.5.1.
+
+## 2026-11-20 — P11.5.0.6 Видалити baremetal
+
+- Рішення розробника: cortex-m, riscv, rp2040 і решта baremetal не потрібні. Лишились лише WebAssembly-цілі (wasm, wasi, wasip1, emscripten, emscripten-memory64).
+- Тест спершу (`cd81fe952`): `TestNoBaremetalTargets` — у `internal/targets` лише WebAssembly-цілі.
+- Реалізація (`c9ff172c7`, 1247 файлів, −99,7 тис. рядків): видалено цілі, плати, `targets/device`, picolibc, compiler-rt, образи прошивки (`firmware`, `gohex`, `crc16`), `flash`, команду `monitor` і прапорці образів/порту, baremetal-файли рантайму й умови `baremetal`, `_demo/embed`, `targets.yml`, залежності serial/go-tty/goselect/go-isatty. Іменовані цілі завжди йдуть через емулятор цілі.
+- Лишилось: ESP Clang (крос-компіляція під інші ОС), `-emulator` як no-op, загальні механізми `llgo debug` і поля `Export`. Причини — у `gopacabra/REPORT-PHASE11.md`, «P11.5.0.6».
+- Перевірки: `go build ./...`, `gofmt`, `go vet` — чисто; `go test ./internal/... ./cmd/... ./ssa/... ./cl/` — падіння лише відомі (`TestBuildDo_DepFingerprintAndVersion`, три `TestSIMDFMV*`, `TestRunCmdPassesGoBuildFlags`).
+- Не перевірено: модуль `runtime` окремо, повний CI, darwin.
+- Наступне: P11.5.1.
