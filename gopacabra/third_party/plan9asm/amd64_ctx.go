@@ -63,6 +63,8 @@ type amd64Ctx struct {
 	vstackSlot     string // [64 x i64] virtual stack for PUSHQ/POPQ
 	vspSlot        string // i64 virtual stack pointer (next free slot)
 	localStackSlot string // byte-addressable backing storage for x86 SP references
+	frameSize      int64  // TEXT $frame; on amd64 it includes outgoing ABI0 call arguments
+	spFixed        bool   // SP is never written, so SP references can address localStackSlot directly
 	classicFrame   string // contiguous classic Go ABI frame used by 386 FP addressing
 	classicSize    int64
 	classicBias    int64
@@ -89,6 +91,7 @@ func newX86Ctx(b *strings.Builder, fn Func, sig FuncSig, resolve func(string) st
 		sigs:           sigs,
 		annotate:       annotate,
 		blocks:         amd64SplitBlocks(fn),
+		frameSize:      fn.FrameSize,
 		usedRegs:       map[Reg]bool{},
 		regSlot:        map[Reg]string{},
 		usedXRegs:      map[int]bool{},
@@ -312,8 +315,13 @@ func (c *amd64Ctx) emitEntryAllocas() error {
 		fmt.Fprintf(c.b, "  %s = alloca i64\n", name)
 		fmt.Fprintf(c.b, "  store i64 0, ptr %s\n", name)
 	}
-	if spSlot, ok := c.regSlot[SP]; ok && c.goarch == "386" {
+	// Gopacabra: amd64 теж отримує локальний стек, бо CALL без
+	// <ABIInternal> передає аргументи через кадр за 0(SP).
+	if spSlot, ok := c.regSlot[SP]; ok {
 		minOff, maxOff := c.stackOffsetRange()
+		if c.frameSize > maxOff {
+			maxOff = c.frameSize
+		}
 		movement, err := c.stackMovementBudget()
 		if err != nil {
 			return err
@@ -327,6 +335,7 @@ func (c *amd64Ctx) emitEntryAllocas() error {
 			size = 256
 		}
 		c.localStackSlot = "%local_stack"
+		c.spFixed = !c.writesSP()
 		fmt.Fprintf(c.b, "  %s = alloca [%d x i8]\n", c.localStackSlot, size)
 		base := c.newTmp()
 		fmt.Fprintf(c.b, "  %%%s = getelementptr inbounds [%d x i8], ptr %s, i32 0, i64 %d\n", base, size, c.localStackSlot, bias)
@@ -658,19 +667,19 @@ func (c *amd64Ctx) stackMovementBudget() (int64, error) {
 						return 0, err
 					}
 				}
-			case "ADDL", "SUBL":
+			case "ADDL", "SUBL", "ADDQ", "SUBQ":
 				if is386SPDestination(ins) && len(ins.Args) == 2 && ins.Args[0].Kind == OpImm {
 					if err := add(abs386StackAdjustment(int64(ins.Args[0].Imm)), ins); err != nil {
 						return 0, err
 					}
 				}
-			case "ANDL":
+			case "ANDL", "ANDQ":
 				if movement, ok := bounded386SPAndMovement(ins); ok {
 					if err := add(movement, ins); err != nil {
 						return 0, err
 					}
 				}
-			case "LEAL":
+			case "LEAL", "LEAQ":
 				if is386SPDestination(ins) && len(ins.Args) == 2 && ins.Args[0].Kind == OpMem &&
 					ins.Args[0].Mem.Base == SP && ins.Args[0].Mem.Index == "" {
 					if err := add(abs386StackAdjustment(ins.Args[0].Mem.Off), ins); err != nil {
@@ -1709,6 +1718,9 @@ func (c *amd64Ctx) ptrFromMem(mem MemRef) (ptr, ptrType string, err error) {
 		return "", "", err
 	}
 	if mem.Segment == "" {
+		if c.spFixed && mem.Sym == "" && mem.Base == SP {
+			return c.localStackPtr(addr), "ptr", nil
+		}
 		return c.ptrFromAddrI64(addr), "ptr", nil
 	}
 	addressSpace := 0
@@ -1726,6 +1738,42 @@ func (c *amd64Ctx) ptrFromMem(mem MemRef) (ptr, ptrType string, err error) {
 	ptrType = fmt.Sprintf("ptr addrspace(%d)", addressSpace)
 	fmt.Fprintf(c.b, "  %%%s = inttoptr i64 %s to %s\n", t, addr, ptrType)
 	return "%" + t, ptrType, nil
+}
+
+// localStackPtr перетворює SP-відносну адресу на вказівник у localStackSlot.
+// GEP зберігає походження від alloca, тож LLVM розрізняє слоти кадру й
+// згортає їх; при незмінному SP зсув від початкового SP стає константою.
+func (c *amd64Ctx) localStackPtr(addrI64 string) string {
+	sp0 := c.newTmp()
+	fmt.Fprintf(c.b, "  %%%s = ptrtoint ptr %s to i64\n", sp0, c.localStackSlot)
+	off := c.newTmp()
+	fmt.Fprintf(c.b, "  %%%s = sub i64 %s, %%%s\n", off, addrI64, sp0)
+	t := c.newTmp()
+	fmt.Fprintf(c.b, "  %%%s = getelementptr inbounds i8, ptr %s, i64 %%%s\n", t, c.localStackSlot, off)
+	return "%" + t
+}
+
+// writesSP повідомляє, чи змінює якась інструкція апаратний SP.
+func (c *amd64Ctx) writesSP() bool {
+	for _, block := range c.blocks {
+		for _, ins := range block.instrs {
+			switch op := strings.ToUpper(string(ins.Op)); {
+			case op == "ADJSP", strings.HasPrefix(op, "PUSH") && !strings.HasSuffix(op, "Q"),
+				strings.HasPrefix(op, "POP") && !strings.HasSuffix(op, "Q"):
+				return true
+			case strings.HasPrefix(op, "XCHG"):
+				for _, a := range ins.Args {
+					if a.Kind == OpReg && a.Reg == SP {
+						return true
+					}
+				}
+			}
+			if is386SPDestination(ins) {
+				return true
+			}
+		}
+	}
+	return false
 }
 
 func (c *amd64Ctx) ptrFromAddrI64(addrI64 string) string {

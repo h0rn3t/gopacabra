@@ -541,15 +541,19 @@ func goFuncSigForDeclaredFunc(name string, fn *types.Func, goarch string, sz, fr
 		}
 		return FuncSig{Name: name, Args: args, Ret: goTupleRetType(retTys), Frame: FrameLayout{Params: frameParams, Results: frameResults}}, nil
 	}
-	args, _, _, err := goLLVMArgsAndFrameSlotsForTuple(sig.Params(), goarch, sz, frameSz, 0, false)
+	// Gopacabra: Frame викликаної функції — її ABI0-кадр для amd64 CALL.
+	// Результати не сплющені: Index — номер результату, Field — частина
+	// агрегату, як у Ret.
+	args, frameParams, nextOff, err := goLLVMArgsAndFrameSlotsForTuple(sig.Params(), goarch, sz, frameSz, 0, false)
 	if err != nil {
 		return FuncSig{}, fmt.Errorf("%s: %w", fn.FullName(), err)
 	}
-	retTys, _, _, err := goLLVMArgsAndFrameSlotsForTuple(sig.Results(), goarch, sz, frameSz, 0, false)
+	nextOff = goAlignOff(nextOff, int64(goWordSizeForSizes(goarch, frameSz)))
+	retTys, frameResults, _, err := goLLVMArgsAndFrameSlotsForTuple(sig.Results(), goarch, sz, frameSz, nextOff, false)
 	if err != nil {
 		return FuncSig{}, fmt.Errorf("%s: %w", fn.FullName(), err)
 	}
-	return FuncSig{Name: name, Args: args, Ret: goTupleRetType(retTys)}, nil
+	return FuncSig{Name: name, Args: args, Ret: goTupleRetType(retTys), Frame: FrameLayout{Params: frameParams, Results: frameResults}}, nil
 }
 
 func goTupleRetType(ts []LLVMType) LLVMType {

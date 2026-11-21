@@ -309,6 +309,12 @@ func (c *amd64Ctx) callSym(symOp Operand) error {
 		return fmt.Errorf("amd64 call missing signature for %q", callee)
 	}
 	callee = funcSigSymbol(callee, csig)
+	// Gopacabra: CALL без <ABIInternal> у Go-асемблері завжди ABI0, тож за
+	// наявного кадру аргументи й результати проходять через пам'ять за 0(SP).
+	if c.goarch == "amd64" && c.localStackSlot != "" && len(csig.ArgRegs) == 0 &&
+		len(csig.Frame.Params)+len(csig.Frame.Results) > 0 && !strings.Contains(s, "<ABIInternal>") {
+		return c.callSymFrame(callee, csig)
+	}
 
 	args := make([]string, 0, len(csig.Args))
 	goABI := []Reg{AX, BX, CX, DI, SI, Reg("R8"), Reg("R9"), Reg("R10"), Reg("R11")}
@@ -392,6 +398,73 @@ func (c *amd64Ctx) callSym(symOp Operand) error {
 		}
 		return nil
 	}
+}
+
+// callSymFrame lowers an ABI0 call: csig.Frame gives the slot offsets of the
+// arguments and results relative to the caller's SP.
+func (c *amd64Ctx) callSymFrame(callee string, csig FuncSig) error {
+	sp, err := c.loadReg(SP)
+	if err != nil {
+		return err
+	}
+	framePtr := func(off int64) string {
+		addr := c.newTmp()
+		fmt.Fprintf(c.b, "  %%%s = add i64 %s, %d\n", addr, sp, off)
+		if c.spFixed {
+			return c.localStackPtr("%" + addr)
+		}
+		return c.ptrFromAddrI64("%" + addr)
+	}
+
+	// Аргументи нульового розміру не мають слотів і лишаються undef.
+	args := make([]string, len(csig.Args))
+	for i := range args {
+		args[i] = "undef"
+	}
+	for _, slot := range csig.Frame.Params {
+		v := c.newTmp()
+		fmt.Fprintf(c.b, "  %%%s = load %s, ptr %s, align 1\n", v, slot.Type, framePtr(slot.Offset))
+		if slot.Field < 0 {
+			args[slot.Index] = "%" + v
+			continue
+		}
+		agg := c.newTmp()
+		fmt.Fprintf(c.b, "  %%%s = insertvalue %s %s, %s %%%s, %d\n", agg, csig.Args[slot.Index], args[slot.Index], slot.Type, v, slot.Field)
+		args[slot.Index] = "%" + agg
+	}
+	for i, ty := range csig.Args {
+		args[i] = fmt.Sprintf("%s %s", ty, args[i])
+	}
+
+	if csig.Ret == Void {
+		fmt.Fprintf(c.b, "  call void %s(%s)\n", llvmGlobal(callee), strings.Join(args, ", "))
+		return nil
+	}
+	ret := c.newTmp()
+	fmt.Fprintf(c.b, "  %%%s = call %s %s(%s)\n", ret, csig.Ret, llvmGlobal(callee), strings.Join(args, ", "))
+
+	// Ret — кортеж, лише коли результатів кілька; Field вибирає частину
+	// агрегатного результату.
+	tuple := false
+	for _, slot := range csig.Frame.Results {
+		tuple = tuple || slot.Index > 0
+	}
+	for _, slot := range csig.Frame.Results {
+		v, ty := "%"+ret, csig.Ret
+		if tuple {
+			fields, _ := parseLiteralStructFields(ty)
+			t := c.newTmp()
+			fmt.Fprintf(c.b, "  %%%s = extractvalue %s %s, %d\n", t, ty, v, slot.Index)
+			v, ty = "%"+t, fields[slot.Index]
+		}
+		if slot.Field >= 0 {
+			t := c.newTmp()
+			fmt.Fprintf(c.b, "  %%%s = extractvalue %s %s, %d\n", t, ty, v, slot.Field)
+			v = "%" + t
+		}
+		fmt.Fprintf(c.b, "  store %s %s, ptr %s, align 1\n", slot.Type, v, framePtr(slot.Offset))
+	}
+	return nil
 }
 
 func (c *amd64Ctx) tailCallAndRet(symOp Operand) error {

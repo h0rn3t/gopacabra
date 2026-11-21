@@ -123,6 +123,10 @@ func TranslateSourceModuleForPkgWithOptions(pkg *packages.Package, sfile string,
 		// internal/cpu to decide which baseline features GODEBUG may disable.
 		src = append([]byte("#define GOAMD64_"+level+"\n"), src...)
 	}
+	// Препроцесор plan9asm ігнорує #include, тож макроси funcdata.h, які
+	// лише описують карти вказівників для GC і не генерують коду,
+	// визначені порожніми для кожного файлу.
+	src = append([]byte("#define GO_ARGS\n#define GO_RESULTS_INITIALIZED\n#define NO_LOCAL_POINTERS\n"), src...)
 
 	gopkg := extplan9asm.GoPackage{
 		Path:    symbolPkgPath,
