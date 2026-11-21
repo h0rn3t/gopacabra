@@ -28,6 +28,18 @@ func pun(f float64) uint64 {
 	return *(*uint64)(unsafe.Pointer(&f))
 }
 
+// ccgoFP — __ccgo_fp з modernc.org/libc: читання елемента масиву через
+// інший тип (P11.5.4).
+func ccgoFP(f interface{}) uintptr {
+	type iface [2]uintptr
+	return (*iface)(unsafe.Pointer(&f))[1]
+}
+
+// ifaceType — читання поля структури через інший тип.
+func ifaceType(f interface{}) uintptr {
+	return (*struct{ typ, data uintptr })(unsafe.Pointer(&f)).typ
+}
+
 // escapes — адреса параметра йде в глобальну змінну: місце закріплене.
 func escapes(f float64) {
 	keep = unsafe.Pointer(&f)
@@ -67,6 +79,12 @@ func main() {
 		{"pun", func() {
 			for i := range n {
 				bits += pun(float64(i))
+			}
+		}, 0},
+		{"ccgofp", func() {
+			for range n {
+				bits += uint64(ccgoFP(math.Abs) & 1)
+				bits += uint64(ifaceType(math.Abs) & 1)
 			}
 		}, 0},
 		{"escapes", func() { escapes(1.5) }, 8},
