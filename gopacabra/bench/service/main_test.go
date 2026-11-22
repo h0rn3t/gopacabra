@@ -156,3 +156,34 @@ func TestScenarioNeedsEmptyDatabase(t *testing.T) {
 		t.Errorf("scenario on a non-empty database = %v, want the empty-database error", err)
 	}
 }
+
+// TestRecordRepeatable: запис сценарію з одним клієнтом однаковий побайтно для
+// двох свіжих серверів і не містить заголовка Date (час відповіді).
+func TestRecordRepeatable(t *testing.T) {
+	record := func() string {
+		srv := fakeAPI(t, "")
+		var b strings.Builder
+		client := srv.Client()
+		client.Transport = &recorder{next: client.Transport, w: &b}
+		if _, err := scenario(t.Context(), client, srv.URL, 1, 200, 20); err != nil {
+			t.Fatalf("scenario = %v", err)
+		}
+		return b.String()
+	}
+	first, second := record(), record()
+	if first != second {
+		t.Errorf("record differs between two runs:\n%s\n---\n%s", first, second)
+	}
+	for _, want := range []string{
+		"GET /items?limit=1\n200\n",
+		`POST /items {"name":"item-1","qty":1}` + "\n201\nContent-Type: ",
+		`{"id":1,"name":"item-1","qty":1}` + "\n",
+	} {
+		if !strings.Contains(first, want) {
+			t.Errorf("record lacks %q", want)
+		}
+	}
+	if strings.Contains(first, "Date:") {
+		t.Error("record contains a Date header")
+	}
+}
