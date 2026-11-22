@@ -2041,3 +2041,15 @@
 - Перевірки: `go test -count=1 -timeout 90m ./cl/` з чистим кешем — `ok` (727 с); `./ssa/` — `ok`; `fixtures.sh` — 0 з 89; `llgo cmptest ./_cmptest/cfuncpointer` — код 0; `gofmt`, `go vet ./cl/` — без нових зауважень.
 - Не перевірено: darwin, повний CI.
 - Наступне: P11.6 — коректність сервісу під `gopacabra` (юніт-тести, ASan, `gopacabra live` після N і 10·N).
+
+## 2026-11-22 — P11.6 Коректність сервісу під `gopacabra`
+
+- Юніт-тести `gopacabra/stand/rest`: `go test`, `llgo test` і `llgo test -O0 -asan` — по 32 PASS, множини однакові.
+- ASan (`detect_leaks=0`): сценарій `-c 64 -n 100000` — `errors=0`; запис `-c 1 -n 100000` збігається з записом `gc`. Знахідок ASan немає.
+- `gopacabra live` після 10 000 і 100 000 запитів: live зростає ~11 КБ на запит. З них `pinned` дає 8 258 байтів, `rc-local` — 2 786, `rc-shared` — 179, `cyclic` — 67.
+- Місця (`gopacabrastat`): `pinned` — ~637 виділень на запит, усі у sqlite, коді, який переклав ccgo:
+  - 66% — локальні змінні, чию адресу передають як `uintptr` (`_yy_reduce`, `_sqlite3VdbeExec`, `_sqlite3Parser`);
+  - 32% — коробка `&struct{ uintptr }{fp}` у виклику через слово (`FxMutexEnter`/`FxMutexLeave`). Правило P11.5.3 цю коробку вже не читає.
+- Коду не змінено.
+- TSan не перевірено: на стенді його немає. darwin теж не перевірено.
+- Наступне: P11.7 — замір проти `gc`. Кандидати на витік `pinned` — для гейта P11.8.
