@@ -5,6 +5,18 @@
 // нього починається, а потім кличуть через це слово.
 package main
 
+// Значення функції типу //llgo:cdecl в llgo — одне слово, сам код: його слово
+// читається як є, без FuncWord, і виклик через слово бере код з нього.
+
+// CHECK-LABEL: define i64 @main.callCdecl(
+// CHECK-NOT: load { ptr, ptr }
+// CHECK: ret i64
+
+// CHECK-LABEL: define i64 @main.cdeclWord(
+// CHECK-NOT: FuncWord
+// CHECK: load i64
+// CHECK: ret i64
+
 // Слово значення функції, прочитане через unsafe.Pointer з об'єкта, що з
 // нього починається, — вказівник на пару {fn, ctx} (runtime.FuncWord), а не
 // перше слово пари: так його читає виклик через слово (ccgofp).
@@ -16,17 +28,6 @@ package main
 // CHECK: load { ptr, ptr }, ptr %{{[0-9]+}}, align 8
 // CHECK: call ptr @"{{.*}}/runtime/internal/runtime.FuncWord"(
 // CHECK-NOT: load i64
-// CHECK: ret i64
-
-// Значення функції типу //llgo:cdecl в llgo — одне слово, сам код: його слово
-// читається як є, без FuncWord, і виклик через слово бере код з нього.
-
-// CHECK-LABEL: define i64 @main.cdeclWord(
-// CHECK-NOT: FuncWord
-// CHECK: ret i64
-
-// CHECK-LABEL: define i64 @main.callCdecl(
-// CHECK-NOT: load { ptr, ptr }
 // CHECK: ret i64
 
 import (

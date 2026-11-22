@@ -2115,7 +2115,7 @@ func (p *context) compileInstrOrValue(b llssa.Builder, iv instrOrValue, asValue 
 // У Go значення функції займає слово, у llgo — два, тож пряме читання
 // виходить за межі obj.
 func (p *context) wordFuncValueSource(v *ssa.UnOp) (ssa.Value, bool) {
-	if _, ok := v.Type().Underlying().(*types.Signature); !ok {
+	if _, ok := v.Type().Underlying().(*types.Signature); !ok || !p.isFuncPair(v.Type()) {
 		return nil, false
 	}
 	toFunc, ok := v.X.(*ssa.Convert)
@@ -2165,6 +2165,9 @@ func (p *context) funcWordSource(v *ssa.UnOp) (ssa.Value, types.Type, bool) {
 	for {
 		switch u := fn.Underlying().(type) {
 		case *types.Signature:
+			if !p.isFuncPair(fn) {
+				return nil, nil, false
+			}
 			return toWord.X, fn, true
 		case *types.Struct:
 			if u.NumFields() == 0 {
@@ -2180,6 +2183,12 @@ func (p *context) funcWordSource(v *ssa.UnOp) (ssa.Value, types.Type, bool) {
 			return nil, nil, false
 		}
 	}
+}
+
+// isFuncPair каже, чи значення функції типу t в llgo — пара {fn, ctx}.
+// Тип //llgo:cdecl — одне слово, сам код, і його слово читається як є.
+func (p *context) isFuncPair(t types.Type) bool {
+	return p.prog.SizeOf(p.type_(t, llssa.GoDecl)) == 2*uint64(p.prog.PointerSize())
 }
 
 // isEffectfulArrayPointerDeref reports whether v is an array dereference that
