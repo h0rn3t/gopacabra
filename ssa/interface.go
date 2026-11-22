@@ -365,6 +365,15 @@ func (b Builder) MakeInterfaceFunc(tinter Type, fn Expr) Expr {
 	return Expr{b.unsafeInterface(rawIntf, typ.raw.Type, b.abiType(typ.raw.Type), global), tinter}
 }
 
+// FuncWord повертає слово значення функції fn, як у gc: сталий вказівник на
+// пару {fn, ctx} (runtime.FuncWord).
+func (b Builder) FuncWord(fn Expr) Expr {
+	prog := b.Prog
+	code := Expr{llvm.CreateExtractValue(b.impl, fn.impl, 0), prog.VoidPtr()}
+	ctx := Expr{llvm.CreateExtractValue(b.impl, fn.impl, 1), prog.VoidPtr()}
+	return b.Call(b.Pkg.rtFunc("FuncWord"), code, ctx)
+}
+
 func (b Builder) MakeInterfaceFromPtr(tinter Type, ptr Expr) (ret Expr) {
 	rawIntf := tinter.raw.Type.Underlying().(*types.Interface)
 	prog := b.Prog

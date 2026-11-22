@@ -1828,6 +1828,16 @@ func (p *context) compileInstrOrValue(b llssa.Builder, iv instrOrValue, asValue 
 				p.bvals[iv] = ret
 				return ret
 			}
+			if src, fn, ok := p.funcWordSource(v); ok {
+				// Слово значення функції — пара {fn, ctx}, як його читає гілка
+				// вище, а не перше слово пари (cFuncPointer у modernc sqlite).
+				addr := p.compileValue(b, src)
+				p.recordPanicSite(b, v.Pos())
+				fv := b.UnOp(token.MUL, b.Convert(p.type_(types.NewPointer(fn), llssa.GoDecl), addr))
+				ret = b.Convert(p.type_(v.Type(), llssa.GoDecl), b.FuncWord(fv))
+				p.bvals[iv] = ret
+				return ret
+			}
 			// "libc_XXX_trampoline_addr" -> "XXX"
 			if strings.HasSuffix(v.X.Name(), "_trampoline_addr") {
 				name := v.X.Name()
@@ -2100,10 +2110,6 @@ func (p *context) compileInstrOrValue(b llssa.Builder, iv instrOrValue, asValue 
 	return ret
 }
 
-// isEffectfulArrayPointerDeref reports whether v is an array dereference that
-// must be evaluated even though range, len, or cap only needs the static array
-// length. The language specification requires evaluation when the operand
-// contains a function call or channel receive. See Go issue 72844.
 // wordFuncValueSource повертає unsafe.Pointer, через який *v читає значення
 // функції з об'єкта розміру слова: *(*func(...))(unsafe.Pointer(&obj)).
 // У Go значення функції займає слово, у llgo — два, тож пряме читання
@@ -2131,6 +2137,55 @@ func (p *context) wordFuncValueSource(v *ssa.UnOp) (ssa.Value, bool) {
 	return toFunc.X, true
 }
 
+// funcWordSource повертає unsafe.Pointer, через який *v читає слово з
+// об'єкта, що починається зі значення функції, і тип цієї функції:
+// *(*uintptr)(unsafe.Pointer(&struct{ f T }{f})). У Go це слово — вказівник
+// на funcval, у llgo — перше слово пари {fn, ctx}, тобто код.
+func (p *context) funcWordSource(v *ssa.UnOp) (ssa.Value, types.Type, bool) {
+	if _, ok := v.Type().Underlying().(*types.Signature); ok {
+		return nil, nil, false
+	}
+	t := p.type_(v.Type(), llssa.GoDecl)
+	if t.RawType() == nil || p.prog.SizeOf(t) != uint64(p.prog.PointerSize()) {
+		return nil, nil, false
+	}
+	toWord, ok := v.X.(*ssa.Convert)
+	if !ok {
+		return nil, nil, false
+	}
+	fromObj, ok := toWord.X.(*ssa.Convert)
+	if !ok {
+		return nil, nil, false
+	}
+	obj, ok := fromObj.X.Type().Underlying().(*types.Pointer)
+	if !ok {
+		return nil, nil, false
+	}
+	fn := obj.Elem()
+	for {
+		switch u := fn.Underlying().(type) {
+		case *types.Signature:
+			return toWord.X, fn, true
+		case *types.Struct:
+			if u.NumFields() == 0 {
+				return nil, nil, false
+			}
+			fn = u.Field(0).Type()
+		case *types.Array:
+			if u.Len() == 0 {
+				return nil, nil, false
+			}
+			fn = u.Elem()
+		default:
+			return nil, nil, false
+		}
+	}
+}
+
+// isEffectfulArrayPointerDeref reports whether v is an array dereference that
+// must be evaluated even though range, len, or cap only needs the static array
+// length. The language specification requires evaluation when the operand
+// contains a function call or channel receive. See Go issue 72844.
 func isEffectfulArrayPointerDeref(v *ssa.UnOp) bool {
 	if v == nil || v.Op != token.MUL {
 		return false
