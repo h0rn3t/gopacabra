@@ -16,6 +16,19 @@ func cFuncPointer[T any](f T) uintptr {
 
 func add(a, b int32) int32 { return a + b }
 
+//llgo:cdecl
+type cAdd func(a, b int) int
+
+func addInt(a, b int) int { return a + b }
+
+func cdeclWord(c cAdd) uintptr {
+	return *(*uintptr)(unsafe.Pointer(&c))
+}
+
+func callCdecl(w uintptr) int {
+	return (*(*cAdd)(unsafe.Pointer(&struct{ uintptr }{w})))(2, 3)
+}
+
 func main() {
 	fp := cFuncPointer(add)
 	fmt.Println((*(*func(int32, int32) int32)(unsafe.Pointer(&struct{ uintptr }{fp})))(2, 3))
@@ -29,4 +42,6 @@ func main() {
 	fmt.Println((*(*func(int32) int32)(unsafe.Pointer(&cp)))(6))
 	fmt.Println(cp == cFuncPointer(mul))
 	runtime.KeepAlive(mul)
+
+	fmt.Println(callCdecl(cdeclWord(addInt)))
 }

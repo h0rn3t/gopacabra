@@ -18,6 +18,17 @@ package main
 // CHECK-NOT: load i64
 // CHECK: ret i64
 
+// Значення функції типу //llgo:cdecl в llgo — одне слово, сам код: його слово
+// читається як є, без FuncWord, і виклик через слово бере код з нього.
+
+// CHECK-LABEL: define i64 @main.cdeclWord(
+// CHECK-NOT: FuncWord
+// CHECK: ret i64
+
+// CHECK-LABEL: define i64 @main.callCdecl(
+// CHECK-NOT: load { ptr, ptr }
+// CHECK: ret i64
+
 import (
 	"fmt"
 	"runtime"
@@ -30,6 +41,19 @@ func cFuncPointer[T any](f T) uintptr {
 }
 
 func add(a, b int32) int32 { return a + b }
+
+//llgo:cdecl
+type cAdd func(a, b int) int
+
+func addInt(a, b int) int { return a + b }
+
+func cdeclWord(c cAdd) uintptr {
+	return *(*uintptr)(unsafe.Pointer(&c))
+}
+
+func callCdecl(w uintptr) int {
+	return (*(*cAdd)(unsafe.Pointer(&struct{ uintptr }{w})))(2, 3)
+}
 
 func main() {
 	fp := cFuncPointer(add)
@@ -44,4 +68,6 @@ func main() {
 	fmt.Println((*(*func(int32) int32)(unsafe.Pointer(&cp)))(6))
 	fmt.Println(cp == cFuncPointer(mul))
 	runtime.KeepAlive(mul)
+
+	fmt.Println(callCdecl(cdeclWord(addInt)))
 }
