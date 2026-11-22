@@ -13,9 +13,14 @@
 // Seeded items are never changed or deleted, so each expected answer is
 // known whatever the order of requests. The command exits non-zero on any
 // unexpected answer.
+//
+// -record FILE writes every request and its response (status, headers but
+// Date, body). With -c 1 the record is the same byte for byte on every run, so
+// the records of two builds of the service compare with cmp.
 package main
 
 import (
+	"bufio"
 	"bytes"
 	"context"
 	"encoding/json"
@@ -24,9 +29,11 @@ import (
 	"fmt"
 	"io"
 	"log"
+	"maps"
 	"math/rand/v2"
 	"net/http"
 	"os"
+	"slices"
 	"strings"
 	"sync"
 	"time"
@@ -44,6 +51,7 @@ func run(args []string) error {
 	clients := fs.Int("c", 64, "concurrent clients")
 	n := fs.Int("n", 100_000, "requests after seeding")
 	seed := fs.Int("seed", 1000, "items to seed")
+	record := fs.String("record", "", "write requests and responses to this file")
 	if err := fs.Parse(args); err != nil {
 		return err
 	}
@@ -54,6 +62,16 @@ func run(args []string) error {
 	t := http.DefaultTransport.(*http.Transport).Clone()
 	t.MaxIdleConnsPerHost = *clients
 	client := &http.Client{Timeout: 10 * time.Second, Transport: t}
+	if *record != "" {
+		f, err := os.Create(*record)
+		if err != nil {
+			return err
+		}
+		defer f.Close()
+		w := bufio.NewWriter(f)
+		defer w.Flush()
+		client.Transport = &recorder{next: t, w: w}
+	}
 	start := time.Now()
 	rep, err := scenario(context.Background(), client, *base, *clients, *n, *seed)
 	if err != nil {
@@ -211,4 +229,53 @@ func call(ctx context.Context, client *http.Client, method, url, body string) (i
 	defer resp.Body.Close()
 	b, err := io.ReadAll(resp.Body)
 	return resp.StatusCode, string(bytes.TrimSpace(b)), err
+}
+
+// recorder writes each request and its response to w: the request line with
+// its body, the status, the headers sorted, without Date, and the body.
+type recorder struct {
+	next http.RoundTripper
+	mu   sync.Mutex
+	w    io.Writer
+}
+
+func (r *recorder) RoundTrip(req *http.Request) (*http.Response, error) {
+	var reqBody []byte
+	if req.Body != nil {
+		b, err := io.ReadAll(req.Body)
+		if err != nil {
+			return nil, err
+		}
+		reqBody = b
+		req.Body = io.NopCloser(bytes.NewReader(b))
+	}
+	resp, err := r.next.RoundTrip(req)
+	if err != nil {
+		return nil, err
+	}
+	body, err := io.ReadAll(resp.Body)
+	resp.Body.Close()
+	if err != nil {
+		return nil, err
+	}
+	resp.Body = io.NopCloser(bytes.NewReader(body))
+
+	var b strings.Builder
+	fmt.Fprintf(&b, "%s %s", req.Method, req.URL.RequestURI())
+	if len(reqBody) > 0 {
+		fmt.Fprintf(&b, " %s", reqBody)
+	}
+	fmt.Fprintf(&b, "\n%d\n", resp.StatusCode)
+	for _, k := range slices.Sorted(maps.Keys(resp.Header)) {
+		if k != "Date" {
+			fmt.Fprintf(&b, "%s: %s\n", k, strings.Join(resp.Header[k], ", "))
+		}
+	}
+	fmt.Fprintf(&b, "%s\n\n", body)
+	r.mu.Lock()
+	defer r.mu.Unlock()
+	if _, err := io.WriteString(r.w, b.String()); err != nil {
+		return nil, err
+	}
+	return resp, nil
 }

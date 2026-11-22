@@ -176,7 +176,7 @@ func TestRecordRepeatable(t *testing.T) {
 	}
 	for _, want := range []string{
 		"GET /items?limit=1\n200\n",
-		`POST /items {"name":"item-1","qty":1}` + "\n201\nContent-Type: ",
+		`POST /items {"name":"item-1","qty":1}` + "\n201\nContent-Length: 32\nContent-Type: ",
 		`{"id":1,"name":"item-1","qty":1}` + "\n",
 	} {
 		if !strings.Contains(first, want) {
