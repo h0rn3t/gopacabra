@@ -366,8 +366,14 @@ func ssaPackageFuncs(pkg *ssa.Package) []*ssa.Function {
 
 // gopacabraFreeAfter ставить free на останньому читанні в блоці, після якого
 // об'єкт уже не живий. Гілка, де читання лишається попереду, free не отримує:
-// об'єкт доживає до виходу процесу. defer тримає аргумент до RunDefers, тож
-// таке місце в цій фазі не звільняється.
+// об'єкт доживає до виходу процесу.
+//
+// Місце, яке тримає defer (аргумент чи комірка в defer-замиканні, P12.5.1),
+// живе до RunDefers: кожен RunDefers і Panic функції стає його використанням.
+// Free стає після RunDefers; на шляху panic відкладені виклики біжать після
+// Panic, тож там free немає і місце лишається живим. Продовження після
+// RunDefers у LLVM досяжне і зі setjmp, тож таке місце звільняється, лише
+// якщо його алокація стоїть до setjmp (deferEntrySite).
 func gopacabraFreeAfter(fn *ssa.Function, uses map[ssa.Instruction][]ssa.Instruction, keepStored bool) (after map[ssa.Instruction][]ssa.Value, entry map[*ssa.BasicBlock][]ssa.Value, edge map[census.BlockEdge][]ssa.Value) {
 	if fn == nil || len(fn.Blocks) == 0 || len(uses) == 0 {
 		return nil, nil, nil
@@ -376,7 +382,11 @@ func gopacabraFreeAfter(fn *ssa.Function, uses map[ssa.Instruction][]ssa.Instruc
 	entry = map[*ssa.BasicBlock][]ssa.Value{}
 	edge = map[census.BlockEdge][]ssa.Value{}
 	for site, users := range uses {
-		if site == nil || site.Parent() != fn || deferred(users) {
+		if site == nil || site.Parent() != fn {
+			continue
+		}
+		held := deferred(users)
+		if held && !deferEntrySite(fn, site) {
 			continue
 		}
 		val, ok := site.(ssa.Value)
@@ -394,6 +404,16 @@ func gopacabraFreeAfter(fn *ssa.Function, uses map[ssa.Instruction][]ssa.Instruc
 				user[instr] = true
 			}
 		}
+		if held {
+			for _, block := range fn.Blocks {
+				for _, instr := range block.Instrs {
+					switch instr.(type) {
+					case *ssa.RunDefers, *ssa.Panic:
+						user[instr] = true
+					}
+				}
+			}
+		}
 		lasts, entries, splits := deaths(fn, user, site)
 		for _, block := range entries {
 			if site.Block() != nil && site.Block().Dominates(block) {
@@ -406,6 +426,9 @@ func gopacabraFreeAfter(fn *ssa.Function, uses map[ssa.Instruction][]ssa.Instruc
 			}
 		}
 		for instr := range lasts {
+			if _, ok := instr.(*ssa.Panic); ok && held {
+				continue // free перед Panic випередив би відкладені виклики
+			}
 			// Використання аліаса в блоці, якого алокація не домінує,
 			// не має місця для free: значення LLVM там недоступне.
 			if instr.Block() == nil || site.Block() == nil || !site.Block().Dominates(instr.Block()) {
@@ -424,6 +447,33 @@ func gopacabraFreeAfter(fn *ssa.Function, uses map[ssa.Instruction][]ssa.Instruc
 		edge = nil
 	}
 	return out, entry, edge
+}
+
+// deferEntrySite звітує, що site стоїть у блоці входу до першого defer
+// функції. ssa.Builder ставить setjmp відкладених викликів у кінець блоку
+// входу або на місце першого defer у ньому, тож лише таке значення LLVM
+// домінує над продовженням після RunDefers. Defer у чужий стек
+// (range-over-func) будує стан деінде; там місце не звільняється.
+func deferEntrySite(fn *ssa.Function, site ssa.Instruction) bool {
+	for _, block := range fn.Blocks {
+		for _, instr := range block.Instrs {
+			if d, ok := instr.(*ssa.Defer); ok && d.DeferStack != nil {
+				return false
+			}
+		}
+	}
+	if site.Block() != fn.Blocks[0] {
+		return false
+	}
+	for _, instr := range fn.Blocks[0].Instrs {
+		if _, ok := instr.(*ssa.Defer); ok {
+			return false
+		}
+		if instr == site {
+			return true
+		}
+	}
+	return false
 }
 
 // pointerStored звітує, що саме значення вказівника кладуть у пам'ять,
