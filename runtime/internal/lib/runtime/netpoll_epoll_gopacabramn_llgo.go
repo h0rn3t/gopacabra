@@ -50,18 +50,22 @@ func netpollIsPollDescriptor(fd uintptr) bool { return fd == uintptr(epfd) }
 
 // netpollOpen реєструє fd по краю на обидва напрями, як Go.
 func netpollOpen(fd uintptr, pd *pollDesc) int {
-	var ev epollEvent
-	ev.events = epollIn | epollOut | epollRdHup | epollET
+	// Адреса структур, які бачить ядро, тікає в C; рантайм census не
+	// розставляє, тож var дав би купове виділення без звільнення на кожен
+	// виклик. Тут і нижче вони на C-стеку (P12.5.6.1).
+	ev := (*epollEvent)(c.Alloca(unsafe.Sizeof(epollEvent{})))
+	*ev = epollEvent{events: epollIn | epollOut | epollRdHup | epollET}
 	ev.setData(uintptr(unsafe.Pointer(pd)))
-	if c_epoll_ctl(epfd, epollCtlAdd, c.Int(fd), &ev) != 0 {
+	if c_epoll_ctl(epfd, epollCtlAdd, c.Int(fd), ev) != 0 {
 		return int(cliteos.Errno())
 	}
 	return 0
 }
 
 func netpollClose(fd uintptr) {
-	var ev epollEvent
-	c_epoll_ctl(epfd, epollCtlDel, c.Int(fd), &ev)
+	ev := (*epollEvent)(c.Alloca(unsafe.Sizeof(epollEvent{})))
+	*ev = epollEvent{}
+	c_epoll_ctl(epfd, epollCtlDel, c.Int(fd), ev)
 }
 
 // netpoll перевіряє готовність дескрипторів і будить їхніх очікувачів.
@@ -78,7 +82,7 @@ func netpoll(delay int64) {
 	case delay > 0:
 		waitms = 1e9 // близько 11.5 доби
 	}
-	var events [128]epollEvent
+	events := (*[128]epollEvent)(c.Alloca(unsafe.Sizeof([128]epollEvent{})))
 	for {
 		n := c_epoll_wait(epfd, &events[0], c.Int(len(events)), waitms)
 		if n < 0 {

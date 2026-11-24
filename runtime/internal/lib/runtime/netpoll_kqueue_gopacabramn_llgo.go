@@ -60,7 +60,10 @@ func netpollIsPollDescriptor(fd uintptr) bool { return fd == uintptr(kq) }
 
 // netpollOpen реєструє fd по краю (EV_CLEAR) на обидва напрями, як Go.
 func netpollOpen(fd uintptr, pd *pollDesc) int {
-	var ev [2]keventT
+	// Адреса структур, які бачить ядро, тікає в C; рантайм census не
+	// розставляє, тож var дав би купове виділення без звільнення на кожен
+	// виклик. Тут і нижче вони на C-стеку (P12.5.6.1).
+	ev := (*[2]keventT)(c.Alloca(unsafe.Sizeof([2]keventT{})))
 	ev[0] = keventT{ident: fd, filter: evfiltRead, flags: evAdd | evClear, udata: uintptr(unsafe.Pointer(pd))}
 	ev[1] = ev[0]
 	ev[1].filter = evfiltWrite
@@ -76,17 +79,16 @@ func netpollClose(uintptr) {}
 // netpoll перевіряє готовність дескрипторів і будить їхніх очікувачів.
 // delay < 0 — чекати без межі, 0 — не блокуватися, > 0 — до delay нс.
 func netpoll(delay int64) {
-	var ts kqTimespec
-	tp := &ts
+	tp := (*kqTimespec)(c.Alloca(unsafe.Sizeof(kqTimespec{})))
 	switch {
 	case delay < 0:
 		tp = nil
 	case delay > 1e15:
-		ts.sec = 1e6 // близько 11.5 доби
+		*tp = kqTimespec{sec: 1e6} // близько 11.5 доби
 	default:
-		ts.sec, ts.nsec = delay/1e9, delay%1e9
+		*tp = kqTimespec{sec: delay / 1e9, nsec: delay % 1e9}
 	}
-	var events [64]keventT
+	events := (*[64]keventT)(c.Alloca(unsafe.Sizeof([64]keventT{})))
 	for {
 		n := c_kevent(kq, nil, 0, &events[0], c.Int(len(events)), tp)
 		if n < 0 {
