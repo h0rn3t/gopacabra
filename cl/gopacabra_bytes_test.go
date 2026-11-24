@@ -79,3 +79,15 @@ func TestGopacabraPinnedTypePun(t *testing.T) {
 		t.Errorf("llgo run -tags gopacabra ./gopacabra/bytes/typepun error = %v, want exit 0\n%s", err, out)
 	}
 }
+
+// TestGopacabraPinnedCcgoAddr — фаза 12: форми адреси локальної змінної з коду
+// ccgo (коробка виклику через слово, P12.2) не додають байтів до live pinned;
+// адреса, що втікає в глобальну змінну, лишається pinned.
+func TestGopacabraPinnedCcgoAddr(t *testing.T) {
+	conf := build.NewDefaultConf(build.ModeRun)
+	conf.Tags = "gopacabra"
+	out, err := cltest.RunAndCaptureWithConf("../gopacabra/bytes/ccgoaddr", "", conf)
+	if err != nil {
+		t.Errorf("llgo run -tags gopacabra ./gopacabra/bytes/ccgoaddr error = %v, want exit 0\n%s", err, out)
+	}
+}
