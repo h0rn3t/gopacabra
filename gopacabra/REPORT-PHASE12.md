@@ -303,3 +303,33 @@ if __ccgo_strace {
 **P12.5.3 зводиться до P12.5.5.** Рядки `GoString` (`libc_all.go:88`, ~20 Б на запит) живуть у зрізах `columns` і `decltypes` об'єкта `rows`, створеного в `newRows`. Сам `rows` лишається живим (P12.5.5), тож окремого виправлення рядки не потребують.
 
 **ASan.** Сервіс `-O0 -asan`, `ASAN_OPTIONS=detect_leaks=0`, сценарій `-c 64 -n 100000` — `errors=0`, stderr порожній, код 0.
+
+## P12.5.7 Причина `shared` в аргументів `Scan` (2026-11-24)
+
+Метод. Тимчасове трасування `markUnknown` у `gopacabra/census/summary.go` (не закомічене): для кожної позначки `Unknown` — функція, параметр та інструкція. Програма — `rows.Scan(&it.ID, &it.Name)` у циклі з фіктивним драйвером `database/sql/driver`. Зведення будувалось двічі: `llgo run` з `-tags gopacabrastat` і `PublishProgram` над програмою з `go/packages`. Перша причина (`reflect.Indirect` → `verifyNotInHeapPtr`) в обох та сама; повний список нижче — з другого способу.
+
+Місце сервісу класифікує `PlaceAll` пакета `main`. Зведення `(*sql.Rows).Scan` для нього береться з `PublishProgram` (`summaryOf` → `publishedSummary`). У цьому зведенні обидва параметри мають `Unknown`; `(*sql.Row).Scan` отримує `Unknown` від нього.
+
+Звідки `Unknown` у `dest`, за функціями:
+
+| Функція | Інструкція | Чому ціль невідома |
+| --- | --- | --- |
+| `(*Rows).scanLocked` | `ScanColumn(dest[i], …)` через `driver.RowsColumnScanner` (`sql.go:3440`) | метод інтерфейсу драйвера; census не знає множини його типів |
+| `convertAssignRows` | `reflect.Indirect(reflect.ValueOf(dest))` (`convert.go:468`) | `Indirect` → `(reflect.Value).Elem` → `verifyNotInHeapPtr(*(*uintptr)(v.ptr))`, функція без тіла |
+| `convertAssignRows` | `dv.Set(…)`, `dv.SetZero()` (`convert.go:472`–`:495`) | `Unknown` у зведенні `reflect.Value` |
+| `convertAssignRows` | `dv.Type().AssignableTo(…)`, `ConvertibleTo(…)` (`convert.go:469`, `:479`) | метод інтерфейсу `reflect.Type`; слово типу виведене з `dest` |
+| `convertAssignRows` | `fmt.Errorf("… %T into type %T", src, dest)` (`convert.go:547`) | `errorf` → `doPrintf` → `printArg` → `handleMethods`, `printValue`, `fmtPointer`: друк через reflect |
+
+Перша причина в порядку обходу — `reflect.Indirect`. Якщо прибрати будь-яку одну причину, `dest` лишиться `Unknown` через решту. Для `*int64` із `src` типу `int64` виконання справді йде гілкою reflect (`convert.go:455`–`:474`). Для `*string` — ні: там `case *string: *d = s`.
+
+**`gc` теж переносить ці змінні в купу.** `go build -gcflags=-m` модуля `gopacabra/stand/rest` дає `moved to heap: it` для `main.go:108`, `:125`, `:141`, `:195`, `:212`. Для `database/sql` — `leaking param content: dest` (`sql.go:3394`) і `leaking param: dest` (`convert.go:237`). Тобто census не слабший за escape-аналіз `gc`. Різниця лише в тому, що `gc` прибирає таку змінну збирачем, а під `gopacabra` вона лишається жити до виходу програми.
+
+**Зведення `reflect` береться з тіла `std`, а не з оверлея.** У `PublishProgram` є обидва пакети: `reflect` з `GOROOT` і `runtime/internal/lib/reflect`. Виклик з `database/sql` має ціллю функцію `std`, тож census зводить тіло, яке не компілюється. Скомпільований оверлей має інші причини `Unknown` у `(Value).Elem`: `closureOf` (запис у `sync.Map`) і `(*abi.Type).NumMethod`. Чи є функція `reflect`, де тіло `std` позичає параметр, а оверлей його утримує, не перевірено. Якщо така є, census звільнить живий об'єкт.
+
+**Висновок.** Одного правила, яке зробило б `dest` відомим, немає. Для цього потрібні три окремі правила:
+
+1. зведення `reflect.Value` (`ValueOf`, `Indirect`, `Elem`, `Set`, `SetZero`, `Type`), складене з того тіла, яке компілюється;
+2. правило для друку `fmt` (`%T`, `%v` лише читають аргумент; `%w` у `Errorf` утримує аргумент-`error` у результаті);
+3. множина цілей `driver.RowsColumnScanner.ScanColumn` у межах усієї програми.
+
+Кожне з них — окремий клас, що виходить за межі задачі. Рішення, чи брати їх у фазу 12, — за розробником. Без них P12.5.7 лишається відкритою з відомою причиною.
