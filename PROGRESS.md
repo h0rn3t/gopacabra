@@ -2155,3 +2155,18 @@
 - Не перевірено: darwin; RSS (один прогін, порівняння з P12.5.1 не робилось).
 - Наступне: P12.5.3 (`GoString`) або P12.5.4 (`encoding/json/v2`).
 
+
+## 2026-11-24 — P12.5.6 Розклад у байтах і буфер подій `netpoll` (P12.5.6.1)
+
+- Розклад після P12.5.2 (`heapsym.py`, сервіс, N = 10 000): live 6488 Б на запит. Найбільше — `runtime.netpoll` (~2.9 КБ на запит) і `reflect.unpackEface` (~280 Б). Обидва місця — `unplaced`: `prepareGopacabraFree` розставляє лише функції оригінального пакета, а не оверлея (`patch.Alt`). Лічильники `gopacabra live` таких місць не бачать.
+- P12.5.3 зводиться до P12.5.5: рядки `GoString` живуть у зрізах об'єкта `rows`, який сам лишається живим.
+- Тест спершу (`43ce4e96a`): фікстура `gopacabra/bytes/netpoll` (1000 обмінів через loopback), тест `TestGopacabraNetpollEvents` під `gopacabrastat` читає рядки `gopacabra site` файлів `netpoll_*`. Червоний: `netpoll_epoll_gopacabramn_llgo.go:81 alloc: 4051`.
+- Виправлення (`9f1675fed`): буфери, які бачить ядро (`events`, `ev`, `ts`), у версіях epoll і kqueue виділяються на C-стеку через `c.Alloca`.
+- Перевірки:
+  - `go test -count=1 ./cl/ -run Gopacabra` з чистим кешем — `ok`;
+  - `gopacabra/fixtures.sh` — 0 з 94 падінь;
+  - сервіс під `-O0 -asan`: сценарій на 100 000 запитів — `errors=0`, без звітів.
+- Сервіс, `gopacabrastat,gopacabraheap`, N = 10 000: live за профілем — 3524 Б на запит замість 6488; місць `netpoll` у профілі немає; `errors=0`.
+- Нова задача P12.5.6.2 — census для функцій оверлея (`reflect.unpackEface`: 190 085 виділень без звільнення на 10 000 запитів).
+- Не перевірено: darwin (версія kqueue змінена, але не зібрана).
+- Наступне: P12.5.6.2 або P12.5.5.

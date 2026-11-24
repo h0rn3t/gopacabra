@@ -218,3 +218,47 @@ if __ccgo_strace {
 - `llgo test -O0 -asan -v .` — 32 PASS, 0 FAIL, без звітів;
 - сценарій `-c 64 -n 100000` — `errors=0`, stderr порожній, код 0.
 
+
+### P12.5.6 Розклад у байтах після P12.5.2 і буфер подій `netpoll`
+
+Сервіс, збірка `-tags gopacabrastat,gopacabraheap`, сценарій `-c 64 -n 10000`. Знімок купи — при виході (`GOPACABRA_HEAP_OUT`), розбір — `heapsym.py -n 10000`. Сюди ж входять одноразові виділення старту, наприклад таблиця рядків `symtab.go` (~400 Б на запит при N = 10 000).
+
+Головні місця на P12.5.2 (`67304eea8`), live 6488 Б на запит:
+
+| Місце | Байтів на запит | Категорія |
+| --- | ---: | --- |
+| `runtime.netpoll` (`netpoll_epoll_gopacabramn_llgo.go:81`), усі стеки | 2900 | `unplaced` |
+| `reflect.unpackEface` (`value.go:182`) з `convert.go:456` і `:465` | 282 | `unplaced` |
+| `sqlite_g_…900.go:18181` | 224 | — |
+| `encoding/json.Marshal` → `bytes.Clone` | 209 | — |
+| `main.go:196` сервісу | 196 | — |
+| `modernc.org/sqlite.newRows` (`rows.go:65`) | 177 | `rc-local closure` |
+| `database/sql` `sql.go:1800` | 165 | `rc-shared` |
+
+**`unplaced`.** Census розставляє лише функції оригінального пакета: `prepareGopacabraFree` бере `ssaPackageFuncs(pkg)`, а функції оверлея (`patch.Alt`: `runtime/internal/lib/runtime`, `.../reflect` тощо) у розстановку не потрапляють. Змінна, чия адреса там тікає, виділяється в купі без звільнення. Лічильники `gopacabra live` такі місця не бачать: вони не мають категорії. Видно їх лише в рядках `gopacabra site … unplaced` і в профілі купи.
+
+**P12.5.6.1.** `netpoll` оголошував `var events [128]epollEvent` (1536 Б) і передавав `&events[0]` у `C.epoll_wait`, тож кожен виклик з планувальника M:N (`mnFindRunnable`, `mnIdle`) лишав блок у купі. Те саме — з `var ev` у `netpollOpen` і `netpollClose` та з `events`/`ts` у версії kqueue. Ці буфери тепер виділяються на C-стеку через `c.Alloca`, як `nanotime_linux_llgo.go`.
+
+Тест `TestGopacabraNetpollEvents` збирає фікстуру `gopacabra/bytes/netpoll` (1000 обмінів через loopback) з `gopacabrastat` і читає рядки `gopacabra site` файлів `netpoll_*`. До виправлення: `netpoll_epoll_gopacabramn_llgo.go:81 alloc: 4051`.
+
+Після виправлення, той самий сценарій:
+
+| Лічильник | P12.5.2 | P12.5.6.1 |
+| --- | ---: | ---: |
+| live за профілем, Б на запит | 6488 | 3524 |
+| місць `netpoll` у профілі | 6 | 0 |
+
+Головні місця після P12.5.6.1:
+
+| Місце | Байтів на запит | Задача |
+| --- | ---: | --- |
+| `reflect.unpackEface` (`value.go:182`), 190 085 виділень | 284 | P12.5.6.2 |
+| `sqlite_g_…900.go:18181` | 273 | — |
+| `sql.go:1800` | 199 | P12.5.5 |
+| `main.go:195`/`:196` сервісу | 326 | — |
+| `encoding/json.Marshal` → `bytes.Clone` | 183 | P12.5.4 |
+| `newRows` (`rows.go:65`) | 135 | P12.5.5 |
+
+**P12.5.3 зводиться до P12.5.5.** Рядки `GoString` (`libc_all.go:88`, ~20 Б на запит) живуть у зрізах `columns` і `decltypes` об'єкта `rows`, створеного в `newRows`. Сам `rows` лишається живим (P12.5.5), тож окремого виправлення рядки не потребують.
+
+**ASan.** Сервіс `-O0 -asan`, `ASAN_OPTIONS=detect_leaks=0`, сценарій `-c 64 -n 100000` — `errors=0`, stderr порожній, код 0.
