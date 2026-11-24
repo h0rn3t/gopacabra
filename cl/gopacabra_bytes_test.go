@@ -145,3 +145,26 @@ func TestGopacabraNetpollEvents(t *testing.T) {
 		}
 	}
 }
+
+// TestGopacabraOverlaySites — P12.5.6.2: census розставляє місця функцій
+// оверлея. Фікстура кличе reflect.ValueOf 4000 разів; unplaced-рядок
+// gopacabra site з файлу runtime/internal/lib з лічильником понад 100 означає,
+// що виділення в оверлеї census не бачив.
+func TestGopacabraOverlaySites(t *testing.T) {
+	conf := build.NewDefaultConf(build.ModeRun)
+	conf.Tags = "gopacabra,gopacabrastat"
+	out, err := cltest.RunAndCaptureWithConf("../gopacabra/bytes/overlaysite", "", conf)
+	if err != nil {
+		t.Fatalf("llgo run -tags gopacabra,gopacabrastat ./gopacabra/bytes/overlaysite error = %v, want exit 0\n%s", err, out)
+	}
+	for line := range strings.Lines(string(out)) {
+		f := strings.Fields(line)
+		if len(f) != 7 || f[0] != "gopacabra" || f[1] != "site" || f[3] != "unplaced" ||
+			!strings.Contains(f[2], "/runtime/internal/lib/") {
+			continue
+		}
+		if n, _ := strconv.Atoi(f[6]); n > 100 {
+			t.Errorf("site %s %s: unplaced with %d allocations, want placed by census", f[2], f[5], n)
+		}
+	}
+}
