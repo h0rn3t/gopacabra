@@ -75,13 +75,14 @@ func (p *context) prepareGopacabraFree(pkg *ssa.Package) {
 // адресою, census бачить unsafe.Pointer і дає pinned; у gc така змінна на
 // стеку. Без Heap census дає їй stack, а кодоген — alloca.
 func (p *context) gopacabraStackPuns(funcs []*ssa.Function) {
+	deref := gopacabraDerefParams(funcs)
 	for _, fn := range funcs {
 		if fn.TypeParams().Len() > len(fn.TypeArgs()) {
 			continue // тіло узагальненої функції: розміри типів невідомі
 		}
 		for _, block := range fn.Blocks {
 			for _, instr := range block.Instrs {
-				if alloc, ok := instr.(*ssa.Alloc); ok && alloc.Heap && p.gopacabraLocalPun(alloc) {
+				if alloc, ok := instr.(*ssa.Alloc); ok && alloc.Heap && p.gopacabraLocalPun(alloc, deref) {
 					alloc.Heap = false
 				}
 			}
@@ -139,8 +140,9 @@ func gopacabraConstIfaces(place census.Placement) {
 
 // gopacabraLocalPun: кожне використання адреси — читання, запис або
 // unsafe.Pointer, що одразу стає вказівником не більшого типу, яким лише
-// читають і пишуть. Хоч одне таке перетворення є.
-func (p *context) gopacabraLocalPun(alloc *ssa.Alloc) bool {
+// читають і пишуть, або аргумент параметра з deref (P12.3). Хоч одне таке
+// перетворення є.
+func (p *context) gopacabraLocalPun(alloc *ssa.Alloc, deref map[*ssa.Parameter]bool) bool {
 	size := p.prog.SizeOf(p.type_(alloc.Type().(*types.Pointer).Elem(), llssa.GoDecl))
 	punned := false
 	for _, ref := range *alloc.Referrers() {
@@ -155,7 +157,13 @@ func (p *context) gopacabraLocalPun(alloc *ssa.Alloc) bool {
 			return false
 		}
 		for _, use := range *conv.Referrers() {
-			if _, ok := use.(*ssa.DebugRef); ok {
+			switch use := use.(type) {
+			case *ssa.DebugRef:
+				continue
+			case *ssa.Call, *ssa.BinOp:
+				if !gopacabraDerefUse(conv, use, deref) {
+					return false
+				}
 				continue
 			}
 			ptr, ok := use.(*ssa.Convert)
@@ -190,6 +198,79 @@ func (p *context) gopacabraLocalPun(alloc *ssa.Alloc) bool {
 		punned = true
 	}
 	return punned
+}
+
+// gopacabraDerefParams повертає параметри unsafe.Pointer функцій пакета, які лише
+// розіменовують (gopacabraDerefUse): найбільша фіксована точка, тож рекурсія
+// і передача далі між такими параметрами зберігають їх. Код, який ccgo
+// переклав з C, передає так адресу локальної змінної: f(unsafe.Pointer(&x)).
+// У gc такий параметр не тікає, і x лежить на стеку (P12.3). Межі об'єкта
+// всередині функції не перевіряються, як і в gc: вихід за них — помилка
+// програми.
+func gopacabraDerefParams(funcs []*ssa.Function) map[*ssa.Parameter]bool {
+	deref := map[*ssa.Parameter]bool{}
+	for _, fn := range funcs {
+		if fn.TypeParams().Len() > len(fn.TypeArgs()) {
+			continue
+		}
+		for _, param := range fn.Params {
+			if basic, ok := param.Type().Underlying().(*types.Basic); ok && basic.Kind() == types.UnsafePointer {
+				deref[param] = true
+			}
+		}
+	}
+	for changed := true; changed; {
+		changed = false
+		for param := range deref {
+			for _, use := range *param.Referrers() {
+				if !gopacabraDerefUse(param, use, deref) {
+					delete(deref, param)
+					changed = true
+					break
+				}
+			}
+		}
+	}
+	return deref
+}
+
+// gopacabraDerefUse: use лише розіменовує unsafe.Pointer v — перетворення в
+// *T з читанням і записом, unsafe.Add з тим самим використанням, порівняння,
+// аргумент параметра з deref.
+func gopacabraDerefUse(v ssa.Value, use ssa.Instruction, deref map[*ssa.Parameter]bool) bool {
+	switch use := use.(type) {
+	case *ssa.DebugRef:
+		return true
+	case *ssa.BinOp:
+		return use.Op == token.EQL || use.Op == token.NEQ
+	case *ssa.Convert:
+		_, ok := use.Type().Underlying().(*types.Pointer)
+		return ok && gopacabraElemAccessOnly(use)
+	case *ssa.Call:
+		common := use.Common()
+		if builtin, ok := common.Value.(*ssa.Builtin); ok {
+			if builtin.Name() != "Add" || common.Args[0] != v {
+				return false
+			}
+			for _, next := range *use.Referrers() {
+				if !gopacabraDerefUse(use, next, deref) {
+					return false
+				}
+			}
+			return true
+		}
+		callee := common.StaticCallee()
+		if callee == nil || common.Value == v {
+			return false
+		}
+		for i, arg := range common.Args {
+			if arg == v && (i >= len(callee.Params) || !deref[callee.Params[i]]) {
+				return false
+			}
+		}
+		return true
+	}
+	return false
 }
 
 // gopacabraAccessOnly: instr читає чи пише за адресою addr, а саму адресу нікуди
