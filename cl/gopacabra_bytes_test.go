@@ -92,3 +92,16 @@ func TestGopacabraPinnedCcgoAddr(t *testing.T) {
 		t.Errorf("llgo run -tags gopacabra ./gopacabra/bytes/ccgoaddr error = %v, want exit 0\n%s", err, out)
 	}
 }
+
+// TestGopacabraDeferClosureCell — P12.5.1: комірка, яку захоплює
+// defer-замикання (форма ccgo `if __ccgo_strace { defer ... }`), звільняється
+// після запуску відкладених викликів; на шляху panic і в циклі значення
+// правильні.
+func TestGopacabraDeferClosureCell(t *testing.T) {
+	conf := build.NewDefaultConf(build.ModeRun)
+	conf.Tags = "gopacabra"
+	out, err := cltest.RunAndCaptureWithConf("../gopacabra/bytes/deferclosure", "", conf)
+	if err != nil {
+		t.Errorf("llgo run -tags gopacabra ./gopacabra/bytes/deferclosure error = %v, want exit 0\n%s", err, out)
+	}
+}
