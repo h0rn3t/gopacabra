@@ -1,6 +1,9 @@
 package cl_test
 
 import (
+	"runtime"
+	"strconv"
+	"strings"
 	"testing"
 
 	"github.com/xgo-dev/llgo/cl/cltest"
@@ -115,5 +118,30 @@ func TestGopacabraClosureFieldCell(t *testing.T) {
 	out, err := cltest.RunAndCaptureWithConf("../gopacabra/bytes/closurefield", "", conf)
 	if err != nil {
 		t.Errorf("llgo run -tags gopacabra ./gopacabra/bytes/closurefield error = %v, want exit 0\n%s", err, out)
+	}
+}
+
+// TestGopacabraNetpollEvents — P12.5.6.1: буфер подій netpoll, адреса якого
+// йде в C.epoll_wait, не виділяється в купі на кожен виклик. Фікстура робить
+// 1000 обмінів через loopback; рядок gopacabra site з файлу netpoll з
+// лічильником понад 100 означає виділення на виклик.
+func TestGopacabraNetpollEvents(t *testing.T) {
+	if runtime.GOOS != "linux" {
+		t.Skip("netpoll на epoll — лише linux")
+	}
+	conf := build.NewDefaultConf(build.ModeRun)
+	conf.Tags = "gopacabra,gopacabrastat"
+	out, err := cltest.RunAndCaptureWithConf("../gopacabra/bytes/netpoll", "", conf)
+	if err != nil {
+		t.Fatalf("llgo run -tags gopacabra,gopacabrastat ./gopacabra/bytes/netpoll error = %v, want exit 0\n%s", err, out)
+	}
+	for line := range strings.Lines(string(out)) {
+		f := strings.Fields(line)
+		if len(f) != 7 || f[0] != "gopacabra" || f[1] != "site" || !strings.Contains(f[2], "/netpoll_") {
+			continue
+		}
+		if n, _ := strconv.Atoi(f[6]); n > 100 {
+			t.Errorf("site %s %s: %d heap allocations, want none per netpoll call", f[2], f[5], n)
+		}
 	}
 }
