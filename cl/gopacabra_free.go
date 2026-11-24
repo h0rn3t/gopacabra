@@ -163,11 +163,26 @@ func (p *context) gopacabraLocalPun(alloc *ssa.Alloc) bool {
 				return false
 			}
 			typ, ok := ptr.Type().Underlying().(*types.Pointer)
-			if !ok || p.prog.SizeOf(p.type_(typ.Elem(), llssa.GoDecl)) > size {
+			if !ok {
 				return false
 			}
+			wide := p.prog.SizeOf(p.type_(typ.Elem(), llssa.GoDecl)) > size
 			for _, access := range *ptr.Referrers() {
 				if !gopacabraAccessOnly(ptr, access) {
+					return false
+				}
+				// Ширший *func читається лише як виклик через слово (P11.5.3):
+				// кодоген бере слово об'єкта, а пару {fn, ctx} — за ним (P12.2).
+				if !wide {
+					continue
+				}
+				switch access := access.(type) {
+				case *ssa.DebugRef:
+				case *ssa.UnOp:
+					if _, ok := p.wordFuncValueSource(access); !ok {
+						return false
+					}
+				default:
 					return false
 				}
 			}
