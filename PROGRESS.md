@@ -2139,3 +2139,19 @@
 - Залишок і задачі P12.5.2–P12.5.6 — у `gopacabra/REPORT-PHASE12.md` і `PLAN.md`. Найбільше місце — параметр `database/sql.convertAssignRows`, який захоплює замикання в полі `rows.cancel`.
 - Не перевірено: darwin; розклад у байтах після P12.5.1.
 - Наступне: P12.5.2 або P12.4.
+
+## 2026-11-24 — P12.5.2 Параметр, захоплений замиканням у полі
+
+- Тест спершу (`e7a8d847e`): фікстури `gopacabra/bytes/closurefield` і `gopacabra/asan/closurefield`, тест `TestGopacabraClosureFieldCell`; до виправлення — `field live rc-local delta 512 want 0`.
+- Правило: замикання, що йде з функції, більше не забирає захоплену комірку на всіх шляхах. `census` повертає такі замикання в `Placement.Escapes`, а `gopacabraFreeAfter` не ставить `Dec` у блоках, досяжних з `MakeClosure`, і після нього в його блоці. `TestClosureLeavesWithCapturedCell` перевіряє новий контракт: на шляху замикання `Dec` немає.
+- Форма `return` не покрита: результат блокує `exitSites` на всіх шляхах. У фікстурі для неї перевіряються лише значення.
+- Перевірки:
+  - `go test -count=1 ./cl/ -run Gopacabra` з чистим кешем — `ok`;
+  - `go test ./gopacabra/census/` — `ok`;
+  - `go vet ./cl/ ./gopacabra/census/` і `gofmt -l` — чисто;
+  - `gopacabra/fixtures.sh` — 0 з 93 падінь (ASan-фікстура входить);
+  - сервіс під `-O0 -asan`: юніт-тести — 32 PASS; сценарій на 100 000 запитів — `errors=0`, без звітів.
+- Сервіс, `gopacabrastat`, N = 10 000: `convert.go:247` — 134 572 `dec_accounted` на 134 572 виділення; live `rc-local` — 11.1 МБ замість 12.2 МБ; `errors=0`.
+- Не перевірено: darwin; RSS (один прогін, порівняння з P12.5.1 не робилось).
+- Наступне: P12.5.3 (`GoString`) або P12.5.4 (`encoding/json/v2`).
+
