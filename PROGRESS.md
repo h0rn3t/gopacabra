@@ -2185,3 +2185,18 @@
 - Лишились `unplaced` поза оверлеєм `runtime`: `fiber/v3` `helpers.go:995` і `:1078`, по ~4000 виділень на 10 000 запитів. Причина не з'ясована, задачі немає.
 - Не перевірено: darwin; повний `go test ./cl/` і `./internal/build/`.
 - Наступне: P12.5.4, P12.5.5 або P12.4; далі гейт P12.6.
+
+## 2026-11-24 — P12.5.5.1 Комірка змінної-вказівника на циклічний тип
+
+- P12.5.5 поділено на три задачі за причинами: комірки `cyclic: closure` (P12.5.5.1), `Rows` (P12.5.5.2), `rows` драйвера sqlite (P12.5.5.3).
+- Тести спершу: `81ee2ede7` — фікстура `gopacabra/bytes/withlock`, тест `TestGopacabraWithLockCell` (червоний: `live cyclic delta 1024 want 0`); `TestPointerCellIsNotCyclicNode` у census (червоний: `cyclic: closure`).
+- Правило (`5118c22e9`): `category` для `*ssa.Alloc` змінної-вказівника шукає в графі типів `**T`, а не `*T`. Комірка `*DB` стає `rc-local: closure` і звільняється за правилом P12.5.2. Комірка лишається `cyclic`, якщо тип тримає `**T`.
+- Нова ASan-фікстура `gopacabra/asan/withlock`: замикання в полі, з `return` і в горутині викликаються після повернення функції.
+- Перевірки:
+  - `go test -count=1 ./cl/ -run Gopacabra` з чистим кешем — `ok`;
+  - `go test ./gopacabra/census/...` — `ok`; `go vet ./cl/ ./gopacabra/census/` і `gofmt -l` — чисто;
+  - `gopacabra/fixtures.sh` — 0 з 97 падінь;
+  - сервіс під `-O0 -asan`: юніт-тести — `ok`; сценарій на 100 000 запитів — `errors=0`, без звітів.
+- Сервіс, `gopacabrastat`, N = 10 000, один прогін: `sql.go:1742` і `:1776` — `dec_accounted` на кожне виділення; live `cyclic` — 784 520 Б замість 993 544; `errors=0`.
+- Не перевірено: darwin; повний `go test ./cl/` і `./internal/build/`; `GOROOT/test`; профіль купи після зміни.
+- Наступне: P12.5.5.2 або P12.5.5.3 (разом ~330 Б на запит), P12.5.4.
