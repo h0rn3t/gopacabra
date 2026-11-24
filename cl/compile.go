@@ -3217,7 +3217,13 @@ func newPackageEx(prog llssa.Program, ct *CallerTracking, patches Patches, rewri
 			panic(err)
 		}
 	}
-	ctx.prepareGopacabraFree(pkg)
+	// Оверлей самого runtime census не розставляє: пули й звільнення
+	// рантайму потрапили б у Live і Freed поряд із місцями програми.
+	var alt *ssa.Package
+	if hasPatch && pkgPath != "runtime" {
+		alt = patch.Alt
+	}
+	ctx.prepareGopacabraFree(pkg, alt)
 	ctx.initFiles(pkgPath, files, cPkg)
 	ctx.prog.SetPatch(ctx.patchType)
 	ctx.prog.SetCompileMethods(ctx.checkCompileMethods)

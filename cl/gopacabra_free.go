@@ -24,11 +24,13 @@ const (
 	gopacabraImplicit uint64 = 5
 )
 
-func (p *context) prepareGopacabraFree(pkg *ssa.Package) {
+// prepareGopacabraFree розставляє місця функцій пакета і його оверлея alt
+// (runtime/internal/lib/...): функції оверлея компілюються в тому ж контексті.
+func (p *context) prepareGopacabraFree(pkg, alt *ssa.Package) {
 	if !p.options.GopacabraFree || pkg == nil {
 		return
 	}
-	funcs := ssaPackageFuncs(pkg)
+	funcs := ssaPackageFuncs(pkg, alt)
 	p.gopacabraStackPuns(funcs)
 	place := census.PlaceAll(funcs)
 	if p.options.GopacabraStack {
@@ -324,10 +326,9 @@ func gopacabraCategory(label string) (uint64, bool) {
 	}
 }
 
-func ssaPackageFuncs(pkg *ssa.Package) []*ssa.Function {
-	if pkg == nil || pkg.Prog == nil || pkg.Pkg == nil {
-		return nil
-	}
+// ssaPackageFuncs збирає функції пакетів без повторів: пакет і його оверлей
+// ділять одну область типів, тож методи інакше потрапили б двічі.
+func ssaPackageFuncs(pkgs ...*ssa.Package) []*ssa.Function {
 	seen := map[*ssa.Function]bool{}
 	var out []*ssa.Function
 	var add func(*ssa.Function)
@@ -341,24 +342,29 @@ func ssaPackageFuncs(pkg *ssa.Package) []*ssa.Function {
 			add(anon)
 		}
 	}
-	for _, mem := range pkg.Members {
-		if fn, ok := mem.(*ssa.Function); ok {
-			add(fn)
-		}
-	}
-	for _, name := range pkg.Pkg.Scope().Names() {
-		obj, ok := pkg.Pkg.Scope().Lookup(name).(*types.TypeName)
-		if !ok {
+	for _, pkg := range pkgs {
+		if pkg == nil || pkg.Prog == nil || pkg.Pkg == nil {
 			continue
 		}
-		named, ok := obj.Type().(*types.Named)
-		if !ok || named.TypeParams() != nil {
-			continue
+		for _, mem := range pkg.Members {
+			if fn, ok := mem.(*ssa.Function); ok {
+				add(fn)
+			}
 		}
-		for _, typ := range []types.Type{named, types.NewPointer(named)} {
-			mset := pkg.Prog.MethodSets.MethodSet(typ)
-			for sel := range mset.Methods() {
-				add(pkg.Prog.FuncValue(sel.Obj().(*types.Func)))
+		for _, name := range pkg.Pkg.Scope().Names() {
+			obj, ok := pkg.Pkg.Scope().Lookup(name).(*types.TypeName)
+			if !ok {
+				continue
+			}
+			named, ok := obj.Type().(*types.Named)
+			if !ok || named.TypeParams() != nil {
+				continue
+			}
+			for _, typ := range []types.Type{named, types.NewPointer(named)} {
+				mset := pkg.Prog.MethodSets.MethodSet(typ)
+				for sel := range mset.Methods() {
+					add(pkg.Prog.FuncValue(sel.Obj().(*types.Func)))
+				}
 			}
 		}
 	}
