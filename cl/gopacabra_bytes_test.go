@@ -105,3 +105,15 @@ func TestGopacabraDeferClosureCell(t *testing.T) {
 		t.Errorf("llgo run -tags gopacabra ./gopacabra/bytes/deferclosure error = %v, want exit 0\n%s", err, out)
 	}
 }
+
+// TestGopacabraClosureFieldCell — P12.5.2: комірка параметра, який захоплює
+// замикання в полі чи в return (форма database/sql.convertAssignRows),
+// звільняється на шляхах без замикання.
+func TestGopacabraClosureFieldCell(t *testing.T) {
+	conf := build.NewDefaultConf(build.ModeRun)
+	conf.Tags = "gopacabra"
+	out, err := cltest.RunAndCaptureWithConf("../gopacabra/bytes/closurefield", "", conf)
+	if err != nil {
+		t.Errorf("llgo run -tags gopacabra ./gopacabra/bytes/closurefield error = %v, want exit 0\n%s", err, out)
+	}
+}
