@@ -98,3 +98,94 @@ CGO_ENABLED=0 go build -a -gcflags='modernc.org/sqlite/lib=-m' -o /dev/null .
 - сценарій `-c 64 -n 100000` — `errors=0`, stderr порожній, код 0.
 
 Не перевірено: darwin.
+
+## P12.5 Залишок live (2026-11-24)
+
+### Розклад до виправлень
+
+Сервіс, збірка `-tags gopacabrastat,gopacabraheap` на `fa705211a` (P12.3), сценарій P11.6 (`-c 64`). Знімки купи після 10 000 і 30 000 запитів (`GOPACABRA_HEAP_OUT`), різниця — `heapdiff.py`.
+
+Приріст live між знімками за категоріями, у байтах на запит:
+
+| Категорія | Байтів на запит |
+| --- | ---: |
+| `rc-local` | ~2 770 |
+| `pinned` | 328 |
+| `rc-shared` | 179 |
+| `cyclic` | 70 |
+
+Головні місця приросту — функції, що виділили живий блок, у байтах на запит:
+
+| Місце | Байтів на запит | Примітка |
+| --- | ---: | --- |
+| `Xmemcpy` (`modernc.org/libc`) | 705 | |
+| `Xmemset` | 618 | |
+| `netpoll` | 546 | рантайм |
+| `UintptrMalloc` | 339 | |
+| `reflect.unpackEface` | 292 | |
+| `sqlite_g_0000000000000900.go:18181` | 284 | `pinned` |
+| `Xstrlen` | 259 | |
+| `UintptrFree` | 245 | |
+| `database/sql.convertAssignRows` | 212 | |
+
+Функції `libc` тут — місця, де ccgo-код тримає комірку змінної, яку захоплює defer-замикання трасування:
+
+```go
+if __ccgo_strace {
+	defer func() { trc("-> %v", r) }()
+}
+```
+
+`__ccgo_strace` — стала `false`, але `ssa` будує комірку `r` до перевірки умови. Компілятор не звільняв місце, якщо серед його користувачів був `*ssa.Defer`. Тому кожен виклик лишав 8 байтів `rc-local`.
+
+### P12.5.1 Комірка, яку тримає defer-замикання
+
+Правило — у `gopacabraFreeAfter` (`cl/gopacabra_free.go`), коміт `108ca546c`:
+- місце, яке тримає defer, живе до `RunDefers`: кожен `RunDefers` і `Panic` функції стає його використанням;
+- `free` стоїть після `RunDefers`;
+- на шляху `panic` відкладені виклики біжать після `Panic`, тому там `free` немає і місце лишається живим.
+
+Продовження після `RunDefers` у LLVM досяжне і з `setjmp`. Тому місце звільняється, лише якщо його алокація стоїть у блоці входу до першого defer (`deferEntrySite`). Перша версія без цієї умови не пройшла перевірку LLVM: «Instruction does not dominate all uses» у функціях рантайму з defer у циклі. Defer у чужий стек (range-over-func) правило не покриває.
+
+Тест `TestGopacabraDeferClosureCell` (`252dff622`) з фікстурою `gopacabra/bytes/deferclosure` до виправлення червоний: `constdefer live rc-local delta 512 want 0`. ASan-фікстура `gopacabra/asan/deferclosure` охоплює defer завжди, під умовою, у циклі й на шляху `recover`.
+
+Сервіс, `-tags gopacabrastat`, N = 10 000, один прогін:
+
+| Лічильник | P12.3 (`fa705211a`) | P12.5.1 (`108ca546c`) |
+| --- | ---: | ---: |
+| `gopacabra live rc-local`, байти | 30 761 347 | 12 186 929 |
+| `gopacabra live rc-shared`, байти | — | 2 135 950 |
+| `gopacabra live cyclic`, байти | — | 987 976 |
+| `gopacabra live pinned`, байти | 3 421 540 | 3 422 680 |
+| `gopacabra ops alloc` | 7 046 492 | 7 167 994 |
+| `note_alloc_rc-local` | 3 244 074 | 3 306 853 |
+| RSS стала, КіБ | 101 120 | 75 008 |
+
+Прогін — `errors=0`, 5 117 rps, код 0. Live `rc-local` упав на 60%, до ~1.2 КБ на запит.
+
+**ASan.** Збірка сервісу `-O0 -asan` на `108ca546c`, `ASAN_OPTIONS=detect_leaks=0`:
+- `llgo test -O0 -asan -v .` — 32 PASS, 0 FAIL, без звітів;
+- сценарій `-c 64 -n 100000` — `errors=0`, stderr порожній, код 0.
+
+### Залишок після P12.5.1
+
+Оцінка за рядками `gopacabra site`: виділення місця без `dec`/`free` на тому ж місці. Це евристика за кількістю, не байти.
+
+| Місце | Виділень без звільнення | Категорія і форма |
+| --- | ---: | --- |
+| `database/sql/convert.go:247` (`convertAssignRows`) | 134 572 | `rc-local closure`: параметр, який захоплює замикання `rows.cancel = func(){...}` (`:404`), що зберігається в полі |
+| `sqlite_g_0000000000000900.go:18181`, `:18175` | по 51 054 | `pinned` (P12.3, ланцюжок викликаних) |
+| `encoding/json/v2/arshal_default.go:231` | 48 539 | `rc-local call` |
+| `modernc.org/libc/libc_all.go:88` (`GoString`) | 41 273 | `rc-local return` |
+| `gopacabra/stand/rest/main.go:195`, `:196` | по 39 980 | `rc-local shared` |
+| `database/sql/sql.go:3491` (`Rows.close`) | 21 118 з 42 236 | `rc-local closure` (`withLock`) |
+| `sql.go:1742`, `:1776` | 10 559 | `cyclic closure` |
+| `sql.go:1800`, `stmt.go:290` (sqlite) | 10 559 | `rc-shared` |
+| `rows.go:65` (sqlite) | 10 559 | `rc-local closure` |
+| `stmt.go:28`, `:32`, `conn.go:554`, `:1269` (sqlite), `fasthttp/header.go:3153` | ~11 000 кожне | — |
+
+Задачі виправлень — P12.5.2 і далі в `PLAN.md`.
+
+**Нестабільна фікстура.** `gopacabra/accountshard` падає приблизно в 10% прогонів: на 60 прогонах — 9 у збірці без P12.5.1 і 5 з ним. Різниця live `rc-local` між знімками — 136 байтів, кратна одному запуску потоку. Рядок `thread_unix.go:64` показує 8, 9 або 10 потоків на прогін. Найімовірніше, M:N запускає потік у вікні між знімками. P12.5.1 цієї нестабільності не спричинив.
+
+Не перевірено: darwin; розклад у байтах після P12.5.1 (`heapdiff.py`).

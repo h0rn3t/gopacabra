@@ -2117,3 +2117,25 @@
 - Форми `uintptr(unsafe.Pointer(&x))` серед головних місць залишку `pinned` немає. Чи потрібна P12.4 для мети фази, вирішує розробник.
 - Не перевірено: darwin.
 - Наступне: P12.4 або одразу P12.5 — розклад `rc-local`.
+
+## 2026-11-24 — P12.5 Залишок live, P12.5.1 Комірка в defer-замиканні
+
+- P12.5, розклад на `fa705211a`: `heapdiff.py` між 10 000 і 30 000 запитів. Приріст `rc-local` — ~2.77 КБ на запит, `pinned` — 328 Б, `rc-shared` — 179 Б, `cyclic` — 70 Б. Головні місця — функції `modernc.org/libc` (`Xmemcpy`, `Xmemset`, `Xstrlen`, `UintptrMalloc`/`Free`) з формою ccgo `if __ccgo_strace { defer func() { trc(r) }() }`. Комірку `r` не звільняли, бо серед її користувачів є `*ssa.Defer`.
+- P12.5.1:
+  - тест спершу (`252dff622`): фікстури `gopacabra/bytes/deferclosure` і `gopacabra/asan/deferclosure`, тест `TestGopacabraDeferClosureCell`; до виправлення — `constdefer live rc-local delta 512 want 0`;
+  - правило (`108ca546c`) у `gopacabraFreeAfter`: місце, яке тримає defer, звільняється після `RunDefers`, якщо алокація стоїть у блоці входу до першого defer (`deferEntrySite`); на шляху `panic` — не звільняється.
+- Пастка: продовження після `RunDefers` у LLVM досяжне і з `setjmp`. Алокація поза блоком входу не домінує над ним, і LLVM verify падає («Instruction does not dominate all uses» у функціях рантайму з defer у циклі).
+- Перевірки:
+  - `go test -count=1 ./cl/ -run Gopacabra` — `ok`;
+  - `go test ./gopacabra/census/` — `ok`;
+  - `go vet ./cl/` і `gofmt -l` — чисто;
+  - обидві фікстури під `-O0 -asan` — код 0;
+  - сервіс під `-O0 -asan`: юніт-тести — 32 PASS; сценарій на 100 000 запитів — `errors=0`, без звітів;
+  - `gopacabra/fixtures.sh` — 1 з 92 падінь, `accountshard`. Ця фікстура нестабільна й до виправлення: на 60 прогонах — 9 падінь без P12.5.1 і 5 з ним. Різниця — 136 байтів на потік M:N, що стартує між знімками (`thread_unix.go:64`: 8–10 потоків на прогін).
+- Сервіс, `gopacabrastat`, N = 10 000:
+  - live `rc-local` — 12.2 МБ замість 30.8 МБ (−60%);
+  - RSS стала — 75 МБ замість 101 МБ;
+  - `errors=0`.
+- Залишок і задачі P12.5.2–P12.5.6 — у `gopacabra/REPORT-PHASE12.md` і `PLAN.md`. Найбільше місце — параметр `database/sql.convertAssignRows`, який захоплює замикання в полі `rows.cancel`.
+- Не перевірено: darwin; розклад у байтах після P12.5.1.
+- Наступне: P12.5.2 або P12.4.
