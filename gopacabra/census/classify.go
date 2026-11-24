@@ -546,6 +546,13 @@ func category(instr ssa.Instruction, k escapeKind, note transferNote, pinned boo
 			typ = types.NewPointer(base)
 		}
 	}
+	// Комірка змінної-вказівника — одне слово, а не вузол типу: в цикл вона
+	// входить, лише коли з *T досяжний вказівник на саму комірку, **T.
+	if alloc, ok := instr.(*ssa.Alloc); ok {
+		if _, ptr := pointee(alloc.Type()).Underlying().(*types.Pointer); ptr {
+			typ = types.NewPointer(typ)
+		}
+	}
 	if cyclic(typ, mode, universe) {
 		if k == escapeNone {
 			return "cyclic"
