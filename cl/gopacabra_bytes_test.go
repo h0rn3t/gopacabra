@@ -121,6 +121,18 @@ func TestGopacabraClosureFieldCell(t *testing.T) {
 	}
 }
 
+// TestGopacabraWithLockCell — P12.5.5.1: комірка змінної-вказівника на
+// циклічний тип, яку захоплює замикання, передане у виклик (форми
+// database/sql QueryContext і queryDC), звільняється при виході з функції.
+func TestGopacabraWithLockCell(t *testing.T) {
+	conf := build.NewDefaultConf(build.ModeRun)
+	conf.Tags = "gopacabra"
+	out, err := cltest.RunAndCaptureWithConf("../gopacabra/bytes/withlock", "", conf)
+	if err != nil {
+		t.Errorf("llgo run -tags gopacabra ./gopacabra/bytes/withlock error = %v, want exit 0\n%s", err, out)
+	}
+}
+
 // TestGopacabraNetpollEvents — P12.5.6.1: буфер подій netpoll, адреса якого
 // йде в C.epoll_wait, не виділяється в купі на кожен виклик. Фікстура робить
 // 1000 обмінів через loopback; рядок gopacabra site з файлу netpoll з
