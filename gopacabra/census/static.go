@@ -55,6 +55,9 @@ type Placement struct {
 	// об'єкт не переживає наступного виконання свого Alloc. Розмір перевіряє
 	// codegen.
 	Stack map[*ssa.Alloc]struct{}
+	// Escapes — замикання, з якими місце DecUses іде з функції (P12.5.2):
+	// після кожного з них Dec не ставиться, на решті шляхів — ставиться.
+	Escapes map[ssa.Instruction][]ssa.Instruction
 }
 
 // PlaceAll — Place разом з місцями спільної втечі через go (P9.3).
@@ -70,6 +73,7 @@ func PlaceAll(funcs []*ssa.Function) Placement {
 		regions    map[ssa.Instruction]struct{}
 		builders   map[*ssa.Function]bool
 		stack      map[*ssa.Alloc]struct{}
+		escapes    map[ssa.Instruction][]ssa.Instruction
 	)
 	if len(funcs) == 0 {
 		return Placement{}
@@ -130,8 +134,12 @@ func PlaceAll(funcs []*ssa.Function) Placement {
 			if ctx.noDec[site] {
 				continue
 			}
-			if users := rcUsers(siteUsers(site, pts, contents), msg, pts); len(users) > 0 {
+			users, gone := rcUsers(siteUsers(site, pts, contents), msg, pts)
+			if len(users) > 0 {
 				decUses[site] = users
+			}
+			if len(gone) > 0 {
+				escapes = addEscapes(escapes, site, gone)
 			}
 		}
 		for site, label := range msg {
@@ -176,9 +184,12 @@ func PlaceAll(funcs []*ssa.Function) Placement {
 				continue
 			}
 			counted[site] = struct{}{}
-			users := rcUsers(siteUsers(site, pts, contents), msg, pts)
+			users, gone := rcUsers(siteUsers(site, pts, contents), msg, pts)
 			if len(users) > 0 {
 				decUses[site] = users
+			}
+			if len(gone) > 0 {
+				escapes = addEscapes(escapes, site, gone)
 			}
 		}
 	}
@@ -212,6 +223,7 @@ func PlaceAll(funcs []*ssa.Function) Placement {
 		Regions:    regions,
 		Builders:   builders,
 		Stack:      stack,
+		Escapes:    escapes,
 	}
 }
 
@@ -350,23 +362,28 @@ func siteUsers(site ssa.Instruction, pts map[ssa.Value]siteSet, contents map[ssa
 	return users
 }
 
-func rcUsers(users []ssa.Instruction, msg map[ssa.Instruction]string, pts map[ssa.Value]siteSet) []ssa.Instruction {
+// rcUsers повертає вживання місця і замикання, з якими воно йде з функції.
+func rcUsers(users []ssa.Instruction, msg map[ssa.Instruction]string, pts map[ssa.Value]siteSet) (all, gone []ssa.Instruction) {
 	extra, gone := closureUses(users, msg, pts)
-	if gone {
-		return nil
+	return append(users, extra...), gone
+}
+
+func addEscapes(escapes map[ssa.Instruction][]ssa.Instruction, site ssa.Instruction, gone []ssa.Instruction) map[ssa.Instruction][]ssa.Instruction {
+	if escapes == nil {
+		escapes = map[ssa.Instruction][]ssa.Instruction{}
 	}
-	if len(extra) == 0 {
-		return users
-	}
-	return append(users, extra...)
+	escapes[site] = gone
+	return escapes
 }
 
 // closureUses: замикання, що тримає місце, і є його вживанням разом з усіма
 // читачами значень, що на нього вказують (і через локальний масив чи
 // структуру). Замикання, що йде з функції (повернуте, у горутину, канал,
 // глобальну змінну чи за позначкою leaves — у поле параметра, у виклик),
-// забирає місце з собою.
-func closureUses(users []ssa.Instruction, msg map[ssa.Instruction]string, pts map[ssa.Value]siteSet) (extra []ssa.Instruction, gone bool) {
+// забирає місце з собою: воно потрапляє в gone, і після нього місце не
+// звільняють. На шляхах, де такого замикання не створювали, місце
+// звільняється як звичайно.
+func closureUses(users []ssa.Instruction, msg map[ssa.Instruction]string, pts map[ssa.Value]siteSet) (extra, gone []ssa.Instruction) {
 	seen := map[ssa.Instruction]bool{}
 	for _, user := range users {
 		seen[user] = true
@@ -376,16 +393,14 @@ func closureUses(users []ssa.Instruction, msg map[ssa.Instruction]string, pts ma
 		if !ok {
 			continue
 		}
-		if leaves(msg[clo]) {
-			return nil, true
-		}
+		leaving := leaves(msg[clo])
 		for _, ref := range readers(clo, pts) {
 			switch ref := ref.(type) {
 			case *ssa.Return, *ssa.Go, *ssa.Send, *ssa.Select:
-				return nil, true
+				leaving = true
 			case *ssa.Store:
 				if fromGlobal(ref.Addr) {
-					return nil, true
+					leaving = true
 				}
 			}
 			if seen[ref] {
@@ -394,8 +409,11 @@ func closureUses(users []ssa.Instruction, msg map[ssa.Instruction]string, pts ma
 			seen[ref] = true
 			extra = append(extra, ref)
 		}
+		if leaving {
+			gone = append(gone, clo)
+		}
 	}
-	return extra, false
+	return extra, gone
 }
 
 // interiorEscapes звітує, що похідний вказівник на місце може пережити

@@ -10,7 +10,8 @@ import (
 // GOROOT/test: os/exec.(*Cmd).writerDescriptor кладе замикання, що захопило
 // параметр w, через append у поле приймача. Комірка w мусить пережити
 // функцію, як і коли замикання повернуто: Dec на ній звільняв w до виклику
-// замикання з горутини.
+// замикання з горутини. Dec на шляхах без замикання дозволений, якщо
+// Escapes називає замикання, після якого його немає (P12.5.2).
 const closureLeaveSrc = `package p
 
 type cmd struct {
@@ -65,8 +66,10 @@ func TestClosureLeavesWithCapturedCell(t *testing.T) {
 			t.Errorf("%s: no Alloc of w", tt.fn)
 			continue
 		}
-		if _, got := place.DecUses[site]; got != tt.dec {
-			t.Errorf("PlaceAll(%s).DecUses[w] present = %v, want %v (category %q)", tt.fn, got, tt.dec, place.Cats[site])
+		_, inDec := place.DecUses[site]
+		escapes := len(place.Escapes[site]) > 0
+		if got := inDec && !escapes; got != tt.dec {
+			t.Errorf("PlaceAll(%s): Dec on every path = %v (DecUses %v, Escapes %v), want %v (category %q)", tt.fn, got, inDec, escapes, tt.dec, place.Cats[site])
 		}
 	}
 	if stored == nil {

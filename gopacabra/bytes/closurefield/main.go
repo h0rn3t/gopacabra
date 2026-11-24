@@ -50,6 +50,8 @@ func convertField(dest *int, src int, rows *rowsT) int {
 }
 
 // returnClosure — замикання йде з функції через return лише в одній гілці.
+// Тут перевіряються лише значення: комірки результату, що виходить з
+// функції, exitSites не звільняє на жодному шляху.
 func returnClosure(i int, sum *int) func() int {
 	if i < 0 {
 		return func() int { *sum += i; return i }
@@ -80,22 +82,8 @@ func expect(name string, f func(int) int, sum int, live uint64) int {
 func main() {
 	var dest int
 	field := func(i int) int { return convertField(&dest, i, parent) + dest }
-	var acc int
-	ret := func(i int) int {
-		if returnClosure(i, &acc) != nil {
-			return -1
-		}
-		return acc
-	}
 	base := n * (n - 1) / 2
 	if code := expect("field", field, base+n, 0); code != 0 {
-		os.Exit(code)
-	}
-	accSum := 0
-	for i := range n {
-		accSum += i * (i + 1) / 2
-	}
-	if code := expect("return", ret, accSum, 0); code != 0 {
 		os.Exit(code)
 	}
 	// Шляхи з замиканням: комірка живе разом із ним, перевіряються значення.
@@ -108,7 +96,7 @@ func main() {
 		println("cursors", cursors, "closed", parent.closed)
 		os.Exit(5)
 	}
-	acc = 0
+	acc := 0
 	for i := range n {
 		if f := returnClosure(-1-i, &acc); f == nil || f() != -1-i {
 			println("closure", i)

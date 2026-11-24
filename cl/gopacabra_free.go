@@ -38,6 +38,7 @@ func (p *context) prepareGopacabraFree(pkg *ssa.Package) {
 	cats := place.Cats
 	p.gopacabraUses = place.StaticUses
 	p.gopacabraDecUses = place.DecUses
+	p.gopacabraEscapes = place.Escapes
 	p.gopacabraCounted = place.Counted
 	p.gopacabraInc = place.Inc
 	p.gopacabraShared = place.Shared
@@ -374,7 +375,7 @@ func ssaPackageFuncs(pkg *ssa.Package) []*ssa.Function {
 // Panic, тож там free немає і місце лишається живим. Продовження після
 // RunDefers у LLVM досяжне і зі setjmp, тож таке місце звільняється, лише
 // якщо його алокація стоїть до setjmp (deferEntrySite).
-func gopacabraFreeAfter(fn *ssa.Function, uses map[ssa.Instruction][]ssa.Instruction, keepStored bool) (after map[ssa.Instruction][]ssa.Value, entry map[*ssa.BasicBlock][]ssa.Value, edge map[census.BlockEdge][]ssa.Value) {
+func gopacabraFreeAfter(fn *ssa.Function, uses, escapes map[ssa.Instruction][]ssa.Instruction, keepStored bool) (after map[ssa.Instruction][]ssa.Value, entry map[*ssa.BasicBlock][]ssa.Value, edge map[census.BlockEdge][]ssa.Value) {
 	if fn == nil || len(fn.Blocks) == 0 || len(uses) == 0 {
 		return nil, nil, nil
 	}
@@ -414,20 +415,24 @@ func gopacabraFreeAfter(fn *ssa.Function, uses map[ssa.Instruction][]ssa.Instruc
 				}
 			}
 		}
+		gone := escaped(escapes[site])
 		lasts, entries, splits := deaths(fn, user, site)
 		for _, block := range entries {
-			if site.Block() != nil && site.Block().Dominates(block) {
+			if site.Block() != nil && site.Block().Dominates(block) && !gone.blocks[block] {
 				entry[block] = append(entry[block], val)
 			}
 		}
 		for _, e := range splits {
-			if site.Block() != nil && site.Block().Dominates(e.Pred) {
+			if site.Block() != nil && site.Block().Dominates(e.Pred) && !gone.blocks[e.Pred] && gone.closures[e.Pred] == nil {
 				edge[e] = append(edge[e], val)
 			}
 		}
 		for instr := range lasts {
 			if _, ok := instr.(*ssa.Panic); ok && held {
 				continue // free перед Panic випередив би відкладені виклики
+			}
+			if gone.after(instr) {
+				continue
 			}
 			// Використання аліаса в блоці, якого алокація не домінує,
 			// не має місця для free: значення LLVM там недоступне.
@@ -447,6 +452,42 @@ func gopacabraFreeAfter(fn *ssa.Function, uses map[ssa.Instruction][]ssa.Instruc
 		edge = nil
 	}
 	return out, entry, edge
+}
+
+// escapeRegion — точки, де замикання, з яким місце йде з функції, могло вже
+// виконатись (P12.5.2): блоки, досяжні з його блоку, і решта його блоку
+// після нього. Звільнення там лишило б замиканню звільнену комірку.
+type escapeRegion struct {
+	blocks   map[*ssa.BasicBlock]bool
+	closures map[*ssa.BasicBlock][]ssa.Instruction
+}
+
+func escaped(closures []ssa.Instruction) escapeRegion {
+	r := escapeRegion{blocks: map[*ssa.BasicBlock]bool{}, closures: map[*ssa.BasicBlock][]ssa.Instruction{}}
+	var work []*ssa.BasicBlock
+	for _, clo := range closures {
+		r.closures[clo.Block()] = append(r.closures[clo.Block()], clo)
+		work = append(work, clo.Block().Succs...)
+	}
+	for len(work) > 0 {
+		b := work[len(work)-1]
+		work = work[:len(work)-1]
+		if !r.blocks[b] {
+			r.blocks[b] = true
+			work = append(work, b.Succs...)
+		}
+	}
+	return r
+}
+
+// after звітує, що замикання могло виконатись до instr або на ньому.
+func (r escapeRegion) after(instr ssa.Instruction) bool {
+	if r.blocks[instr.Block()] {
+		return true
+	}
+	return slices.ContainsFunc(r.closures[instr.Block()], func(clo ssa.Instruction) bool {
+		return clo == instr || precedes(clo, instr)
+	})
 }
 
 // deferEntrySite звітує, що site стоїть у блоці входу до першого defer

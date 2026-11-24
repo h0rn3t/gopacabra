@@ -264,6 +264,7 @@ type context struct {
 	locality             localityLowering
 	gopacabraUses        map[ssa.Instruction][]ssa.Instruction
 	gopacabraDecUses     map[ssa.Instruction][]ssa.Instruction
+	gopacabraEscapes     map[ssa.Instruction][]ssa.Instruction
 	gopacabraCat         map[ssa.Instruction]uint64
 	gopacabraCounted     map[ssa.Instruction]struct{}
 	gopacabraInc         map[ssa.Instruction][]ssa.Value
@@ -895,8 +896,8 @@ func (p *context) compileFuncDecl(pkg llssa.Package, f *ssa.Function) (llssa.Fun
 			p.prepareExportedLocalContext(f)
 			p.prepareCallbackEntry(f)
 			p.bvals = make(map[ssa.Value]llssa.Expr)
-			p.gopacabraFreeAfter, p.gopacabraFreeEntry, p.gopacabraFreeEdge = gopacabraFreeAfter(f, p.gopacabraUses, false)
-			p.gopacabraDecAfter, p.gopacabraDecEntry, p.gopacabraDecEdge = gopacabraFreeAfter(f, p.gopacabraDecUses, true)
+			p.gopacabraFreeAfter, p.gopacabraFreeEntry, p.gopacabraFreeEdge = gopacabraFreeAfter(f, p.gopacabraUses, nil, false)
+			p.gopacabraDecAfter, p.gopacabraDecEntry, p.gopacabraDecEdge = gopacabraFreeAfter(f, p.gopacabraDecUses, p.gopacabraEscapes, true)
 			p.gopacabraEdgeBlocks = nil
 			p.gopacabraRegionOf = nil
 			p.verifyGopacabra(f)
