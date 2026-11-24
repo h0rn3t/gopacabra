@@ -81,7 +81,8 @@ func TestGopacabraPinnedTypePun(t *testing.T) {
 }
 
 // TestGopacabraPinnedCcgoAddr — фаза 12: форми адреси локальної змінної з коду
-// ccgo (коробка виклику через слово, P12.2) не додають байтів до live pinned;
+// ccgo (коробка виклику через слово, P12.2; аргумент параметра unsafe.Pointer,
+// P12.3) не додають байтів до live pinned;
 // адреса, що втікає в глобальну змінну, лишається pinned.
 func TestGopacabraPinnedCcgoAddr(t *testing.T) {
 	conf := build.NewDefaultConf(build.ModeRun)

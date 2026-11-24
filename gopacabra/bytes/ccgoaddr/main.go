@@ -19,7 +19,71 @@ const (
 	n         = 64
 )
 
-var keep unsafe.Pointer
+var keep, keepArg unsafe.Pointer
+
+// token — TToken з sqlite: {z, n}.
+type token struct {
+	z uintptr
+	n uint32
+}
+
+// finish — параметр лише розіменовують, як pAll у _sqlite3FinishTrigger.
+func finish(p unsafe.Pointer) uint64 {
+	return uint64(*(*uintptr)(p)) + uint64(*(*uint32)(unsafe.Add(p, 8)))
+}
+
+// getMeta пише за адресою, як _sqlite3BtreeGetMeta.
+func getMeta(p unsafe.Pointer) {
+	*(*int32)(p) = 7
+}
+
+// beginTrans передає параметр далі, як _sqlite3BtreeBeginTrans.
+func beginTrans(p unsafe.Pointer) {
+	if p != nil {
+		getMeta(p)
+	}
+}
+
+// fill рекурсивно пише елементи за зсувом.
+func fill(p unsafe.Pointer, n int) {
+	if n > 0 {
+		*(*int32)(unsafe.Add(p, 4*(n-1))) = int32(n)
+		fill(p, n-1)
+	}
+}
+
+// store зберігає параметр у глобальну змінну: адреса тікає.
+func store(p unsafe.Pointer) {
+	keepArg = p
+}
+
+// storeVia передає параметр у store.
+func storeVia(p unsafe.Pointer) {
+	store(p)
+}
+
+func argFinish(i int) uint64 {
+	var tok token
+	tok.z, tok.n = uintptr(i), 1
+	return finish(unsafe.Pointer(&tok))
+}
+
+func argMeta() int32 {
+	var meta int32
+	beginTrans(unsafe.Pointer(&meta))
+	return meta
+}
+
+func argFill() int32 {
+	var regs [4]int32
+	fill(unsafe.Pointer(&regs), len(regs))
+	return regs[3]
+}
+
+func argEscapes() {
+	var v int64 = 9
+	storeVia(unsafe.Pointer(&v))
+}
 
 func add(a, b int32) int32 { return a + b }
 
@@ -52,6 +116,7 @@ func expect(name string, run func(), pinned uint64) int {
 func main() {
 	fp := funcWord(add)
 	var sum int32
+	var total uint64
 	cases := []struct {
 		name   string
 		run    func()
@@ -63,14 +128,20 @@ func main() {
 			}
 		}, 0},
 		{"wordescapes", func() { wordEscapes(fp) }, 8},
+		{"arg", func() {
+			for i := range n {
+				total += argFinish(i) + uint64(argMeta()) + uint64(argFill())
+			}
+		}, 0},
+		{"argescapes", argEscapes, 8},
 	}
 	for _, c := range cases {
 		if code := expect(c.name, c.run, c.pinned); code != 0 {
 			os.Exit(code)
 		}
 	}
-	if sum != 5*n || *(*uintptr)(keep) != fp {
-		println("values", sum)
+	if sum != 5*n || *(*uintptr)(keep) != fp || total != n*(n-1)/2+n*(1+7+4) || *(*int64)(keepArg) != 9 {
+		println("values", sum, total)
 		os.Exit(6)
 	}
 	os.Exit(0)
