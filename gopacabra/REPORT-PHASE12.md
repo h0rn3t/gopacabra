@@ -259,6 +259,20 @@ if __ccgo_strace {
 | `encoding/json.Marshal` → `bytes.Clone` | 183 | P12.5.4 |
 | `newRows` (`rows.go:65`) | 135 | P12.5.5 |
 
+**P12.5.6.2.** `prepareGopacabraFree` тепер розставляє функції пакета разом із функціями його оверлея (`patch.Alt`): вони компілюються в тому самому контексті. Оверлей самого `runtime` census свідомо не розставляє: пули й звільнення рантайму потрапили б у `Live` і `Freed` поряд із місцями програми. Його місця лишаються `unplaced`; найбільше з них — таблиця рядків `symtab.go`, одноразове виділення старту.
+
+Тест `TestGopacabraOverlaySites` збирає фікстуру `gopacabra/bytes/overlaysite` (4000 викликів `reflect.ValueOf`) з `gopacabrastat` і шукає рядки `gopacabra site … unplaced` файлів `runtime/internal/lib/` (крім `runtime/internal/lib/runtime/`) з лічильником понад 100.
+
+Після виправлення (`c71de8c90`), той самий сценарій, один прогін:
+
+| Лічильник | P12.5.6.1 | P12.5.6.2 |
+| --- | ---: | ---: |
+| live за профілем, Б на запит | 3524 | 3247 |
+| `reflect.unpackEface` (`value.go:182`) у профілі, Б на запит | 284 | 0 |
+| рядків `unplaced` поза оверлеєм `runtime` з лічильником понад 100 | — | 2 (`fiber/v3` `helpers.go:995` і `:1078`, по ~4000 виділень) |
+
+Два місця `fiber` — не оверлей; чому census їх не розставив, не з'ясовано.
+
 **P12.5.3 зводиться до P12.5.5.** Рядки `GoString` (`libc_all.go:88`, ~20 Б на запит) живуть у зрізах `columns` і `decltypes` об'єкта `rows`, створеного в `newRows`. Сам `rows` лишається живим (P12.5.5), тож окремого виправлення рядки не потребують.
 
 **ASan.** Сервіс `-O0 -asan`, `ASAN_OPTIONS=detect_leaks=0`, сценарій `-c 64 -n 100000` — `errors=0`, stderr порожній, код 0.
