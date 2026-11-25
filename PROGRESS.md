@@ -2217,3 +2217,17 @@
 - У `PLAN.md` додано P12.5.7.1–P12.5.7.4. Рішення, чи брати їх у фазу 12, — за розробником. P12.5.7 лишається відкритою.
 - Не перевірено: darwin; поведінку оверлея `reflect` під census для інших викликів.
 - Наступне: рішення про P12.5.7.x і P12.5.5.2; P12.5.4 від цього рішення не залежить.
+
+## 2026-11-25 — P12.5.4 `encoding/json/v2`, `arshal_default.go:231`
+
+- Причина: правило зведення для `append` клало токени `src` у вміст результату й для байтів. `appendEscapedASCII` повертає свій аргумент, тож `jsonwire.AppendQuote` отримував `src` `Alias [0]`. Результат іде в `xe.Buf`, і `[]byte(s)` у `makeStringArshaler` позначався `rc-local call`.
+- Тести спершу: `11128d8cb` — `TestAppendCopiesElements` у census (червоний для `Quote`/`QuoteString`), фікстура `gopacabra/bytes/jsonquote` і `TestGopacabraJSONQuote` (червоний: 1000 виділень, 0 звільнень).
+- Правило (`1995e937a`): вміст другого аргументу `append` переходить у результат, лише коли елемент містить вказівники (`containsRef`); зріз з параметром типу — як раніше.
+- Перевірки:
+  - `go test -count=1 ./cl/ -run Gopacabra` з чистим кешем — `ok`;
+  - `go test ./gopacabra/census/...` — `ok`; `go vet ./gopacabra/census/` і `gofmt -l` — чисто;
+  - `gopacabra/fixtures.sh` — 0 з 98 падінь;
+  - сервіс під `-O0 -asan`, сценарій на 100 000 запитів — `errors=0`, без звітів.
+- Сервіс, `gopacabrastat`, N = 10 000, один прогін: `:231` — `static string`, звільнення на кожне виділення; live `rc-local` 10 780 771 Б замість 11 076 831; `errors=0`.
+- Не перевірено: darwin; юніт-тести сервісу під ASan; повний `go test ./cl/` і `./internal/build/`; `GOROOT/test`; профіль купи після зміни.
+- Наступне: рішення розробника про P12.5.5.2 і P12.5.7.x; далі гейт P12.6.
