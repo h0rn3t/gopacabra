@@ -16,7 +16,7 @@ import (
 // TestGopacabraWaitGroupGo — P7.1: wg.Go передає замикання в go, тож змінна,
 // яку замикання захоплює, після виклику не звільняється.
 func TestGopacabraWaitGroupGo(t *testing.T) {
-	t.Cleanup(func() { census.PublishProgram(nil) })
+	t.Cleanup(func() { census.PublishProgram(nil, nil) })
 	const src = `package app
 
 import "sync"
@@ -54,7 +54,7 @@ func Spawn(wg *sync.WaitGroup) {
 	}
 	app := goProg.CreatePackage(appTypes, []*ast.File{file}, info, true)
 	goProg.Build()
-	census.PublishProgram(goProg)
+	census.PublishProgram(goProg, nil)
 
 	prog := newLLSSAProg(t)
 	t.Cleanup(prog.Dispose)

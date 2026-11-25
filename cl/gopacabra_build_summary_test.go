@@ -18,14 +18,14 @@ import (
 // і зведенням «позичає» звільняє об'єкт після останнього використання викликача.
 // Виклик функції без тіла об'єкт не звільняє.
 func TestGopacabraBuildSummary(t *testing.T) {
-	t.Cleanup(func() { census.PublishProgram(nil) })
+	t.Cleanup(func() { census.PublishProgram(nil, nil) })
 	lib, app, appFile := buildGopacabraSummaryProgram(t)
 	gone := lib.Func("Gone")
 	if gone == nil || gone.Blocks == nil {
 		t.Fatal("Gone не має тіла до стирання")
 	}
 	gone.Blocks = nil
-	census.PublishProgram(app.Prog)
+	census.PublishProgram(app.Prog, nil)
 
 	prog := newLLSSAProg(t)
 	t.Cleanup(prog.Dispose)
@@ -61,9 +61,9 @@ func accountedFrees(ir string) int {
 // Місце rc-local лишається на DecAccounted. Місце static у main теж
 // отримує FreeAccounted.
 func TestGopacabraStaticOutside(t *testing.T) {
-	t.Cleanup(func() { census.PublishProgram(nil) })
+	t.Cleanup(func() { census.PublishProgram(nil, nil) })
 	lib, libFile, app, appFile := buildGopacabraStaticOutsideProgram(t)
-	census.PublishProgram(app.Prog)
+	census.PublishProgram(app.Prog, nil)
 
 	prog := newLLSSAProg(t)
 	t.Cleanup(prog.Dispose)

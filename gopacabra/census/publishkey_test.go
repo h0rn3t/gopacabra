@@ -26,7 +26,7 @@ func TestPublishedSummaryIgnoresWrapper(t *testing.T) {
 	// Порядок функцій у PublishProgram залежить від ітерації мапи: кілька
 	// прогонів дають обидва порядки.
 	for range 20 {
-		PublishProgram(pkg.Prog)
+		PublishProgram(pkg.Prog, nil)
 		got := publishedSummary(method)
 		if got == nil || len(got.Params) != 1 || !slices.Equal(got.Params[0].Alias, []int{0}) {
 			t.Fatalf("publishedSummary(%s) = %+v, want Params[0].Alias [0]", method, got)

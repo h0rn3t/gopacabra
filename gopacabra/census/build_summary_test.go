@@ -15,7 +15,7 @@ import (
 // Позичання відомого тіла не лишає об'єкт живим після останнього використання
 // викликача. Функція без тіла і чуже зведення аналізатора об'єкт не звільняють.
 func TestGopacabraBuildSummary(t *testing.T) {
-	t.Cleanup(func() { PublishProgram(nil) })
+	t.Cleanup(func() { PublishProgram(nil, nil) })
 	if Analyzer.FactTypes != nil {
 		t.Fatal("FactTypes увімкнено, хочуть вимкнений")
 	}
@@ -52,7 +52,7 @@ func TestGopacabraBuildSummary(t *testing.T) {
 		t.Fatalf("importSummary(nil, Borrow) = %+v, want unknown", imported)
 	}
 
-	PublishProgram(app.Prog)
+	PublishProgram(app.Prog, nil)
 	cats, staticUses, decUses, _, _ = Place(funcs)
 	if freed, label := freedAlloc(cats, staticUses, decUses, allocs["UseBorrow"]); !freed {
 		t.Fatalf("Place(UseBorrow) = %s, want звільнення після останнього використання", label)

@@ -15,7 +15,7 @@ import (
 // яке передає в go. Параметр f у зведенні втікає з причиною go,
 // і так само в обгортці, що передає f у WaitGroup.Go.
 func TestWaitGroupGo(t *testing.T) {
-	t.Cleanup(func() { PublishProgram(nil) })
+	t.Cleanup(func() { PublishProgram(nil, nil) })
 	wgGo, run := buildWaitGroupProgram(t)
 	for _, fn := range []*ssa.Function{wgGo, run} {
 		sum := publishedSummary(fn)
@@ -69,7 +69,7 @@ func Run(wg *sync.WaitGroup, f func()) { wg.Go(f) }
 	}
 	app := prog.CreatePackage(tpkg, []*ast.File{file}, info, true)
 	prog.Build()
-	PublishProgram(prog)
+	PublishProgram(prog, nil)
 
 	wg := syncPkg.Pkg.Scope().Lookup("WaitGroup").Type()
 	wgGo = prog.LookupMethod(types.NewPointer(wg), syncPkg.Pkg, "Go")

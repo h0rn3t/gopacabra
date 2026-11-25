@@ -190,7 +190,7 @@ var (
 
 // PublishProgram записує зведення експортованих функцій, чиї тіла вже є в prog.
 // Виклик стоїть до пулу воркерів. FactTypes не вмикається. Функція без тіла запису не отримує.
-func PublishProgram(prog *ssa.Program) {
+func PublishProgram(prog *ssa.Program, overlays map[string]*ssa.Package) {
 	var funcs []*ssa.Function
 	if prog != nil {
 		for fn := range ssautil.AllFunctions(prog) {

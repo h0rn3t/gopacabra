@@ -1045,7 +1045,11 @@ func buildInvocation(inv Invocation, plan *initialBuildPlan) (result []Package, 
 	if ctx.frontendOptions.GopacabraFree {
 		// Зведення тіл цієї програми до пулу бекендів. Порядок воркерів його не змінює.
 		span := ctx.buildTrace.startCoordinator("publish gopacabra summaries", nil)
-		census.PublishProgram(ctx.progSSA)
+		overlays := make(map[string]*ssa.Package, len(ctx.patches))
+		for path, patch := range ctx.patches {
+			overlays[path] = patch.Alt
+		}
+		census.PublishProgram(ctx.progSSA, overlays)
 		span.done()
 	}
 	var nativeTestRoots []*packages.Package
