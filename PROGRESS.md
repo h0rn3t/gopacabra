@@ -2231,3 +2231,17 @@
 - Сервіс, `gopacabrastat`, N = 10 000, один прогін: `:231` — `static string`, звільнення на кожне виділення; live `rc-local` 10 780 771 Б замість 11 076 831; `errors=0`.
 - Не перевірено: darwin; юніт-тести сервісу під ASan; повний `go test ./cl/` і `./internal/build/`; `GOROOT/test`; профіль купи після зміни.
 - Наступне: рішення розробника про P12.5.5.2 і P12.5.7.x; далі гейт P12.6.
+
+## 2026-11-25 — P12.5.7.1 Зведення `reflect` з тіла, що компілюється
+
+- Причина: `PublishProgram` і зведення на місці виклику брали тіло функції `std`, хоча cl компілює замість неї функцію оверлея (`patch.Alt`, `runtime/internal/lib/...`). Позичання за зведенням `std` могло звільнити аргумент, який оверлей утримує.
+- Тест спершу (`d70c06825`): `TestOverlaySummary` у census — функція оверлея утримує параметр, її двійник у `std` позичає (червоний: зведення `std`). `PublishProgram` отримує оверлеї збірки (`ctx.patches` в `internal/build`).
+- Реалізація (`71ae0f4b2`): `overlayTwins` зіставляє функцію чи метод `std` з функцією оверлея за іменем і сигнатурою; `compiled` підставляє двійника в `summaryOf`, `calledFns`, `callTargets`, `freshCall`, `InteriorBase`, `builderCall` і `goOperands`. `PublishProgram` скидає зведення й свіжість попередньої публікації: інакше вони просочувались у наступний прогін з іншими оверлеями.
+- Перевірки:
+  - `go test ./gopacabra/census/...` — `ok`; `go vet` і `gofmt -l` — чисто;
+  - `go test -count=1 -timeout 90m ./cl/ -run Gopacabra` з чистим кешем — `ok`;
+  - `gopacabra/fixtures.sh` — 0 з 98 падінь;
+  - сервіс під `-O0 -asan`, сценарій `-c 64 -n 100000` — `errors=0`, stderr порожній.
+- Сервіс, `gopacabrastat`, N = 10 000, по два прогони до й після з чергуванням: live `pinned` 3.43 МБ → 3.92 МБ (+~495 КБ, ≈ +50 Б на запит); `rc-local`, `rc-shared`, `cyclic` — у межах розкиду. Нові місця `pinned unsafe` — коробки аргументів `libc.VaList` у sqlite (`sqlite_g_…7f00.go:113` — 18 414 виділень та інші): зведення оверлейного `reflect.TypeOf` (`unsafe.Pointer(&i)`, `toType`) дає параметру втечу, а параметр `args` у `VaList` — `Pinned`. Раніше зведення `TypeOf` з `std` позичало.
+- Не перевірено: darwin; повний `go test ./cl/` і `./internal/build/`; `GOROOT/test`; юніт-тести сервісу під ASan; точний ланцюг втечі в оверлейному `TypeOf` (дампу зведень немає).
+- Наступне: рішення розробника — прийняти регресію `pinned`, взяти P12.5.7.2 (`reflect.Value` і `Type` як позичання) чи окреме правило для `reflect.TypeOf`.
