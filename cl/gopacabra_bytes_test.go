@@ -181,3 +181,33 @@ func TestGopacabraOverlaySites(t *testing.T) {
 		}
 	}
 }
+
+// TestGopacabraJSONQuote — P12.5.4: копія рядка []byte(s), яку
+// makeStringArshaler передає в jsonwire.AppendQuote, звільняється на кожному
+// виклику json.Marshal. Фікстура кличе json.Marshal 1000 разів; тест звіряє
+// виділення й звільнення місця arshal_default.go:231 за рядками gopacabra site.
+func TestGopacabraJSONQuote(t *testing.T) {
+	conf := build.NewDefaultConf(build.ModeRun)
+	conf.Tags = "gopacabra,gopacabrastat"
+	out, err := cltest.RunAndCaptureWithConf("../gopacabra/bytes/jsonquote", "", conf)
+	if err != nil {
+		t.Fatalf("llgo run -tags gopacabra,gopacabrastat ./gopacabra/bytes/jsonquote error = %v, want exit 0\n%s", err, out)
+	}
+	var allocs, frees int
+	for line := range strings.Lines(string(out)) {
+		f := strings.Fields(line)
+		if len(f) != 7 || f[0] != "gopacabra" || f[1] != "site" || !strings.HasSuffix(f[2], "/encoding/json/v2/arshal_default.go:231") {
+			continue
+		}
+		n, _ := strconv.Atoi(f[6])
+		switch f[5] {
+		case "alloc", "alloc_counted":
+			allocs += n
+		case "dec_accounted", "free_accounted":
+			frees += n
+		}
+	}
+	if allocs < 1000 || frees != allocs {
+		t.Errorf("site arshal_default.go:231: %d allocations, %d freed; want at least 1000, all freed", allocs, frees)
+	}
+}
