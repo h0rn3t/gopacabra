@@ -394,6 +394,12 @@ func unknownSummary(fn *ssa.Function) *Summary {
 		}
 	}
 	s := &Summary{Params: make([]Param, n)}
+	if fn != nil && fn.Blocks == nil {
+		if params, ok := runtimeSummaries[strings.TrimPrefix(fn.String(), overlayPrefix)]; ok && len(params) == n {
+			copy(s.Params, params)
+			return s
+		}
+	}
 	borrow := fn != nil && fn.Blocks == nil && runtimeBorrow(fn.String())
 	for i := range s.Params {
 		if borrow && i == 0 {
@@ -436,6 +442,41 @@ var runtimeBorrows = map[string]bool{
 	"internal/synctest.associate":           true,
 	"internal/synctest.disassociate":        true,
 	"internal/synctest.isAssociated":        true,
+}
+
+// overlayPrefix — шлях оверлеїв stdlib llgo (patch.Alt): функцію оверлея
+// runtimeSummaries називає шляхом пакета stdlib.
+const overlayPrefix = "github.com/xgo-dev/llgo/runtime/internal/lib/"
+
+// runtimeSummaries — зведення функцій оверлеїв без тіла, які рантайм llgo
+// реалізує через linkname. typedmemmove(t, dst, src) копіює *src у *dst:
+// вміст src живе в dst після виклику. typedmemclr(t, ptr) лише обнуляє
+// *ptr. ifaceE2I(t, src, dst) кладе src у *dst. Дескриптор типу t лише
+// читається.
+var runtimeSummaries = map[string][]Param{
+	"reflect.typedmemmove": {{}, {Writes: true}, {Content: uint8(escapeCall)}},
+	"reflect.typedmemclr":  {{}, {Writes: true}},
+	"reflect.ifaceE2I":     {{}, {Side: uint8(escapeCall)}, {Writes: true}},
+}
+
+// typeDescriptor: t — *abi.Type рантайму llgo (і його аліас internal/abi.Type).
+// Дескриптор типу статичний або, якщо його збудувала рефлексія, лежить у
+// центральній мапі до кінця програми (інваріант value.go Value.typ і
+// internal/abi.TypeOf, через який gc ставить noescape). Тож дескриптор,
+// прочитаний з пам'яті параметра, не тримає ані параметр, ані його вміст.
+// Адреса дескриптора, параметр і результат виклику цього правила не мають:
+// рефлексія передає ними тип, який ще не потрапив у мапу.
+func typeDescriptor(t types.Type) bool {
+	ptr, ok := types.Unalias(t).(*types.Pointer)
+	if !ok {
+		return false
+	}
+	named, ok := types.Unalias(ptr.Elem()).(*types.Named)
+	if !ok {
+		return false
+	}
+	obj := named.Obj()
+	return obj.Name() == "Type" && obj.Pkg() != nil && obj.Pkg().Path() == "github.com/xgo-dev/llgo/runtime/abi"
 }
 
 // runtimeBorrow: перший параметр функції name лише позичається — список
@@ -571,12 +612,13 @@ func summarize(fn *ssa.Function, lookup func(*ssa.Function) *Summary, cache map[
 			tok[param] = pset{i: {}}
 		}
 	}
+	cells := cellLoads(instrs)
 	limit := len(instrs)*max(len(fn.Params), 1) + 2
 	hit := true
 	for range limit {
 		changed := false
 		for _, instr := range instrs {
-			if applySummary(instr, sum, tok, derived, content, tuple, lookup, concrete, knownFn, fn.Prog) {
+			if applySummary(instr, sum, tok, derived, content, tuple, cells, lookup, concrete, knownFn, fn.Prog) {
 				changed = true
 			}
 		}
@@ -592,7 +634,7 @@ func summarize(fn *ssa.Function, lookup func(*ssa.Function) *Summary, cache map[
 	return sum
 }
 
-func applySummary(instr ssa.Instruction, sum *Summary, tok, derived, content map[ssa.Value]pset, tuple map[*ssa.Call][]pset, lookup func(*ssa.Function) *Summary, concrete map[ssa.Value][]types.Type, knownFn map[ssa.Value][]*ssa.Function, prog *ssa.Program) bool {
+func applySummary(instr ssa.Instruction, sum *Summary, tok, derived, content map[ssa.Value]pset, tuple map[*ssa.Call][]pset, cells map[*ssa.UnOp][]ssa.Value, lookup func(*ssa.Function) *Summary, concrete map[ssa.Value][]types.Type, knownFn map[ssa.Value][]*ssa.Function, prog *ssa.Program) bool {
 	switch instr := instr.(type) {
 	case *ssa.Go:
 		return sideCall(sum, instr.Common(), escapeGo, tok, derived, content)
@@ -662,9 +704,22 @@ func applySummary(instr ssa.Instruction, sum *Summary, tok, derived, content map
 		changed := sum.raiseSide(tok[instr.X], escapeCall, false)
 		return sum.raiseSide(derived[instr.X], escapeCall, true) || changed
 	case *ssa.UnOp:
+		if instr.Op == token.MUL && typeDescriptor(instr.Type()) {
+			return false
+		}
 		if instr.Op == token.MUL || instr.Op == token.ARROW {
 			changed := unionAt(derived, instr, tok[instr.X])
 			changed = unionAt(derived, instr, derived[instr.X]) || changed
+			if stored, ok := cells[instr]; ok {
+				// Прочитане з комірки — лише записане на шляху до читання.
+				for _, v := range stored {
+					for _, set := range []pset{tok[v], derived[v], content[v]} {
+						changed = unionAt(tok, instr, set) || changed
+						changed = unionAt(derived, instr, set) || changed
+					}
+				}
+				return changed
+			}
 			// У локальній пам'яті лежать і самі параметри, і їхній вміст:
 			// прочитане — обидва.
 			changed = unionAt(tok, instr, content[instr.X]) || changed
@@ -702,6 +757,9 @@ func applySummary(instr ssa.Instruction, sum *Summary, tok, derived, content map
 	default:
 		value, ok := instr.(ssa.Value)
 		if !ok {
+			return false
+		}
+		if field, ok := instr.(*ssa.Field); ok && typeDescriptor(field.Type()) {
 			return false
 		}
 		t, d := operandSets(instr, tok, derived)
@@ -1662,6 +1720,88 @@ func usedAfter(call ssa.Instruction, sites siteSet, pts map[ssa.Value]siteSet) b
 		}
 	}
 	return false
+}
+
+// cellLoads: для кожного завантаження з локальної комірки, яку лише пишуть і
+// читають за її адресою (поля й елементи — теж), — значення записів, що
+// досягають завантаження в CFG. Комірки, чия адреса йде кудись іще (виклик,
+// запис, замикання), сюди не потрапляють: туди пише не лише Store.
+func cellLoads(instrs []ssa.Instruction) map[*ssa.UnOp][]ssa.Value {
+	out := map[*ssa.UnOp][]ssa.Value{}
+	for _, instr := range instrs {
+		alloc, ok := instr.(*ssa.Alloc)
+		if !ok {
+			continue
+		}
+		var stores []*ssa.Store
+		var loads []*ssa.UnOp
+		if !cellAccess(alloc, &stores, &loads) {
+			continue
+		}
+		for _, store := range stores {
+			blocks := blocksAfter(store.Block())
+			before := slices.Index(store.Block().Instrs, ssa.Instruction(store))
+			for _, load := range loads {
+				if blocks[load.Block()] || load.Block() == store.Block() && before < slices.Index(load.Block().Instrs, ssa.Instruction(load)) {
+					out[load] = append(out[load], store.Val)
+				}
+			}
+		}
+		for _, load := range loads {
+			if out[load] == nil {
+				out[load] = []ssa.Value{} // жоден запис не досягає: нуль
+			}
+		}
+	}
+	return out
+}
+
+// cellAccess збирає записи й завантаження за адресою addr; false, якщо
+// адресу використано інакше.
+func cellAccess(addr ssa.Value, stores *[]*ssa.Store, loads *[]*ssa.UnOp) bool {
+	for _, ref := range *addr.Referrers() {
+		switch ref := ref.(type) {
+		case *ssa.Store:
+			if ref.Val == addr {
+				return false
+			}
+			*stores = append(*stores, ref)
+		case *ssa.UnOp:
+			if ref.Op != token.MUL {
+				return false
+			}
+			*loads = append(*loads, ref)
+		case *ssa.FieldAddr:
+			if !cellAccess(ref, stores, loads) {
+				return false
+			}
+		case *ssa.IndexAddr:
+			if !cellAccess(ref, stores, loads) {
+				return false
+			}
+		case *ssa.DebugRef:
+		default:
+			return false
+		}
+	}
+	return true
+}
+
+// blocksAfter — блоки, досяжні з наступників block; сам block — лише через
+// зворотне ребро.
+func blocksAfter(block *ssa.BasicBlock) map[*ssa.BasicBlock]bool {
+	seen := map[*ssa.BasicBlock]bool{}
+	queue := slices.Clone(block.Succs)
+	for len(queue) > 0 {
+		next := queue[0]
+		queue = queue[1:]
+		if seen[next] {
+			continue
+		}
+		seen[next] = true
+		queue = append(queue, next.Succs...)
+	}
+	return seen
 }
 
 func instrsAfter(call ssa.Instruction) map[ssa.Instruction]bool {
