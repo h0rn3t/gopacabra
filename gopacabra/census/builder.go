@@ -94,7 +94,7 @@ func builderCall(call *ssa.Call, returned map[ssa.Value]bool, fresh, builders ma
 	if name, ok := builtinName(&call.Call); ok {
 		return slices.Contains([]string{"len", "cap", "min", "max", "print", "println"}, name)
 	}
-	callee := call.Call.StaticCallee()
+	callee := compiled(call.Call.StaticCallee())
 	if callee == nil {
 		return false
 	}

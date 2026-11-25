@@ -176,6 +176,9 @@ func goOperands(g *ssa.Go) (outer, inner []ssa.Value) {
 		return nil, nil
 	}
 	fn, ok := g.Call.Value.(*ssa.Function)
+	if ok {
+		fn = compiled(fn)
+	}
 	if mc, isClosure := g.Call.Value.(*ssa.MakeClosure); isClosure {
 		fn, ok = mc.Fn.(*ssa.Function)
 		if !ok || !onlyUser(mc, g) {

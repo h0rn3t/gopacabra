@@ -123,7 +123,7 @@ func returnsInterior(fn *ssa.Function) bool {
 // результат виклику call, або nil, якщо результат не внутрішній чи тіла
 // викликаної функції немає. Слово цього об'єкта знаходить runtime.Base.
 func InteriorBase(call *ssa.Call) types.Type {
-	callee := call.Call.StaticCallee()
+	callee := compiled(call.Call.StaticCallee())
 	if callee == nil || callee.Blocks == nil || !returnsInterior(callee) {
 		return nil
 	}
@@ -325,7 +325,7 @@ func ownedResult(v ssa.Value, fresh map[*ssa.Function]bool, seen map[ssa.Value]b
 }
 
 func freshCall(call *ssa.Call, fresh map[*ssa.Function]bool) bool {
-	callee := call.Call.StaticCallee()
+	callee := compiled(call.Call.StaticCallee())
 	// Внутрішній результат — не початок об'єкта: ні повернути його як свій,
 	// ні перемістити в поле обходу не можна.
 	if callee == nil || callee.Blocks != nil && returnsInterior(callee) {

@@ -186,10 +186,13 @@ func ResetSummaries() {
 var (
 	programMu sync.Mutex
 	programBy = map[string]*Summary{}
+	overlayBy map[*ssa.Function]*ssa.Function
 )
 
 // PublishProgram записує зведення експортованих функцій, чиї тіла вже є в prog.
 // Виклик стоїть до пулу воркерів. FactTypes не вмикається. Функція без тіла запису не отримує.
+// overlays — оверлеї збірки за шляхом пакета std (patch.Alt): функцію std,
+// яку оверлей заміняє, census далі бачить тілом оверлея.
 func PublishProgram(prog *ssa.Program, overlays map[string]*ssa.Package) {
 	var funcs []*ssa.Function
 	if prog != nil {
@@ -200,6 +203,14 @@ func PublishProgram(prog *ssa.Program, overlays map[string]*ssa.Package) {
 			funcs = append(funcs, fn)
 		}
 	}
+	twins := overlayTwins(funcs, overlays)
+	// Попередня публікація могла мати інші оверлеї: її свіжість і зведення
+	// не мають просочитися в цей прогін.
+	programMu.Lock()
+	overlayBy = twins
+	programBy = map[string]*Summary{}
+	freshProg, freshBy, builderBy = nil, nil, nil
+	programMu.Unlock()
 	sums := packageSummaries(nil, funcs)
 	fresh := map[*ssa.Function]bool{}
 	builders := map[*ssa.Function]bool{}
@@ -228,6 +239,70 @@ func PublishProgram(prog *ssa.Program, overlays map[string]*ssa.Package) {
 	programMu.Lock()
 	programBy = next
 	programMu.Unlock()
+}
+
+// overlayTwins зіставляє оголошені функції й методи std з однойменними в
+// оверлеї: cl компілює тіло оверлея замість кожного такого імені. Двійник з
+// іншою кількістю параметрів чи результатів не береться.
+func overlayTwins(funcs []*ssa.Function, overlays map[string]*ssa.Package) map[*ssa.Function]*ssa.Function {
+	twins := map[*ssa.Function]*ssa.Function{}
+	for _, fn := range funcs {
+		obj, ok := fn.Object().(*types.Func)
+		if !ok || obj.Pkg() == nil || !declared(fn) {
+			continue
+		}
+		alt := overlays[obj.Pkg().Path()]
+		if alt == nil {
+			continue
+		}
+		twin := overlayTwin(alt, obj)
+		if twin == nil || twin.Blocks == nil || len(twin.Params) != len(fn.Params) ||
+			twin.Signature.Results().Len() != fn.Signature.Results().Len() {
+			continue
+		}
+		twins[fn] = twin
+	}
+	return twins
+}
+
+func overlayTwin(alt *ssa.Package, obj *types.Func) *ssa.Function {
+	recv := obj.Signature().Recv()
+	if recv == nil {
+		return alt.Func(obj.Name())
+	}
+	base := recv.Type()
+	if ptr, isPtr := base.(*types.Pointer); isPtr {
+		base = ptr.Elem()
+	}
+	named, ok := types.Unalias(base).(*types.Named)
+	if !ok {
+		return nil
+	}
+	typ := alt.Type(named.Obj().Name())
+	if typ == nil {
+		return nil
+	}
+	altNamed, ok := typ.Type().(*types.Named)
+	if !ok {
+		return nil
+	}
+	for method := range altNamed.Methods() {
+		if method.Name() == obj.Name() {
+			return alt.Prog.FuncValue(method)
+		}
+	}
+	return nil
+}
+
+// compiled повертає функцію, тіло якої збірка компілює замість fn: двійника
+// з оверлея або саму fn.
+func compiled(fn *ssa.Function) *ssa.Function {
+	programMu.Lock()
+	defer programMu.Unlock()
+	if twin := overlayBy[fn]; twin != nil {
+		return twin
+	}
+	return fn
 }
 
 func publishedSummary(fn *ssa.Function) *Summary {
@@ -414,7 +489,7 @@ func calledFns(fn *ssa.Function, cache map[*ssa.Function]resolved) []*ssa.Functi
 			continue
 		}
 		if target := common.StaticCallee(); target != nil {
-			out = append(out, target)
+			out = append(out, compiled(target))
 			continue
 		}
 		dynamic = append(dynamic, call)
@@ -926,7 +1001,7 @@ func callTargets(call *ssa.CallCommon, concrete map[ssa.Value][]types.Type, know
 		return nil, true
 	}
 	if fn := call.StaticCallee(); fn != nil {
-		return []*ssa.Function{fn}, true
+		return []*ssa.Function{compiled(fn)}, true
 	}
 	if call.IsInvoke() {
 		tys, ok := concrete[call.Value]
@@ -939,7 +1014,7 @@ func callTargets(call *ssa.CallCommon, concrete map[ssa.Value][]types.Type, know
 			if fn == nil {
 				return nil, false
 			}
-			out = append(out, fn)
+			out = append(out, compiled(fn))
 		}
 		return out, len(out) > 0
 	}
@@ -952,7 +1027,11 @@ func callTargets(call *ssa.CallCommon, concrete map[ssa.Value][]types.Type, know
 		}
 	}
 	fns, ok := knownFn[call.Value]
-	return fns, ok && len(fns) > 0
+	out := make([]*ssa.Function, len(fns))
+	for i, fn := range fns {
+		out[i] = compiled(fn)
+	}
+	return out, ok && len(fns) > 0
 }
 
 func methodFunc(prog *ssa.Program, typ types.Type, method *types.Func) *ssa.Function {
@@ -1405,6 +1484,7 @@ func (v1 *v1Ctx) facts(fn *ssa.Function) resolved {
 }
 
 func summaryOf(v1 *v1Ctx, fn *ssa.Function) *Summary {
+	fn = compiled(fn)
 	if v1 == nil || fn == nil {
 		return unknownSummary(fn)
 	}
