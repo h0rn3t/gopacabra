@@ -675,8 +675,9 @@ func applyCall(instr ssa.Instruction, call *ssa.CallCommon, sum *Summary, tok, d
 			changed := unionAt(tok, value, tok[call.Args[0]])
 			changed = unionAt(derived, value, derived[call.Args[0]]) || changed
 			changed = unionAt(content, value, content[call.Args[0]]) || changed
-			if len(call.Args) > 1 {
-				// Елементи другого аргументу лягають у масив результату.
+			// Елементи другого аргументу лягають у масив результату. Без
+			// вказівників (байти зрізу чи рядка) результат їх не тримає.
+			if s, ok := value.Type().Underlying().(*types.Slice); len(call.Args) > 1 && (!ok || containsRef(s.Elem())) {
 				elems := call.Args[1]
 				changed = unionAt(content, value, mergeSets(mergeSets(tok[elems], derived[elems]), content[elems])) || changed
 			}
