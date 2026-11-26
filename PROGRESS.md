@@ -2263,3 +2263,27 @@
 - Не перевірено: darwin; повний `go test ./cl/` і `./internal/build/`; `GOROOT/test`; юніт-тести сервісу під ASan; час компіляції census (`cellLoads` рахується на кожен виклик `summarize`).
 - Знахідка: `instrsAfter` і `usedAfter` пропускають інструкції власного блоку, досяжні зворотним ребром циклу. Це можлива ненадійність, не перевірена.
 - Наступне: P12.5.7.3 (друк `fmt`) або P12.5.7.4 (цілі `ScanColumn`) — без них місця `Scan` лишаються `shared`; окремо — перевірка знахідки про `instrsAfter`.
+
+## 2026-11-26 — P12.5.7.3 Друк `fmt`
+
+- Причина: аргументи `fmt.Sprintf`/`fmt.Errorf` у зведенні викликача ставали `Unknown`, бо census не читає тіла `fmt`. Серед іншого, через `fmt.Errorf(… %T …, dest)` у `(*sql.Rows).Scan`.
+- Тест спершу:
+  - `955ab40aa`: `TestFmtBorrow` у census і `TestGopacabraFmtErrorf` у cl з фікстурою `gopacabra/bytes/fmterrorf`;
+  - `d65c60b7e`: `TestCommaOkKeepsAlias`, обидва червоні до змін.
+- Реалізація:
+  - `83e7ab854`: `fmtCalled` (`gopacabra/census/fmtprint.go`). За константного формату і зрізу, зібраного на місці виклику, аргументи `%T`, `*` і базового типу без методів позичаються. Решта, включно з `%w`, лишається `Unknown` — це відхилення від плану (`Holds`), бо fmt викликає `Error()`.
+  - `b0da318ca`: правило fmt виявило, що `Extract` кортежу comma-ok (`x.(T)`, `m[k]`, `<-ch`, `Next`) губив аліас параметра. Fiber `App.Get/Post/Add` почали позичати обробник, і сервіс падав nil deref на кожному запиті до бази. Тепер елемент кортежу, що не є викликом, бере токени самого кортежу.
+- Перевірки:
+  - `go test ./gopacabra/census/...` — `ok`; `go vet` і `gofmt -l` — чисто;
+  - `go test -count=1 -timeout 90m ./cl/ -run Gopacabra` з чистим кешем — `ok`;
+  - `gopacabra/fixtures.sh` — 0 зі 100 падінь;
+  - сервіс під `-O0 -asan`, сценарій `-c 64 -n 100000` — `errors=0`, stderr порожній, код 0.
+- Сервіс, `gopacabrastat`, N = 10 000, по два прогони з чергуванням: `errors=0`; live `pinned`, `rc-local`, `rc-shared`, `cyclic` — у межах розкиду. Місця `Scan` (`main.go:195`/`:196`) без змін.
+- Не перевірено:
+  - darwin;
+  - повний `go test ./cl/` і `./internal/build/`;
+  - `GOROOT/test`;
+  - юніт-тести сервісу під ASan;
+  - дієслово `*` тестом не покрите;
+  - `Fprintf`/`Printf`/`Sprint*` і переданий далі `args...` не покриті.
+- Наступне: P12.5.7.4 (цілі `RowsColumnScanner.ScanColumn`) — без нього місця `Scan` лишаються `shared`.
