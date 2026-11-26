@@ -1,14 +1,17 @@
 #!/usr/bin/env python3
-"""Зводить дамп семплера купи (тег gopacabraheap) у живі байти на стек.
+r"""Зводить дамп семплера купи (тег gopacabraheap) у живі байти на стек.
 
-    heapsym.py heap.txt [-n REQUESTS] [-top N] [-depth D]
+    heapsym.py heap.txt [-n REQUESTS] [-top N] [-depth D] [-via REGEX]
 
 Живі байти стека — (виділені − звільнені) семпли × rate. Стек
 показується з першого кадру поза алокатором рантайму, D кадрів (типово 3);
-з -n — ще й на запит.
+з -n — ще й на запит; з -via — лише стеки з кадром функції, ім'я якої (без
+пакета) повністю збігається з REGEX. GrowSliceAligned вбудовується у
+SliceAppendAligned, тож ріст зрізу — -via 'GrowSlice\w*|SliceAppend\w*'.
 """
 import argparse
 import collections
+import re
 import subprocess
 
 # Кадри алокатора, які пропускаються до першого кадру місця.
@@ -72,12 +75,15 @@ def main():
     ap.add_argument("-n", type=float, default=0, help="запитів, для колонок на запит")
     ap.add_argument("-top", type=int, default=30)
     ap.add_argument("-depth", type=int, default=3)
+    ap.add_argument("-via", default="", help="лише стеки з кадром функції, що збігається з регулярним виразом")
     a = ap.parse_args()
     maps, base, sites, rate = read(a.path)
     names = symbolize(maps, base, {pc for _, st in sites for pc in st})
     live, objs = collections.Counter(), collections.Counter()
     for (allocs, nbytes, frees, freed), st in sites:
         frames = [names.get(pc, "??") for pc in st]
+        if a.via and not any(re.fullmatch(a.via, f.split("@")[0].rsplit(".", 1)[-1]) for f in frames):
+            continue
         i = 0
         while i < len(frames) - 1 and frames[i].split("@")[0].rsplit(".", 1)[-1].startswith(ALLOC_FRAMES):
             i += 1

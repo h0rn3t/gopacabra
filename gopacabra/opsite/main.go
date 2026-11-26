@@ -82,7 +82,7 @@ var want = map[string]uint64{
 	"26 cyclic return alloc_region":     2,
 	"30 cyclic - region_create":         1,
 	"30 cyclic - free_region":           1,
-	"189 cyclic - dec_cyclic":           1,
+	"192 cyclic - dec_cyclic":           1,
 	"38 static - alloc":                 1,
 	"38 static - note_alloc":            1,
 	"38 static - free_accounted":        1,
@@ -169,6 +169,9 @@ func check(report string, n uint64) error {
 		switch op {
 		case "alloc", "alloc_root", "free_root", "cyclic_visit":
 			continue // рантайм ставить їх сам, без місця
+		}
+		if strings.HasPrefix(op, "grow_slice") || strings.HasPrefix(op, "map_") || strings.HasPrefix(op, "owned_append_") {
+			continue // покинуті масиви росту P-NEW-03.6 — події рантайму, без місця
 		}
 		if sums[op] != v {
 			return fmt.Errorf("site sum %s = %d, gopacabra ops %s = %d", op, sums[op], op, v)
