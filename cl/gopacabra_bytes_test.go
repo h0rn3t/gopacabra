@@ -193,20 +193,7 @@ func TestGopacabraJSONQuote(t *testing.T) {
 	if err != nil {
 		t.Fatalf("llgo run -tags gopacabra,gopacabrastat ./gopacabra/bytes/jsonquote error = %v, want exit 0\n%s", err, out)
 	}
-	var allocs, frees int
-	for line := range strings.Lines(string(out)) {
-		f := strings.Fields(line)
-		if len(f) != 7 || f[0] != "gopacabra" || f[1] != "site" || !strings.HasSuffix(f[2], "/encoding/json/v2/arshal_default.go:231") {
-			continue
-		}
-		n, _ := strconv.Atoi(f[6])
-		switch f[5] {
-		case "alloc", "alloc_counted":
-			allocs += n
-		case "dec_accounted", "free_accounted":
-			frees += n
-		}
-	}
+	allocs, frees := siteCounts(out, "/encoding/json/v2/arshal_default.go:231")
 	if allocs < 1000 || frees != allocs {
 		t.Errorf("site arshal_default.go:231: %d allocations, %d freed; want at least 1000, all freed", allocs, frees)
 	}
@@ -221,10 +208,35 @@ func TestGopacabraFmtErrorf(t *testing.T) {
 	if err != nil {
 		t.Fatalf("llgo run -tags gopacabra,gopacabrastat ./gopacabra/bytes/fmterrorf error = %v, want exit 0\n%s", err, out)
 	}
-	var allocs, frees int
+	allocs, frees := siteCounts(out, "/fmterrorf/main.go:32")
+	// Позичена змінна може піти на стек: тоді виділень немає зовсім.
+	if frees != allocs {
+		t.Errorf("site main.go:32: %d allocations, %d freed; want all freed\n%s", allocs, frees, out)
+	}
+}
+
+// TestGopacabraNoImplementer: змінна, яку функція форми scanLocked передає в
+// метод інтерфейсу без жодної реалізації в програмі, не лишається живою
+// (P12.5.7.4).
+func TestGopacabraNoImplementer(t *testing.T) {
+	conf := build.NewDefaultConf(build.ModeRun)
+	conf.Tags = "gopacabra,gopacabrastat"
+	out, err := cltest.RunAndCaptureWithConf("../gopacabra/bytes/noimpl", "", conf)
+	if err != nil {
+		t.Fatalf("llgo run -tags gopacabra,gopacabrastat ./gopacabra/bytes/noimpl error = %v, want exit 0\n%s", err, out)
+	}
+	// Позичена змінна може піти на стек: тоді виділень немає зовсім.
+	if allocs, frees := siteCounts(out, "/noimpl/main.go:41"); frees != allocs {
+		t.Errorf("site main.go:41: %d allocations, %d freed; want all freed\n%s", allocs, frees, out)
+	}
+}
+
+// siteCounts підсумовує виділення і звільнення місця з рядків gopacabra site,
+// чий файл:рядок закінчується на suffix.
+func siteCounts(out []byte, suffix string) (allocs, frees int) {
 	for line := range strings.Lines(string(out)) {
 		f := strings.Fields(line)
-		if len(f) != 7 || f[0] != "gopacabra" || f[1] != "site" || !strings.HasSuffix(f[2], "/fmterrorf/main.go:32") {
+		if len(f) != 7 || f[0] != "gopacabra" || f[1] != "site" || !strings.HasSuffix(f[2], suffix) {
 			continue
 		}
 		n, _ := strconv.Atoi(f[6])
@@ -235,8 +247,5 @@ func TestGopacabraFmtErrorf(t *testing.T) {
 			frees += n
 		}
 	}
-	// Позичена змінна може піти на стек: тоді виділень немає зовсім.
-	if frees != allocs {
-		t.Errorf("site main.go:32: %d allocations, %d freed; want all freed\n%s", allocs, frees, out)
-	}
+	return allocs, frees
 }
