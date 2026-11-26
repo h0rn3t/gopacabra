@@ -829,6 +829,17 @@ func applyCall(instr ssa.Instruction, call *ssa.CallCommon, sum *Summary, tok, d
 		}
 		return false
 	}
+	if called, ok := fmtCalled(call); ok {
+		// Результат fmt — нова пам'ять; аргументи, які fmt лише читає,
+		// позичені.
+		changed := false
+		for _, arg := range called {
+			changed = sum.markUnknown(tok[arg]) || changed
+			changed = sum.markUnknown(derived[arg]) || changed
+			changed = sum.markUnknown(content[arg]) || changed
+		}
+		return changed
+	}
 	targets, known := callTargets(call, concrete, knownFn, prog)
 	nres := resultCount(call)
 	if !known {
