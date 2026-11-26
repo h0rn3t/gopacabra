@@ -1171,6 +1171,7 @@ func evacuate(t *maptype, h *hmap, oldbucket uintptr) {
 	b := (*bmap)(add(h.oldbuckets, oldbucket*uintptr(t.BucketSize)))
 	newbit := h.noldbuckets()
 	if !evacuated(b) {
+		noteEvacuate(t, h, b)
 		// TODO: reuse overflow buckets instead of using new ones, if there
 		// is no iterator using the old buckets.  (If !oldIterator.)
 
@@ -1293,6 +1294,7 @@ func advanceEvacuationMark(h *hmap, t *maptype, newbit uintptr) {
 		h.nevacuate++
 	}
 	if h.nevacuate == newbit { // newbit == # of oldbuckets
+		noteGrowDone(t, h)
 		// Growing is all done. Free old main bucket array.
 		h.oldbuckets = nil
 		// Can discard old overflow buckets as well.

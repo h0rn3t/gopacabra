@@ -26,10 +26,82 @@ var opNames = [opCount]string{
 	"note_alloc_static", "note_alloc_rc-local", "note_alloc_rc-shared",
 	"note_alloc_cyclic", "note_alloc_pinned", "note_alloc_implicit",
 	"region_create", "alloc_region", "free_region", "dec_chan",
+	"grow_slice", "grow_slice_bytes",
+	"map_grow_done", "map_grow_done_bytes",
+	"map_grow_done_iter", "map_grow_done_iter_bytes",
+	"map_old_overflow",
+	"owned_append_in_cap", "owned_append_in_cap_bytes",
 }
 
 func countOp(op int32) {
-	atomic.Add(&opShards[myShardIndex()].ops[op], 1)
+	addOp(op, 1)
+}
+
+func addOp(op int32, n uint64) {
+	atomic.Add(&opShards[myShardIndex()].ops[op], n)
+}
+
+// noteGrowSlice рахує старий масив, який GrowSliceAligned лишає після росту.
+func noteGrowSlice(oldCap, etSize int) {
+	if oldCap == 0 {
+		return
+	}
+	countOp(opGrowSlice)
+	addOp(opGrowSliceBytes, uint64(oldCap)*uint64(etSize))
+}
+
+// oldBucketArray повертає початок і розмір у байтах старого масиву бакетів
+// мапи, що росте: стільки ж бакетів, скільки дає makeBucketArray для старого B.
+func oldBucketArray(t *maptype, h *hmap) (unsafe.Pointer, uintptr) {
+	b := h.B
+	if !h.sameSizeGrow() {
+		b--
+	}
+	n := bucketShift(b)
+	if b >= 4 {
+		n += bucketShift(b - 4)
+		sz := t.Bucket.Size_ * n
+		if up := roundupsize(sz); up != sz {
+			n = up / t.Bucket.Size_
+		}
+	}
+	return h.oldbuckets, t.Bucket.Size_ * n
+}
+
+// noteEvacuate рахує бакети переповнення ланцюга старого бакета b, виділені
+// поза масивом (newoverflow через newobject). Кличе evacuate до перенесення:
+// після нього ланцюг може бути обнулений.
+func noteEvacuate(t *maptype, h *hmap, b *bmap) {
+	base, size := oldBucketArray(t, h)
+	for ovf := b.overflow(t); ovf != nil; ovf = ovf.overflow(t) {
+		if off := uintptr(unsafe.Pointer(ovf)) - uintptr(base); off >= size {
+			countOp(opMapOldOverflow)
+		}
+	}
+}
+
+// noteGrowDone рахує старий масив бакетів, коли евакуація завершена, окремо
+// для встановленого oldIterator: його ще може читати ітератор.
+func noteGrowDone(t *maptype, h *hmap) {
+	_, size := oldBucketArray(t, h)
+	if h.flags&oldIterator != 0 {
+		countOp(opMapGrowDoneIter)
+		addOp(opMapGrowDoneIterBytes, uint64(size))
+		return
+	}
+	countOp(opMapGrowDone)
+	addOp(opMapGrowDoneBytes, uint64(size))
+}
+
+// OwnedAppendCapStat — OwnedAppendCap під gopacabrastat (cl, emitOwnedAppend):
+// виклик з newLen ≤ oldCap рахує байти старого вмісту, які emitOwnedAppend
+// копіює в новий буфер, хоча ємності вистачало.
+func OwnedAppendCapStat(oldLen, newLen, oldCap, etSize int) int {
+	if newLen >= 0 && newLen <= oldCap {
+		countOp(opOwnedAppendInCap)
+		addOp(opOwnedAppendInCapBytes, uint64(oldLen)*uint64(etSize))
+	}
+	return OwnedAppendCap(newLen, oldCap, etSize)
 }
 
 // OpCount повертає кількість викликів операції op за весь процес.

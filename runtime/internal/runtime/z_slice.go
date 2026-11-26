@@ -121,6 +121,7 @@ func GrowSliceAligned(src Slice, num, etSize, etAlign int) Slice {
 			panicgrowslicelen()
 		}
 		p := AllocZAligned(mem, uintptr(etAlign))
+		noteGrowSlice(src.cap, etSize)
 		if oldLen != 0 {
 			c.Memcpy(p, src.data, uintptr(oldLen*etSize))
 		}

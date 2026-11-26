@@ -1316,7 +1316,18 @@ func (p *context) emitOwnedAppend(b llssa.Builder, call *ssa.Call, allocName str
 		types.NewTuple(types.NewVar(token.NoPos, nil, "newLen", intTy), types.NewVar(token.NoPos, nil, "oldCap", intTy), types.NewVar(token.NoPos, nil, "etSize", intTy)),
 		types.NewTuple(types.NewVar(token.NoPos, nil, "", intTy)),
 		false)
-	newCap := b.Call(p.runtimeFunc("OwnedAppendCap", capSig), newLen, b.SliceCap(src), p.prog.IntVal(elemSize, p.prog.Int()))
+	etSize := p.prog.IntVal(elemSize, p.prog.Int())
+	var newCap llssa.Expr
+	if p.options.GopacabraStat {
+		// Варіант під gopacabrastat ще рахує копіювання за достатньої ємності (P-NEW-03.6).
+		statSig := types.NewSignatureType(nil, nil, nil,
+			types.NewTuple(types.NewVar(token.NoPos, nil, "oldLen", intTy), types.NewVar(token.NoPos, nil, "newLen", intTy), types.NewVar(token.NoPos, nil, "oldCap", intTy), types.NewVar(token.NoPos, nil, "etSize", intTy)),
+			capSig.Results(),
+			false)
+		newCap = b.Call(p.runtimeFunc("OwnedAppendCapStat", statSig), oldLen, newLen, b.SliceCap(src), etSize)
+	} else {
+		newCap = b.Call(p.runtimeFunc("OwnedAppendCap", capSig), newLen, b.SliceCap(src), etSize)
+	}
 	raw := p.callSizedAlloc(b, allocName, p.gopacabraBytes(b, newCap, elemSize))
 	elemPtr := b.PtrCast(p.prog.Pointer(elemLL), raw)
 	b.CopyBytes(elemPtr, b.SliceData(src), p.gopacabraBytes(b, oldLen, elemSize))

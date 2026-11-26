@@ -87,6 +87,17 @@ const (
 	opAllocRegion
 	opFreeRegion
 	opDecChan // ChanDec з місця компілятора (P-NEW-03.5)
+
+	// Покинуті масиви росту P-NEW-03.6: кількість і байти кожної події.
+	opGrowSlice             // GrowSliceAligned зі старим cap > 0
+	opGrowSliceBytes        // байти старого масиву
+	opMapGrowDone           // евакуація завершена, oldIterator знятий
+	opMapGrowDoneBytes      // байти старого масиву бакетів
+	opMapGrowDoneIter       // евакуація завершена, oldIterator встановлений
+	opMapGrowDoneIterBytes  // байти старого масиву бакетів
+	opMapOldOverflow        // бакет переповнення старої таблиці поза масивом
+	opOwnedAppendInCap      // власницький append з newLen ≤ oldCap
+	opOwnedAppendInCapBytes // байти старого вмісту, скопійовані в новий буфер
 	opCount
 )
 
