@@ -123,3 +123,29 @@ func compileGopacabra(t *testing.T, src string, opts Options) llvm.Module {
 	}
 	return pkg.Module()
 }
+
+// TestGopacabraStatOwnedAppend — P-NEW-03.6: під GopacabraStat власницький
+// append кличе OwnedAppendCapStat, який рахує копіювання за достатньої
+// ємності. Без GopacabraStat виклик той самий, що до задачі: OwnedAppendCap.
+func TestGopacabraStatOwnedAppend(t *testing.T) {
+	const src = `package foo
+
+func staticAppend(s, extra []int) int {
+	s = append(s, extra...)
+	return len(s)
+}
+`
+	for _, tc := range []struct {
+		stat       bool
+		want, none string
+	}{
+		{stat: true, want: `runtime.OwnedAppendCapStat"(`, none: `runtime.OwnedAppendCap"(`},
+		{stat: false, want: `runtime.OwnedAppendCap"(`, none: `runtime.OwnedAppendCapStat"(`},
+	} {
+		mod := compileGopacabra(t, src, Options{GopacabraFree: true, GopacabraStat: tc.stat})
+		body := mustNamedFunction(t, mod, "foo.staticAppend").String()
+		if !strings.Contains(body, tc.want) || strings.Contains(body, tc.none) {
+			t.Errorf("GopacabraStat %v: foo.staticAppend has no call %s or has %s:\n%s", tc.stat, tc.want, tc.none, body)
+		}
+	}
+}
