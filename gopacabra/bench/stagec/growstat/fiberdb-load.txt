@@ -1,0 +1,4 @@
+load 1: clients=100 requests=77408 errors=0 rps=15475 p50=6.110428ms p99=17.395556ms max=37.073599ms rss_kib=281344 hwm_kib=281344
+load 2: clients=100 requests=90280 errors=0 rps=18054 p50=5.541249ms p99=11.76515ms max=20.721147ms rss_kib=420096 hwm_kib=420096
+load 3: clients=100 requests=92124 errors=0 rps=18422 p50=5.458359ms p99=11.799076ms max=21.979141ms rss_kib=561792 hwm_kib=561792
+exit=0

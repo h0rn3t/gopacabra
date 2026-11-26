@@ -1,0 +1,6 @@
+live 3664.2 MiB
+3815078912 B     64.0 obj  github.com/xgo-dev/llgo/runtime/internal/runtime.SliceAppendAligned@z_slice.go:98 <- regexp.(*Regexp).ReplaceAll@regexp.go:656 <- main.main$1@main.go:64 <- main._llgo_routine$3@main:0
+  24210496 B     64.0 obj  github.com/xgo-dev/llgo/runtime/internal/runtime.SliceAppendAligned@z_slice.go:98 <- io/ioutil.ReadAll@ioutil.go:30 <- main.loadFile@main.go:92 <- main._llgo_routine$1@main:0
+   2856960 B    128.0 obj  github.com/xgo-dev/llgo/runtime/internal/runtime.SliceAppendAligned@z_slice.go:98 <- regexp.(*Regexp).all$1$1@regexp.go:929 <- regexp.(*Regexp).matches$1@regexp.go:792 <- regexp.(*Regexp).all$1@regexp.go:928
+      4096 B    192.0 obj  github.com/xgo-dev/llgo/runtime/internal/runtime.SliceAppendAligned@z_slice.go:98 <- regexp/syntax.(*parser).push@parse.go:322 <- regexp/syntax.parse@parse.go:931 <- regexp/syntax.Parse@parse.go:888
+      3840 B     64.0 obj  github.com/xgo-dev/llgo/runtime/internal/runtime.SliceAppendAligned@z_slice.go:98 <- regexp.(*Regexp).ReplaceAllLiteral@regexp.go:669 <- __llgo_pcsite_a13b13742d539d38_86@main.go:53 <- __llgo_wasm_main@regexredux.main:0

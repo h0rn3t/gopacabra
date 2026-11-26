@@ -500,3 +500,73 @@ A/B за правилами S1.1 (чисті кеші, 10 прогонів з ч
 | `go test -count=1 ./cl/ ./gopacabra/census/` з чистим кешем llgo | `ok` |
 
 Окремо знайдено: кожна горутина лишає 136 байтів `rc-local` (`runtime/internal/thread/thread_unix.go:64/78`).
+
+## Покинуті масиви росту (P-NEW-03.6)
+
+Замір перед P-NEW-03.7, P-NEW-03.8 і рішенням про P-NEW-03.9. Під `gopacabrastat` рантайм рахує три події новими рядками `gopacabra ops`:
+
+| Подія | Рядки | Де рахується |
+|---|---|---|
+| (1) ріст зрізу зі старим `cap > 0` | `grow_slice`, `grow_slice_bytes` (байти старого масиву) | `GrowSliceAligned` |
+| (2) евакуація мапи завершена | `map_grow_done`, `map_grow_done_bytes` — `oldIterator` знятий; `map_grow_done_iter`, `map_grow_done_iter_bytes` — встановлений; `map_old_overflow` — бакети переповнення старої таблиці поза її масивом | `advanceEvacuationMark`; переповнення — `evacuate*` до перенесення бакета |
+| (3) власницький `append` з `newLen ≤ oldCap` | `owned_append_in_cap`, `owned_append_in_cap_bytes` (старий вміст, скопійований у новий буфер) | `OwnedAppendCapStat`: під `gopacabrastat` `emitOwnedAppend` кличе його замість `OwnedAppendCap` |
+
+Байти старого масиву бакетів — як у `makeBucketArray` для старого `B`, з попередньо виділеним хвостом переповнення. Без `gopacabrastat` гачки — порожні заглушки (`growstat_off.go`), `emitOwnedAppend` кличе `OwnedAppendCap`, як раніше (`TestGopacabraStatOwnedAppend`). Фікстура `gopacabra/growstat` звіряє кожну подію з відомою кількістю.
+
+Умови: компілятор `4373887ba`, `llgo build -tags gopacabra,gopacabrastat -O2 -lto thin`, один прогін на входах P-NEW-02.2, вивід кожної програми збігся з `testdata`. Пікова RSS — `rusage.c` того самого прогону. Сирі дані — `bench/stagec/growstat/`.
+
+### Корпус
+
+| Програма | (1) ростів | (1) байтів | частка RSS | (2) таблиць | (2) байтів | частка RSS | (2) з `oldIterator` | переповнень поза масивом | (3) | пікова RSS, МіБ |
+| --- | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: |
+| k-nucleotide | 30 | 1 699 | 0.001% | 55 | **9 044 880** | **5.7%** | 0 | 6 052 | 0 | 150.9 |
+| regex-redux | 488 | **881 472 820** | **64.3%** | 3 | 1 456 | 0.0001% | 0 | 0 | 0 | 1 308.3 |
+| reverse-complement | 11 | 1 384 | 0.0001% | 3 | 1 456 | 0.0001% | 0 | 1 | 0 | 2 124.6 |
+| binary-trees 21 | 23 | 1 577 | 0.0005% | 3 | 1 456 | 0.0005% | 0 | 0 | 0 | 273.5 |
+| fannkuch-redux 12 | 12 | 1 347 | 0.02% | 3 | 1 456 | 0.03% | 0 | 1 | 0 | 5.5 |
+| mandelbrot 16000 | 12 | 1 331 | 0.004% | 3 | 1 456 | 0.004% | 0 | 0 | 0 | 36.4 |
+
+Байти — сума за весь прогін. Покинутий масив не звільняється до виходу, тож уся сума лежить у пікові RSS. Три таблиці по 1 456 Б у кожній програмі — мапи ініціалізації рантайму і стандартної бібліотеки.
+
+- **regex-redux.** 881 МБ старих масивів — 64% пікової RSS. Найбільші стеки через `SliceAppendAligned` (у нього вбудовано `GrowSliceAligned`) із семплера `gopacabraheap`: `regexp.(*Regexp).ReplaceAll` `regexp.go:656` (буфер `replaceAll`, який повертається), далі `io/ioutil.ReadAll` у `loadFile` і `regexp.(*Regexp).all` `regexp.go:929`. Семплер бере кожне 64-те виділення, тож байти кількох великих масивів у нього неточні (3.6 ГіБ проти 881 МБ лічильника); з нього взято лише стеки (`regexredux-grow-stacks.txt`). Це вхід P-NEW-03.8. `replaceAll` росте через `buf = repl(buf, …)` у замиканні, а не прямим `append` у циклі; чи підпадає він під умову (а) P-NEW-03.8, треба перевірити.
+- **k-nucleotide.** 55 ростів мапи — 9.0 МБ, 5.7% пікової RSS, усі без ітератора. Це вхід P-NEW-03.7. 6 052 бакети переповнення старих таблиць виділено поза масивом.
+- **Подія (3)** на корпусі — 0.
+- **`oldIterator`** на корпусі не встановлений жодного разу: межа `oldIterator` P-NEW-03.7 корпус не зачіпає.
+
+### Стенд `fiberdb`
+
+Збірка `-tags gopacabra,gopacabrastat,gopacabraheap` (M:N), три навантаження `GET /items/1` по 5 с на 100 клієнтів, як у P-NEW-09.4: 259 812 запитів, 0 помилок (`fiberdb-load.txt`).
+
+| Подія | Кількість | Байтів | Байтів на запит |
+| --- | ---: | ---: | ---: |
+| (1) ріст зрізу | 714 | 30 172 | 0.12 |
+| (2) таблиць мапи без `oldIterator` | 18 | 25 408 | 0.10 |
+| (2) з `oldIterator` | 0 | 0 | 0 |
+| бакетів переповнення поза масивом | 7 | — | — |
+| (3) власницький `append` у межах ємності | 6 | 0 | 0 |
+
+Приріст VmRSS між навантаженнями 2 і 3 — 1.54 КіБ на запит; покинуті масиви росту з них — ~0.2 Б. Відоме з P-NEW-09.4 `SliceAppendAligned` 26 Б на запит — ріст із `cap 0` (`bytes.Clone` у `json.Marshal`), тобто нове виділення, а не покинутий масив. П'ять найбільших стеків через `SliceAppendAligned` (живі байти на запит, `heapsym.py -via 'GrowSlice\w*|SliceAppend\w*'`, `fiberdb-grow-stacks.txt`):
+
+| Байтів на запит | Стек |
+| ---: | --- |
+| 27 | `bytes.Clone` ← `encoding/json/v2.Marshal` ← `encoding/json.Marshal` |
+| 1 | `database/sql` `sql.go:3681` ← `sql.go:1367` ← `sql.go:1764` |
+| 0 | `fasthttp.appendHeaderLine` ← `(*ResponseHeader).AppendBytes` `header.go:2480` |
+| 0 | `fasthttp.readRawHeaders` ← `(*RequestHeader).parse` |
+| 0 | `fiber.(*DefaultCtx).configDependentPaths` ← `(*DefaultCtx).Reset` |
+
+### Що це значить для P-NEW-03.7–03.9
+
+- **P-NEW-03.8** (старий масив `append` без аліасів): головне число заміру — 881 МБ, 64% пікової RSS regex-redux. На решті корпусу і на стенді — кілобайти.
+- **P-NEW-03.7** (стара таблиця мапи): 9.0 МБ, 5.7% пікової RSS k-nucleotide; на решті — 1.4 КБ, на стенді — 0.1 Б на запит.
+- **P-NEW-03.9** (власницький `append` у межах ємності): 0 на корпусі, на стенді 6 викликів з 0 скопійованих байтів. За умовою задачі мале число закриває її записом числа без коду; рішення — за розробником.
+
+### Перевірка
+
+| Перевірка | Результат |
+|---|---|
+| `gopacabra/growstat` | до зміни — `slice grow_slice delta 0 want 11`, після — код 0 (двічі); без `gopacabrastat` — заглушка, код 0 |
+| `TestGopacabraStatOwnedAppend` | червоний до зміни `cl`, зелений після |
+| `go test -count=1 ./cl/ -run Gopacabra` з чистим кешем llgo | `ok` |
+| `gopacabra/fixtures.sh` | 1 падіння з 102: `gopacabra/opsite` звіряла кожен рядок `gopacabra ops` із сумою місць; нові рядки — події рантайму без місця, додані до винятків (`b1bb76e95`); після цього `opsite-ok 1000`. Відоме `runtimefree` — як було |
+| `go vet` рантайму з тегами `""`, `gopacabra`, `gopacabra,gopacabrastat` | лише відомі `possible misuse of unsafe.Pointer` |

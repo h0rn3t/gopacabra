@@ -1,0 +1,138 @@
+gopacabra freed 24
+gopacabra live rc-local 2920
+gopacabra live rc-shared 125879195
+gopacabra live cyclic 1432
+gopacabra ops alloc 252827
+gopacabra ops alloc_root 29
+gopacabra ops alloc_counted 6
+gopacabra ops inc 0
+gopacabra ops dec_accounted 3
+gopacabra ops dec_cyclic 0
+gopacabra ops cyclic_visit 0
+gopacabra ops inc_shared 10
+gopacabra ops dec_shared 0
+gopacabra ops free_accounted 1
+gopacabra ops free_root 4
+gopacabra ops note_alloc_static 0
+gopacabra ops note_alloc_rc-local 89
+gopacabra ops note_alloc_rc-shared 1041
+gopacabra ops note_alloc_cyclic 0
+gopacabra ops note_alloc_pinned 0
+gopacabra ops note_alloc_implicit 0
+gopacabra ops region_create 0
+gopacabra ops alloc_region 0
+gopacabra ops free_region 0
+gopacabra ops dec_chan 3
+gopacabra ops grow_slice 11
+gopacabra ops grow_slice_bytes 1384
+gopacabra ops map_grow_done 3
+gopacabra ops map_grow_done_bytes 1456
+gopacabra ops map_grow_done_iter 0
+gopacabra ops map_grow_done_iter_bytes 0
+gopacabra ops map_old_overflow 1
+gopacabra ops owned_append_in_cap 0
+gopacabra ops owned_append_in_cap_bytes 0
+gopacabra alloc small 252844
+gopacabra alloc large 11
+gopacabra alloc free_local 248899
+gopacabra alloc free_remote 0
+gopacabra alloc free_large 0
+gopacabra alloc page_new 33890
+gopacabra alloc page_reuse 0
+gopacabra alloc page_give 0
+gopacabra alloc madvise 0
+gopacabra alloc madvise_bytes 0
+gopacabra alloc lock 61
+gopacabra site /home/coder/owngo/runtime/internal/lib/runtime/symtab.go:350 unplaced - alloc 2271
+gopacabra site /home/coder/owngo/gopacabra/bench/revcomp/main.go:152 rc-shared channel alloc 1032
+gopacabra site /home/coder/owngo/gopacabra/bench/revcomp/main.go:152 rc-shared channel note_alloc 1032
+gopacabra site /home/coder/owngo/runtime/internal/lib/runtime/symtab.go:1829 unplaced - alloc 97
+gopacabra site /home/coder/owngo/runtime/internal/lib/runtime/link_linux_llgo.go:70 unplaced - alloc 61
+gopacabra site /usr/local/go/src/errors/errors.go:65 rc-local return alloc 47
+gopacabra site /usr/local/go/src/errors/errors.go:65 rc-local return note_alloc 47
+gopacabra site /home/coder/owngo/runtime/internal/lib/runtime/symtab.go:460 unplaced - alloc 46
+gopacabra site /home/coder/owngo/runtime/internal/lib/runtime/symtab.go:463 unplaced - alloc 46
+gopacabra site /home/coder/owngo/runtime/internal/lib/runtime/symtab.go:414 unplaced - alloc 27
+gopacabra site /home/coder/owngo/runtime/internal/lib/runtime/symtab.go:416 unplaced - alloc 27
+gopacabra site /home/coder/owngo/runtime/internal/lib/runtime/symtab.go:418 unplaced - alloc 27
+gopacabra site /home/coder/owngo/runtime/internal/lib/runtime/fault_unwind_llgo.go:93 unplaced - alloc 18
+gopacabra site :0 rc-shared global alloc 16
+gopacabra site /home/coder/owngo/runtime/internal/lib/runtime/traceback_threads_llgo.go:19 unplaced - alloc 9
+gopacabra site /home/coder/owngo/runtime/internal/runtime/map.go:313 rc-local return alloc 9
+gopacabra site /home/coder/owngo/runtime/internal/runtime/map.go:313 rc-local return note_alloc 9
+gopacabra site /home/coder/owngo/runtime/internal/thread/thread_unix.go:64 rc-local shared alloc 9
+gopacabra site /home/coder/owngo/runtime/internal/thread/thread_unix.go:64 rc-local shared note_alloc 9
+gopacabra site /home/coder/owngo/runtime/internal/thread/thread_unix.go:78 rc-local shared alloc 9
+gopacabra site /home/coder/owngo/runtime/internal/thread/thread_unix.go:78 rc-local shared note_alloc 9
+gopacabra site /home/coder/owngo/gopacabra/bench/revcomp/main.go:79 rc-shared go inc_shared 8
+gopacabra site /home/coder/owngo/gopacabra/bench/revcomp/main.go:82 rc-shared go alloc 8
+gopacabra site /home/coder/owngo/runtime/internal/lib/runtime/symtab.go:1804 unplaced - alloc 7
+gopacabra site /home/coder/owngo/gopacabra/bench/revcomp/main.go:126 rc-shared channel alloc 6
+gopacabra site /home/coder/owngo/runtime/internal/lib/runtime/symtab.go:2091 unplaced - alloc 6
+gopacabra site /usr/local/go/src/os/file_unix.go:145 rc-local return note_alloc 6
+gopacabra site /home/coder/owngo/runtime/internal/lib/runtime/symtab.go:595 unplaced - alloc 4
+gopacabra site /home/coder/owngo/runtime/internal/lib/runtime/symtab.go:609 unplaced - alloc 4
+gopacabra site /home/coder/owngo/gopacabra/bench/revcomp/main.go:165 rc-shared channel alloc 3
+gopacabra site /home/coder/owngo/gopacabra/bench/revcomp/main.go:165 rc-shared channel note_alloc 3
+gopacabra site /home/coder/owngo/gopacabra/bench/revcomp/main.go:99 rc-shared channel alloc 3
+gopacabra site /usr/local/go/src/os/file_unix.go:144 rc-local closure alloc_counted 3
+gopacabra site /usr/local/go/src/os/file_unix.go:144 rc-local closure dec_accounted 3
+gopacabra site /usr/local/go/src/os/file_unix.go:144 rc-local closure note_alloc 3
+gopacabra site /usr/local/go/src/os/file_unix.go:145 rc-local return alloc 3
+gopacabra site /usr/local/go/src/os/file_unix.go:145 rc-local return alloc_counted 3
+gopacabra site /home/coder/owngo/runtime/internal/clite/signal/signal.go:30 rc-local shared alloc 2
+gopacabra site /home/coder/owngo/runtime/internal/clite/signal/signal.go:30 rc-local shared note_alloc 2
+gopacabra site /usr/local/go/src/sync/oncefunc.go:48 unplaced - alloc 2
+gopacabra site /usr/local/go/src/sync/oncefunc.go:57 unplaced - alloc 2
+gopacabra site /home/coder/owngo/gopacabra/bench/revcomp/main.go:77 rc-shared channel alloc 1
+gopacabra site /home/coder/owngo/gopacabra/bench/revcomp/main.go:77 rc-shared channel note_alloc 1
+gopacabra site /home/coder/owngo/gopacabra/bench/revcomp/main.go:79 rc-shared go alloc_counted 1
+gopacabra site /home/coder/owngo/gopacabra/bench/revcomp/main.go:79 rc-shared go dec_chan 1
+gopacabra site /home/coder/owngo/gopacabra/bench/revcomp/main.go:80 static - alloc 1
+gopacabra site /home/coder/owngo/gopacabra/bench/revcomp/main.go:80 static - free_accounted 1
+gopacabra site /home/coder/owngo/gopacabra/bench/revcomp/main.go:86 rc-shared go alloc_counted 1
+gopacabra site /home/coder/owngo/gopacabra/bench/revcomp/main.go:86 rc-shared go dec_chan 1
+gopacabra site /home/coder/owngo/gopacabra/bench/revcomp/main.go:86 rc-shared go inc_shared 1
+gopacabra site /home/coder/owngo/gopacabra/bench/revcomp/main.go:87 rc-shared go alloc_counted 1
+gopacabra site /home/coder/owngo/gopacabra/bench/revcomp/main.go:87 rc-shared go dec_chan 1
+gopacabra site /home/coder/owngo/gopacabra/bench/revcomp/main.go:87 rc-shared go inc_shared 1
+gopacabra site /home/coder/owngo/gopacabra/bench/revcomp/main.go:92 rc-shared channel alloc 1
+gopacabra site /home/coder/owngo/runtime/internal/lib/runtime/link_linux_llgo.go:52 unplaced - alloc 1
+gopacabra site /home/coder/owngo/runtime/internal/lib/runtime/link_linux_llgo.go:58 unplaced - alloc 1
+gopacabra site /home/coder/owngo/runtime/internal/lib/runtime/symtab.go:1645 unplaced - alloc 1
+gopacabra site /home/coder/owngo/runtime/internal/lib/runtime/symtab.go:1649 unplaced - alloc 1
+gopacabra site /home/coder/owngo/runtime/internal/lib/runtime/symtab.go:1660 unplaced - alloc 1
+gopacabra site /home/coder/owngo/runtime/internal/lib/runtime/symtab.go:1663 unplaced - alloc 1
+gopacabra site /home/coder/owngo/runtime/internal/lib/runtime/symtab.go:1880 unplaced - alloc 1
+gopacabra site /home/coder/owngo/runtime/internal/lib/runtime/symtab.go:813 unplaced - alloc 1
+gopacabra site /home/coder/owngo/runtime/internal/lib/runtime/symtab.go:840 unplaced - alloc 1
+gopacabra site /home/coder/owngo/runtime/internal/runtime/map.go:332 rc-local return alloc 1
+gopacabra site /home/coder/owngo/runtime/internal/runtime/map.go:332 rc-local return note_alloc 1
+gopacabra site /home/coder/owngo/runtime/internal/runtime/panic.go:224 rc-shared global alloc 1
+gopacabra site /home/coder/owngo/runtime/internal/runtime/z_string.go:123 pinned unsafe alloc 1
+gopacabra site /usr/local/go/src/bufio/bufio.go:56 rc-local return alloc 1
+gopacabra site /usr/local/go/src/bufio/bufio.go:56 rc-local return note_alloc 1
+gopacabra site /usr/local/go/src/bufio/bufio.go:57 rc-local move alloc 1
+gopacabra site /usr/local/go/src/bufio/scan.go:304 rc-shared global alloc 1
+gopacabra site /usr/local/go/src/bufio/scan.go:304 rc-shared global note_alloc 1
+gopacabra site /usr/local/go/src/internal/cpu/cpu_x86.go:73 rc-shared global alloc 1
+gopacabra site /usr/local/go/src/internal/cpu/cpu_x86.go:73 rc-shared global note_alloc 1
+gopacabra site /usr/local/go/src/sync/oncefunc.go:13 rc-local closure alloc 1
+gopacabra site /usr/local/go/src/sync/oncefunc.go:13 rc-local closure note_alloc 1
+gopacabra site /usr/local/go/src/sync/oncefunc.go:21 rc-local return alloc 1
+gopacabra site /usr/local/go/src/syscall/rlimit.go:31 rc-local shared alloc 1
+gopacabra site /usr/local/go/src/syscall/rlimit.go:31 rc-local shared note_alloc 1
+gopacabra site /usr/local/go/src/syscall/syscall_linux.go:1272 rc-shared global alloc 1
+gopacabra site /usr/local/go/src/syscall/syscall_linux.go:1272 rc-shared global note_alloc 1
+gopacabra site /usr/local/go/src/syscall/syscall_linux.go:1273 rc-shared global alloc 1
+gopacabra site /usr/local/go/src/time/format.go:1618 rc-shared global alloc 1
+gopacabra site /usr/local/go/src/unicode/graphic.go:23 rc-shared global alloc 1
+gopacabra site /usr/local/go/src/unicode/graphic.go:23 rc-shared global note_alloc 1
+gopacabra site /usr/local/go/src/unicode/graphic.go:29 rc-shared global alloc 1
+gopacabra site /usr/local/go/src/unicode/graphic.go:29 rc-shared global note_alloc 1
+gopacabra site /usr/local/go/src/unicode/tables.go:10221 rc-shared global alloc 1
+gopacabra site /usr/local/go/src/unicode/tables.go:51 rc-shared global alloc 1
+gopacabra site /usr/local/go/src/unicode/tables.go:5399 rc-shared global alloc 1
+gopacabra site /usr/local/go/src/unicode/tables.go:7716 rc-shared global alloc 1
+gopacabra site /usr/local/go/src/unicode/tables.go:9 rc-shared global alloc 1
+gopacabra site /usr/local/go/src/unicode/tables.go:9917 rc-shared global alloc 1
