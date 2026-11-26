@@ -187,6 +187,9 @@ var (
 	programMu sync.Mutex
 	programBy = map[string]*Summary{}
 	overlayBy map[*ssa.Function]*ssa.Function
+	// declaredIn — програма, для якої PublishProgram зібрав declaredMethods.
+	declaredIn      *ssa.Program
+	declaredMethods map[string]bool
 )
 
 // PublishProgram записує зведення експортованих функцій, чиї тіла вже є в prog.
@@ -206,8 +209,10 @@ func PublishProgram(prog *ssa.Program, overlays map[string]*ssa.Package) {
 	twins := overlayTwins(funcs, overlays)
 	// Попередня публікація могла мати інші оверлеї: її свіжість і зведення
 	// не мають просочитися в цей прогін.
+	methods := methodNames(prog, overlays)
 	programMu.Lock()
 	overlayBy = twins
+	declaredIn, declaredMethods = prog, methods
 	programBy = map[string]*Summary{}
 	freshProg, freshBy, builderBy = nil, nil, nil
 	programMu.Unlock()
@@ -239,6 +244,63 @@ func PublishProgram(prog *ssa.Program, overlays map[string]*ssa.Package) {
 	programMu.Lock()
 	programBy = next
 	programMu.Unlock()
+}
+
+// methodNames збирає ключі (methodKey) методів, оголошених на типах усіх
+// пакетів prog і їхніх імпортів. Метод інтерфейсу, якого тут немає, не має
+// реалізації в програмі: тип, локальний у функції, методів не оголошує, а
+// вбудоване поле лише просуває чужий оголошений метод.
+func methodNames(prog *ssa.Program, overlays map[string]*ssa.Package) map[string]bool {
+	if prog == nil {
+		return nil
+	}
+	names := map[string]bool{}
+	seen := map[*types.Package]bool{}
+	var visit func(*types.Package)
+	visit = func(pkg *types.Package) {
+		if pkg == nil || seen[pkg] {
+			return
+		}
+		seen[pkg] = true
+		scope := pkg.Scope()
+		for _, name := range scope.Names() {
+			tn, ok := scope.Lookup(name).(*types.TypeName)
+			if !ok || tn.IsAlias() {
+				continue
+			}
+			if named, ok := tn.Type().(*types.Named); ok {
+				for m := range named.Methods() {
+					names[methodKey(m)] = true
+				}
+			}
+		}
+		for _, imp := range pkg.Imports() {
+			visit(imp)
+		}
+	}
+	for _, pkg := range prog.AllPackages() {
+		visit(pkg.Pkg)
+	}
+	for _, alt := range overlays {
+		visit(alt.Pkg)
+	}
+	return names
+}
+
+// methodKey — ім'я методу; неекспортоване ім'я — разом зі шляхом пакета.
+func methodKey(m *types.Func) string {
+	if m.Exported() || m.Pkg() == nil {
+		return m.Name()
+	}
+	return m.Pkg().Path() + "." + m.Name()
+}
+
+// unimplemented звітує, що жоден тип prog не оголошує method: виклик його
+// через інтерфейс недосяжний, бо значення такого інтерфейсу завжди nil.
+func unimplemented(prog *ssa.Program, method *types.Func) bool {
+	programMu.Lock()
+	defer programMu.Unlock()
+	return prog != nil && prog == declaredIn && !declaredMethods[methodKey(method)]
 }
 
 // overlayTwins зіставляє оголошені функції й методи std з однойменними в
@@ -1024,8 +1086,10 @@ func (s *Summary) markUnknown(ids pset) bool {
 }
 
 func mergedParam(targets []*ssa.Function, index int, lookup func(*ssa.Function) *Summary) (Param, bool) {
+	// Відомий порожній набір цілей (unimplemented): виклик не виконується,
+	// тож аргумент лише позичений.
 	if len(targets) == 0 {
-		return Param{}, false
+		return Param{}, true
 	}
 	var acc Param
 	set := false
@@ -1083,6 +1147,9 @@ func callTargets(call *ssa.CallCommon, concrete map[ssa.Value][]types.Type, know
 		return []*ssa.Function{compiled(fn)}, true
 	}
 	if call.IsInvoke() {
+		if call.Method != nil && unimplemented(prog, call.Method) {
+			return nil, true
+		}
 		tys, ok := concrete[call.Value]
 		if !ok || len(tys) == 0 || call.Method == nil {
 			return nil, false
