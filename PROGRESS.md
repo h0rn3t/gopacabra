@@ -2287,3 +2287,22 @@
   - дієслово `*` тестом не покрите;
   - `Fprintf`/`Printf`/`Sprint*` і переданий далі `args...` не покриті.
 - Наступне: P12.5.7.4 (цілі `RowsColumnScanner.ScanColumn`) — без нього місця `Scan` лишаються `shared`.
+
+## 2026-11-26 — P12.5.7.4 Цілі `RowsColumnScanner.ScanColumn`
+
+- Причина: `dest` у `(*sql.Rows).scanLocked` ставав `Unknown` на виклику `ScanColumn` через `driver.RowsColumnScanner`, цілі якого census не знав.
+- Тест спершу (`9cd57a128`): `TestNoImplementerBorrows` (census) і `TestGopacabraNoImplementer` (cl) з фікстурою `gopacabra/bytes/noimpl`. Census-тест на цьому коміті червоний; cl-тест до реалізації не перевірено.
+- Реалізація (`259f1be1a`): `PublishProgram` збирає імена методів, оголошених у програмі (`methodNames`). Метод інтерфейсу без жодної реалізації дає `callTargets` відомий порожній набір цілей, а `mergedParam` — позичання.
+- Перевірки:
+  - `go test ./gopacabra/census/...` — `ok`; `go vet` і `gofmt -l` — чисто;
+  - `go test -count=1 -timeout 90m ./cl/ -run Gopacabra` з чистим кешем — `ok`;
+  - `gopacabra/fixtures.sh` — 0 зі 101 падіння.
+- Сервіс, `gopacabrastat`, N = 10 000, по два прогони з чергуванням: `errors=0`; live у межах розкиду. Місця `Scan` (`main.go:195`/`:196` та інші) без змін.
+- Причина відсутності ефекту (тимчасове трасування `markUnknown`, не закомічене): `dest` тепер стає `Unknown` у `reflect.ValueOf(dest)` і `invoke AssignableTo` у `convertAssignRows`. Усередині оверлейний `unpackEface` має тіло зі `std` (`/usr/local/go/src/reflect/value.go:164`) з дескриптором `internal/abi.Type` зі `std`, якого правило P12.5.7.2 не знає. `Value.Elem`/`Set`/`Type` теж зводяться з тіла `std`.
+- Не перевірено:
+  - darwin;
+  - повний `go test ./cl/` і `./internal/build/`;
+  - `GOROOT/test`;
+  - сервіс під `-O0 -asan` (правило лише додає позичання недосяжному виклику, а місця сервісу не змінились);
+  - чому в збірці сервісу `reflect` зводиться з тіла `std`, а на фікстурах P12.5.7.1/P12.5.7.2 — ні.
+- Наступне: рішення розробника — окрема задача «`reflect` у збірці сервісу з тіла, що компілюється» (фікстура з `sql.Rows.Scan` і фіктивним драйвером), або гейт P12.6 з відкритою P12.5.7.
