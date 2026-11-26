@@ -740,7 +740,17 @@ func applySummary(instr ssa.Instruction, sum *Summary, tok, derived, content map
 		return unionAt(content, instr, content[instr.X]) || changed
 	case *ssa.Extract:
 		call, ok := instr.Tuple.(*ssa.Call)
-		if !ok || instr.Index >= len(tuple[call]) {
+		if !ok {
+			// Кортеж comma-ok (x.(T), m[k], <-ch) чи Next: елемент несе те
+			// саме, що й кортеж.
+			if !containsRef(instr.Type()) {
+				return false
+			}
+			changed := unionAt(tok, instr, tok[instr.Tuple])
+			changed = unionAt(derived, instr, derived[instr.Tuple]) || changed
+			return unionAt(content, instr, content[instr.Tuple]) || changed
+		}
+		if instr.Index >= len(tuple[call]) {
 			return false
 		}
 		return unionAt(tok, instr, tuple[call][instr.Index])
