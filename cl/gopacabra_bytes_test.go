@@ -211,3 +211,32 @@ func TestGopacabraJSONQuote(t *testing.T) {
 		t.Errorf("site arshal_default.go:231: %d allocations, %d freed; want at least 1000, all freed", allocs, frees)
 	}
 }
+
+// TestGopacabraFmtErrorf: змінна, адресу якої позичає функція форми
+// convertAssignRows (fmt.Errorf лише з %T), звільняється на кожній ітерації
+// (P12.5.7.3).
+func TestGopacabraFmtErrorf(t *testing.T) {
+	conf := build.NewDefaultConf(build.ModeRun)
+	conf.Tags = "gopacabra,gopacabrastat"
+	out, err := cltest.RunAndCaptureWithConf("../gopacabra/bytes/fmterrorf", "", conf)
+	if err != nil {
+		t.Fatalf("llgo run -tags gopacabra,gopacabrastat ./gopacabra/bytes/fmterrorf error = %v, want exit 0\n%s", err, out)
+	}
+	var allocs, frees int
+	for line := range strings.Lines(string(out)) {
+		f := strings.Fields(line)
+		if len(f) != 7 || f[0] != "gopacabra" || f[1] != "site" || !strings.HasSuffix(f[2], "/fmterrorf/main.go:32") {
+			continue
+		}
+		n, _ := strconv.Atoi(f[6])
+		switch f[5] {
+		case "alloc", "alloc_counted":
+			allocs += n
+		case "dec_accounted", "free_accounted":
+			frees += n
+		}
+	}
+	if allocs < 1000 || frees != allocs {
+		t.Errorf("site main.go:32: %d allocations, %d freed; want at least 1000, all freed\n%s", allocs, frees, out)
+	}
+}
